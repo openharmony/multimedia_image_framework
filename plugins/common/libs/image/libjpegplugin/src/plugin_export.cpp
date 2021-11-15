@@ -21,7 +21,9 @@
 #include "log_tags.h"
 
 // plugin package name same as metadata.
-PLUGIN_EXPORT_REGISTER_PACKAGE("LibJpegPlugin")
+namespace {
+    const std::string PACKAGE_NAME = ("LibJpegPlugin");
+}
 
 // register implement classes of this plugin.
 PLUGIN_EXPORT_REGISTER_CLASS_BEGIN
@@ -31,14 +33,35 @@ PLUGIN_EXPORT_REGISTER_CLASS(OHOS::ImagePlugin::JpegEncoder)
 #endif
 PLUGIN_EXPORT_REGISTER_CLASS_END
 
+using std::string;
 using namespace OHOS::HiviewDFX;
 
 static constexpr HiLogLabel LABEL = { LOG_CORE, LOG_TAG_DOMAIN_ID_PLUGIN, "LibJpegPlugin" };
 
-#define PLUGIN_LOG_D(...) HiLog::Debug(LABEL, __VA_ARGS__);
-#define PLUGIN_LOG_E(...) HiLog::Error(LABEL, __VA_ARGS__);
+#define PLUGIN_LOG_D(...) HiLog::Debug(LABEL, __VA_ARGS__)
+#define PLUGIN_LOG_E(...) HiLog::Error(LABEL, __VA_ARGS__)
 
 // define the external interface of this plugin.
 PLUGIN_EXPORT_DEFAULT_EXTERNAL_START()
 PLUGIN_EXPORT_DEFAULT_EXTERNAL_STOP()
-// PLUGIN_EXPORT_DEFAULT_EXTERNAL_CREATE()
+OHOS::MultimediaPlugin::PluginClassBase *PluginExternalCreate(const string &className)
+{
+    HiLog::Debug(LABEL, "PluginExternalCreate: create object for package: %{public}s, class: %{public}s.",
+                 PACKAGE_NAME.c_str(), className.c_str());
+
+    auto iter = implClassMap.find(className);
+    if (iter == implClassMap.end()) {
+        HiLog::Error(LABEL, "PluginExternalCreate: failed to find class: %{public}s, in package: %{public}s.",
+                     className.c_str(), PACKAGE_NAME.c_str());
+        return nullptr;
+    }
+
+    auto creator = iter->second;
+    if (creator == nullptr) {
+        HiLog::Error(LABEL, "PluginExternalCreate: null creator for class: %{public}s, in package: %{public}s.",
+                     className.c_str(), PACKAGE_NAME.c_str());
+        return nullptr;
+    }
+
+    return creator();
+}

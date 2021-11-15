@@ -40,6 +40,8 @@ group("multimediaplugin") {
 
       #      "image/libheifplugin:heifplugin",
       #      "image/libheifplugin:heifpluginmetadata",
+      "image/libbmpplugin:bmpplugin",
+      "image/libbmpplugin:bmppluginmetadata",
       "image/libjpegplugin:jpegplugin",
       "image/libjpegplugin:jpegpluginmetadata",
       "image/libpngplugin:pngplugin",
