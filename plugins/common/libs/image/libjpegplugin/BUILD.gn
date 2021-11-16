@@ -41,25 +41,25 @@ ohos_shared_library("jpegplugin") {
     include_dirs += [
       "//foundation/multimedia/image_standard/mock/native/include",
 
-      "//third_party/libjpeg",
+      "//third_party/flutter/skia/third_party/libjpeg-turbo",
     ]
     deps = [
+      "//foundation/ace/ace_engine/build/third_party/flutter/libjpeg:ace_libjpeg",
       "//foundation/multimedia/image_standard/interfaces/innerkits:image_static",
       "//foundation/multimedia/image_standard/mock/native:utils_mock_static",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
-      "//third_party/libjpeg:libjpeg_static",
     ]
   } else if (use_clang_mac) {
     defines = image_decode_mac_defines
     include_dirs += [
       "//foundation/multimedia/image_standard/mock/native/include",
-      "//third_party/libjpeg",
+      "//third_party/flutter/skia/third_party/libjpeg-turbo",
     ]
     deps = [
+      "//foundation/ace/ace_engine/build/third_party/flutter/libjpeg:ace_libjpeg",
       "//foundation/multimedia/image_standard/interfaces/innerkits:image_static",
       "//foundation/multimedia/image_standard/mock/native:utils_mock_static",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
-      "//third_party/libjpeg:libjpeg_static",
     ]
   } else {
     defines = [ "DUAL_ADAPTER" ]
@@ -67,16 +67,17 @@ ohos_shared_library("jpegplugin") {
     include_dirs += [ "//utils/native/base/include" ]
     sources += [ "//foundation/multimedia/image_standard/plugins/common/libs/image/libjpegplugin/src/jpeg_encoder.cpp" ]
     deps = [
+      #"//third_party/flutter/skia/third_party/libjpeg-turbo:libjpeg",
+      "//foundation/ace/ace_engine/build/third_party/flutter/libjpeg:ace_libjpeg",
       "//foundation/multimedia/image_standard/interfaces/innerkits:image_native",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
-      "//third_party/libjpeg:libjpeg_static",
       "//utils/native/base:utils",
     ]
 
     if (DUAL_ADAPTER) {
     } else {
-      deps += [ "//third_party/libjpeg:libjpeg_static" ]
-      include_dirs += [ "//third_party/libjpeg" ]
+      deps += [ "//foundation/ace/ace_engine/build/third_party/flutter/libjpeg:ace_libjpeg" ]
+      include_dirs += [ "//third_party/flutter/skia/third_party/libjpeg-turbo" ]
     }
 
     external_deps = [ "hiviewdfx_hilog_native:libhilog" ]

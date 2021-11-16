@@ -38,7 +38,9 @@ using PluginObjectCreatorFunc = OHOS::MultimediaPlugin::PluginClassBase *(*)();
 
 // --------- a set of code fragments that helps define a simple plugin_export.cpp file ----------
 #define PLUGIN_EXPORT_REGISTER_PACKAGE(packageName) \
-static const std::string PACKAGE_NAME = (packageName);
+namespace { \
+    const std::string PACKAGE_NAME = (packageName); \
+}
 
 #define PLUGIN_EXPORT_REGISTER_CLASS_BEGIN \
 using ImplClassMap = std::map<const std::string, PluginObjectCreatorFunc>; \

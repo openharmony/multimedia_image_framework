@@ -120,6 +120,8 @@ public:
     NATIVEEXPORT bool Marshalling(Parcel &data) const override;
     NATIVEEXPORT static PixelMap *Unmarshalling(Parcel &data);
 private:
+    static constexpr size_t MAX_IMAGEDATA_SIZE = 128 * 1024 * 1024; // 128M
+    static constexpr size_t MIN_IMAGEDATA_SIZE = 32 * 1024;         // 32k
     friend class ImageSource;
     static bool ALPHA8ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
     static bool RGB565ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
@@ -162,8 +164,14 @@ private:
                    ? false
                    : true;
     }
-    bool WriteFileDescriptor(Parcel &data, int fd) const;
-    static int  ReadFileDescriptor(Parcel &data);
+
+    static void ReleaseMemory(AllocatorType allocType, void *addr, void *context, uint32_t size);
+    bool WriteImageData(Parcel &parcel, size_t size) const;
+    static uint8_t *ReadImageData(Parcel &parcel, int32_t size);
+    static int ReadFileDescriptor(Parcel &parcel);
+    static bool WriteFileDescriptor(Parcel &parcel, int fd);
+    bool ReadImageInfo(Parcel &parcel, ImageInfo &imgInfo);
+    bool WriteImageInfo(Parcel &parcel) const;
 
     uint8_t *data_ = nullptr;
     // this info SHOULD be the final info for decoded pixelmap, not the original image info

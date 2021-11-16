@@ -1,0 +1,94 @@
+# Copyright (C) 2021 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("//foundation/multimedia/image_standard/ide/image_decode_config.gni")
+
+ohos_shared_library("bmpplugin") {
+  sources = [
+    "//foundation/multimedia/image_standard/plugins/common/libs/image/libbmpplugin/src/bmp_decoder.cpp",
+    "//foundation/multimedia/image_standard/plugins/common/libs/image/libbmpplugin/src/bmp_stream.cpp",
+    "//foundation/multimedia/image_standard/plugins/common/libs/image/libbmpplugin/src/plugin_export.cpp",
+  ]
+
+  include_dirs = [
+    "//foundation/multimedia/utils/include",
+    "//foundation/multimedia/image_standard/plugins/manager/include",
+    "//foundation/multimedia/image_standard/plugins/manager/include/image",
+    "//foundation/multimedia/image_standard/plugins/manager/include/pluginbase",
+    "//foundation/multimedia/image_standard/plugins/common/libs/image/libbmpplugin/include",
+    "//foundation/multimedia/image_standard/interfaces/innerkits/include",
+    "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils/include",
+    "//third_party/flutter/skia/include/core",
+    "//third_party/flutter/skia/include/codec",
+    "//third_party/flutter/skia",
+  ]
+  if (use_mingw_win) {
+    defines = image_decode_windows_defines
+    include_dirs += [
+      "//foundation/multimedia/image_standard/mock/native/include",
+      "//foundation/multimedia/image_standard/mock/native/include/secure",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/codec",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/core",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/config/win",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/config",
+    ]
+    deps = [
+      "//foundation/ace/ace_engine/build/third_party/flutter/skia:ace_skia_core",
+      "//foundation/graphic/ide/libs/skia:skia",
+      "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
+      "//foundation/multimedia/image_standard/mock/native:log_mock_static",
+      "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
+    ]
+
+    #libs = [ "//foundation/multimedia/image/libskia.lib" ]
+  } else if (use_clang_mac) {
+    defines = image_decode_mac_defines
+    include_dirs += [
+      "//foundation/multimedia/image_standard/mock/native/include",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/codec",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/core",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/config/mac",
+      "${asdk_dir}/static_library/${target_os}_${target_cpu}/include/external/skia/include/config",
+      "//utils/native/base/include",
+    ]
+    deps = [
+      "//foundation/graphic/ide/libs/skia:skia",
+      "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
+      "//foundation/multimedia/image_standard/mock/native:log_mock_static",
+      "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
+      "//utils/native/base:utilsecurec",
+    ]
+  } else {
+    include_dirs += [ "//utils/native/base/include" ]
+    deps = [
+      "//foundation/ace/ace_engine/build/third_party/flutter/skia:ace_skia_ohos",
+      "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils",
+      "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
+      "//utils/native/base:utils",
+    ]
+
+    external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
+
+    #aosp_deps = [ "shared_library:libhwui" ]
+  }
+  subsystem_name = "multimedia"
+  part_name = "multimedia_image_standard"
+}
+
+ohos_prebuilt_etc("bmppluginmetadata") {
+  source = "bmpplugin.pluginmeta"
+  relative_install_dir = "multimediaplugin/image"
+  subsystem_name = "multimedia"
+  part_name = "multimedia_image_standard"
+}

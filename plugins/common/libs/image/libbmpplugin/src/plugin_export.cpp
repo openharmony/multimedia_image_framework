@@ -14,25 +14,25 @@
  */
 
 #include "plugin_export.h"
+#include "bmp_decoder.h"
 #include "hilog/log.h"
 #include "log_tags.h"
 #include "plugin_utils.h"
-#include "png_decoder.h"
 
 // plugin package name same as metadata.
 namespace {
-    const std::string PACKAGE_NAME = ("LibPngPlugin");
+    const std::string PACKAGE_NAME = ("LibBmpPlugin");
 }
 
 // register implement classes of this plugin.
 PLUGIN_EXPORT_REGISTER_CLASS_BEGIN
-PLUGIN_EXPORT_REGISTER_CLASS(OHOS::ImagePlugin::PngDecoder)
+PLUGIN_EXPORT_REGISTER_CLASS(OHOS::ImagePlugin::BmpDecoder)
 PLUGIN_EXPORT_REGISTER_CLASS_END
 
 using std::string;
 using namespace OHOS::HiviewDFX;
 
-static constexpr HiLogLabel LABEL = { LOG_CORE, LOG_TAG_DOMAIN_ID_PLUGIN, "LibPngPlugin" };
+static constexpr HiLogLabel LABEL = { LOG_CORE, LOG_TAG_DOMAIN_ID_PLUGIN, "LibBmpPlugin" };
 
 #define PLUGIN_LOG_D(...) HiLog::Debug(LABEL, __VA_ARGS__)
 #define PLUGIN_LOG_E(...) HiLog::Error(LABEL, __VA_ARGS__)
