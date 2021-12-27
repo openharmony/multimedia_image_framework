@@ -418,7 +418,7 @@ napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
     size_t argCount = 1;
 
     IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
-    HiLog::Debug(LABEL, "Release argCount is [%{public}u]", argCount);
+    HiLog::Debug(LABEL, "Release argCount is [%{public}zu]", argCount);
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), result, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
 
     std::unique_ptr<ImagePackerAsyncContext> context = std::make_unique<ImagePackerAsyncContext>();
@@ -426,7 +426,7 @@ napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, context->constructor_), result,
         HiLog::Error(LABEL, "fail to unwrap context"));
-    HiLog::Debug(LABEL, "Release argCount is [%{public}u]", argCount);
+    HiLog::Debug(LABEL, "Release argCount is [%{public}zu]", argCount);
     if (argCount == 1 && ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_function) {
         napi_create_reference(env, argValue[NUM_0], refCount, &context->callbackRef);
     }
