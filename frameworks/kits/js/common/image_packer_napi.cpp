@@ -24,6 +24,9 @@
 using OHOS::HiviewDFX::HiLog;
 namespace {
     constexpr OHOS::HiviewDFX::HiLogLabel LABEL = {LOG_CORE, LOG_DOMAIN, "ImagePackerNapi"};
+    constexpr uint32_t NUM_0 = 0;
+    constexpr uint32_t NUM_1 = 1;
+    constexpr uint32_t NUM_2 = 2;
 }
 
 namespace OHOS {
@@ -69,36 +72,36 @@ ImagePackerNapi::~ImagePackerNapi()
     }
 }
 
-static void CommonCallbackRoutine(napi_env env, ImagePackerAsyncContext* &asyncContext, const napi_value &valueParam)
+static void CommonCallbackRoutine(napi_env env, ImagePackerAsyncContext* &connect, const napi_value &valueParam)
 {
     HiLog::Debug(LABEL, "CommonCallbackRoutine enter");
-    napi_value result[2] = {0};
+    napi_value result[NUM_2] = {0};
     napi_value retVal;
     napi_value callback = nullptr;
 
-    napi_get_undefined(env, &result[0]);
-    napi_get_undefined(env, &result[1]);
+    napi_get_undefined(env, &result[NUM_0]);
+    napi_get_undefined(env, &result[NUM_1]);
 
-    if (asyncContext->status == SUCCESS) {
+    if (connect->status == SUCCESS) {
         result[1] = valueParam;
     }
 
-    if (asyncContext->deferred) {
-        if (asyncContext->status == SUCCESS) {
-            napi_resolve_deferred(env, asyncContext->deferred, result[1]);
+    if (connect->deferred) {
+        if (connect->status == SUCCESS) {
+            napi_resolve_deferred(env, connect->deferred, result[NUM_1]);
         } else {
-            napi_reject_deferred(env, asyncContext->deferred, result[0]);
+            napi_reject_deferred(env, connect->deferred, result[NUM_0]);
         }
     } else {
-        napi_get_reference_value(env, asyncContext->callbackRef, &callback);
+        napi_get_reference_value(env, connect->callbackRef, &callback);
         napi_call_function(env, nullptr, callback, PARAM2, result, &retVal);
-        napi_delete_reference(env, asyncContext->callbackRef);
+        napi_delete_reference(env, connect->callbackRef);
     }
 
-    napi_delete_async_work(env, asyncContext->work);
+    napi_delete_async_work(env, connect->work);
 
-    delete asyncContext;
-    asyncContext = nullptr;
+    delete connect;
+    connect = nullptr;
     HiLog::Debug(LABEL, "CommonCallbackRoutine exit");
 }
 
@@ -165,6 +168,7 @@ napi_value ImagePackerNapi::Init(napi_env env, napi_value exports)
     napi_property_descriptor props[] = {
         DECLARE_NAPI_FUNCTION("packing", Packing),
         DECLARE_NAPI_FUNCTION("release", Release),
+        DECLARE_NAPI_GETTER("supportedFormats", GetSupportedFormats),
     };
     napi_property_descriptor static_prop[] = {
         DECLARE_NAPI_STATIC_FUNCTION("createImagePacker", CreateImagePacker),
@@ -353,26 +357,86 @@ napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
     return result;
 }
 
-napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
+napi_value ImagePackerNapi::GetSupportedFormats(napi_env env, napi_callback_info info)
 {
-    HiLog::Debug(LABEL, "Release enter");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
     napi_status status;
     napi_value thisVar = nullptr;
     size_t argCount = 0;
+    HiLog::Debug(LABEL, "GetSupportedFormats IN");
 
     IMG_JS_ARGS(env, info, status, argCount, nullptr, thisVar);
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), result, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
 
-    std::unique_ptr<ImagePackerNapi> imagePackerNapi = std::make_unique<ImagePackerNapi>();
-    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&imagePackerNapi));
+    std::unique_ptr<ImagePackerAsyncContext> context = std::make_unique<ImagePackerAsyncContext>();
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&context->constructor_));
+    
+    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, context->constructor_),
+        nullptr, HiLog::Error(LABEL, "fail to unwrap context"));
+    std::set<std::string> formats;
+    uint32_t ret = context->constructor_->nativeImgPck->GetSupportedFormats(formats);
 
-    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, imagePackerNapi), result, HiLog::Error(LABEL, "fail to unwrap context"));
+    IMG_NAPI_CHECK_RET_D((ret == SUCCESS),
+        nullptr, HiLog::Error(LABEL, "fail to get supported formats"));
 
-    imagePackerNapi->~ImagePackerNapi();
+    napi_create_array(env, &result);
+    size_t i = 0;
+    for (const std::string& formatStr: formats) {
+        napi_value format = nullptr;
+        napi_create_string_latin1(env, formatStr.c_str(), formatStr.length(), &format);
+        napi_set_element(env, result, i, format);
+        i++;
+    }
+    return result;
+}
+
+static void ReleaseComplete(napi_env env, napi_status status, void *data)
+{
+    HiLog::Debug(LABEL, "ReleaseComplete IN");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    auto context = static_cast<ImagePackerAsyncContext*>(data);
+    context->constructor_->~ImagePackerNapi();
+    HiLog::Debug(LABEL, "ReleaseComplete OUT");
+    CommonCallbackRoutine(env, context, result);
+}
+
+napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
+{
+    HiLog::Debug(LABEL, "Release enter");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+
+    int32_t refCount = 1;
+    napi_status status;
+    napi_value thisVar = nullptr;
+    napi_value argValue[NUM_1] = {0};
+    size_t argCount = 1;
+
+    IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
+    HiLog::Debug(LABEL, "Release argCount is [%{public}zu]", argCount);
+    IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), result, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
+
+    std::unique_ptr<ImagePackerAsyncContext> context = std::make_unique<ImagePackerAsyncContext>();
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&context->constructor_));
+
+    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, context->constructor_), result,
+        HiLog::Error(LABEL, "fail to unwrap context"));
+    HiLog::Debug(LABEL, "Release argCount is [%{public}zu]", argCount);
+    if (argCount == 1 && ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_function) {
+        napi_create_reference(env, argValue[NUM_0], refCount, &context->callbackRef);
+    }
+
+    if (context->callbackRef == nullptr) {
+        napi_create_promise(env, &(context->deferred), &result);
+    }
+
+    IMG_CREATE_CREATE_ASYNC_WORK(env, status, "Release",
+        [](napi_env env, void *data) {}, ReleaseComplete, context, context->work);
     HiLog::Debug(LABEL, "Release exit");
     return result;
 }

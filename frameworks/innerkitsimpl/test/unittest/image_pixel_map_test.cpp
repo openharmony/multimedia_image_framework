@@ -83,7 +83,7 @@ public:
         if (bufferSize <= 0) {
             return nullptr;
         }
-        void *buffer = malloc(bufferSize);
+        std::unique_ptr<void> buffer = malloc(bufferSize);
         if (buffer == nullptr) {
             return nullptr;
         }

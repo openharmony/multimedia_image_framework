@@ -278,7 +278,7 @@ napi_value PixelMapNapi::Init(napi_env env, napi_value exports)
         DECLARE_NAPI_FUNCTION("getImageInfo", GetImageInfo),
         DECLARE_NAPI_FUNCTION("getBytesNumberPerRow", GetBytesNumberPerRow),
         DECLARE_NAPI_FUNCTION("getPixelBytesNumber", GetPixelBytesNumber),
-        DECLARE_NAPI_FUNCTION("Release", Release),
+        DECLARE_NAPI_FUNCTION("release", Release),
 
         DECLARE_NAPI_GETTER("isEditable", GetIsEditable),
     };

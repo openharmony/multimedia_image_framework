@@ -17,6 +17,9 @@ import("//foundation/multimedia/image_standard/ide/image_decode_config.gni")
 
 config("image_external_config") {
   include_dirs = [
+    "include",
+    "//utils/system/safwk/native/include",
+    "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/receiver/include",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter/include",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/include",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/codec/include",
@@ -30,6 +33,12 @@ config("image_external_config") {
     "//foundation/multimedia/image_standard/interfaces/innerkits/include",
     "//utils/jni/jnikit/include",
     "//base/hiviewdfx/hilog/interfaces/native/innerkits/include",
+    "//foundation/graphic/standard/interfaces/innerkits/surface",
+    "//foundation/graphic/standard/interfaces/innerkits/common",
+    "//foundation/communication/ipc/interfaces/innerkits/ipc_core/include",
+    "//foundation/graphic/standard/utils/buffer_handle/export",
+    "//drivers/peripheral/display/interfaces/include",
+    "//drivers/peripheral/base",
   ]
 
   if (use_mingw_win) {
@@ -75,6 +84,7 @@ ohos_shared_library("image") {
   deps = [
     ":image_native",
     "//foundation/ace/napi:ace_napi",
+    "//foundation/graphic/standard:libsurface",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils",
     "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
@@ -106,6 +116,7 @@ ohos_shared_library("image_native") {
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/src/pixel_convert.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/src/post_proc.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/src/scan_line_filter.cpp",
+    "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/receiver/src/image_receiver.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/buffer_packer_stream.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/buffer_source_stream.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/file_packer_stream.cpp",
@@ -125,6 +136,7 @@ ohos_shared_library("image_native") {
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/ostream_packer_stream.cpp",
     ]
     deps = [
+      "//foundation/graphic/standard:libsurface",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter_static",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
       "//foundation/multimedia/image_standard/mock/native:log_mock_static",
@@ -140,6 +152,7 @@ ohos_shared_library("image_native") {
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/ostream_packer_stream.cpp",
     ]
     deps = [
+      "//foundation/graphic/standard:libsurface",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter_static",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
       "//foundation/multimedia/image_standard/mock/native:log_mock_static",
@@ -152,6 +165,7 @@ ohos_shared_library("image_native") {
 
     deps = [
       "//foundation/ace/napi:ace_napi",
+      "//foundation/graphic/standard:libsurface",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
@@ -189,6 +203,7 @@ ohos_static_library("image_static_napi") {
   deps = [
     ":image_native",
     "//foundation/ace/napi:ace_napi",
+    "//foundation/graphic/standard:libsurface",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils",
     "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
@@ -212,6 +227,7 @@ ohos_static_library("image_static") {
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/src/pixel_convert.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/src/post_proc.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/converter/src/scan_line_filter.cpp",
+    "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/receiver/src/image_receiver.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/buffer_packer_stream.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/buffer_source_stream.cpp",
     "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/file_packer_stream.cpp",
@@ -231,6 +247,7 @@ ohos_static_library("image_static") {
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/stream/src/ostream_packer_stream.cpp",
     ]
     deps = [
+      "//foundation/graphic/standard:libsurface",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter_static",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
       "//foundation/multimedia/image_standard/mock/native:log_mock_static",
@@ -247,6 +264,7 @@ ohos_static_library("image_static") {
     ]
 
     deps = [
+      "//foundation/graphic/standard:libsurface",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter_static",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
       "//foundation/multimedia/image_standard/mock/native:log_mock_static",
@@ -259,6 +277,7 @@ ohos_static_library("image_static") {
 
     deps = [
       "//foundation/ace/napi:ace_napi",
+      "//foundation/graphic/standard:libsurface",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/pixelconverter:pixelconvertadapter",
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
