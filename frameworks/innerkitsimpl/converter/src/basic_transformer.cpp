@@ -79,6 +79,10 @@ void BasicTransformer::GetDstDimension(const Size &srcSize, Size &dstSize)
 bool BasicTransformer::CheckAllocateBuffer(PixmapInfo &outPixmap, AllocateMem allocate,
                                            int &fd, uint64_t &bufferSize, Size &dstSize)
 {
+    if (bufferSize == 0) {
+        IMAGE_LOGE("[BasicTransformer]bufferSize is 0");
+        return false;
+    }
     if (allocate == nullptr) {
         outPixmap.data = static_cast<uint8_t *>(malloc(bufferSize));
     } else {

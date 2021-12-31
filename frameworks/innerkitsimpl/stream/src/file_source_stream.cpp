@@ -195,6 +195,11 @@ bool FileSourceStream::GetData(uint32_t desiredSize, DataStreamBuffer &outData)
         return false;
     }
 
+    if (desiredSize == 0) {
+        IMAGE_LOGE("[FileSourceStream]desiredSize is 0.");
+        return false;
+    }
+
     ResetReadBuffer();
     readBuffer_ = static_cast<uint8_t *>(malloc(desiredSize));
     if (readBuffer_ == nullptr) {

@@ -153,6 +153,11 @@ bool IstreamSourceStream::GetData(uint32_t desiredSize, DataStreamBuffer &outDat
                    streamSize_, streamOffset_);
         return false;
     }
+    
+    if (desiredSize == 0) {
+        IMAGE_LOGE("[IstreamSourceStream]desiredSize is 0.");
+        return false;
+    }
     ResetReadBuffer();
     databuffer_ = static_cast<uint8_t *>(malloc(desiredSize));
     if (databuffer_ == nullptr) {
