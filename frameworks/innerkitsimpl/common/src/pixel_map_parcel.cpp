@@ -107,6 +107,10 @@ std::unique_ptr<PixelMap> PixelMapParcel::CreateFromParcel(OHOS::MessageParcel& 
             HiLog::Error(LABEL, "read buffer from parcel failed, read buffer addr is null");
             return nullptr;
         }
+        if (bufferSize <= 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+            HiLog::Error(LABEL, "Invalid value, bufferSize out of size.");
+            return nullptr;
+        }
         base = static_cast<uint8_t *>(malloc(bufferSize));
         if (base == nullptr) {
             HiLog::Error(LABEL, "alloc output pixel memory size:[%{public}d] error.", bufferSize);

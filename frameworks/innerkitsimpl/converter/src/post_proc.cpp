@@ -352,6 +352,10 @@ uint32_t PostProc::AllocBuffer(ImageInfo imageInfo, uint8_t **resultData, uint64
 
 bool PostProc::AllocHeapBuffer(uint64_t bufferSize, uint8_t **buffer)
 {
+    if (bufferSize == 0 || bufferSize > MALLOC_MAX_LENTH) {
+        IMAGE_LOGE("[PostProc]Invalid value of bufferSize");
+        return false;
+    }
     *buffer = static_cast<uint8_t *>(malloc(bufferSize));
     if (*buffer == nullptr) {
         IMAGE_LOGE("[PostProc]alloc covert color buffersize[%{public}llu] failed.",
