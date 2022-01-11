@@ -15,17 +15,21 @@
 
 #include <gtest/gtest.h>
 #include <fstream>
+#include <fcntl.h>
 #include "directory_ex.h"
 #include "hilog/log.h"
-#include "log_tags.h"
-#include "media_errors.h"
-#include "incremental_pixel_map.h"
-#include "pixel_map.h"
 #include "image_packer.h"
 #include "image_source.h"
 #include "image_type.h"
 #include "image_utils.h"
+#include "incremental_pixel_map.h"
+#include "log_tags.h"
+#include "media_errors.h"
+#include "pixel_map.h"
+#include "image_receiver.h"
 #include "image_source_util.h"
+#include "graphic_common.h"
+#include "image_receiver_manager.h"
 
 using namespace testing::ext;
 using namespace OHOS::Media;
@@ -1029,4 +1033,49 @@ HWTEST_F(ImageSourceJpegTest, JpegImageHwDecode001, TestSize.Level3)
      */
     int64_t packSize = OHOS::ImageSourceUtil::PackImage(IMAGE_OUTPUT_HW_JPEG_FILE_PATH, std::move(pixelMap));
     ASSERT_NE(packSize, 0);
+}
+HWTEST_F(ImageSourceJpegTest, JpegImageReceiver001, TestSize.Level3)
+{
+    OHOS::sptr<OHOS::SurfaceBuffer> buffer;
+    std::shared_ptr<ImageReceiver> imageReceiver;
+    int32_t releaseFence;
+    imageReceiver = ImageReceiver::CreateImageReceiver(8 * 1024, 8, 4, 8);
+    class ReceiverSurfaceListener : public SurfaceBufferAvaliableListener
+    {
+    public:
+        void OnSurfaceBufferAvaliable() override
+        {
+            InitializationOptions opts;
+            opts.size.width = 8 * 1024;
+            opts.size.height = 8;
+            opts.pixelFormat = OHOS::Media::PixelFormat::BGRA_8888;
+            opts.alphaType = OHOS::Media::AlphaType::IMAGE_ALPHA_TYPE_UNKNOWN;
+            opts.scaleMode = OHOS::Media::ScaleMode::CENTER_CROP;
+            opts.editable = true;
+            HiLog::Debug(LABEL_TEST, "ReceiverSurfaceListener");
+            ImageReceiverManager& imageReceiverManager = ImageReceiverManager::getInstance();
+            std::shared_ptr<ImageReceiver> imageReceiver1 = imageReceiverManager.getImageReceiverByKeyId("1");
+            OHOS::sptr<OHOS::SurfaceBuffer> surfaceBuffer1 = imageReceiver1->ReadLastImage();
+            int fd = open("/data/receiver/Receiver_buffer7.jpg", O_RDWR | O_CREAT);
+            imageReceiver1->SaveBufferAsImage(fd, surfaceBuffer1, opts);
+        }
+    };
+    std::shared_ptr<ReceiverSurfaceListener> iReceiverSurfaceListener = std::make_shared<ReceiverSurfaceListener>();
+    imageReceiver->RegisterBufferAvaliableListener(
+        (std::shared_ptr<SurfaceBufferAvaliableListener>)iReceiverSurfaceListener);
+
+    std::string receiveKey = imageReceiver->iraContext_->GetReceiverKey();
+    HiLog::Debug(LABEL_TEST, "ReceiverKey = %{public}s", receiveKey.c_str());
+    OHOS::sptr<OHOS::Surface> receiverSurface = ImageReceiver::getSurfaceById(receiveKey);
+    receiverSurface->RequestBufferWithFence(buffer, releaseFence, requestConfig);
+    HiLog::Debug(LABEL_TEST, "RequestBufferWithFence");
+    int32_t *p = (int32_t *)buffer->GetVirAddr();
+    if (p != nullptr)
+    {
+        for (int32_t i = 0; i < requestConfig.width * requestConfig.height; i++) {
+            p[i] = i;
+        }
+    }
+    receiverSurface->FlushBuffer(buffer, -1, flushConfig);
+    HiLog::Debug(LABEL_TEST, "FlushBuffer");
 }
