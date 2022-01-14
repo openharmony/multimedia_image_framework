@@ -145,14 +145,19 @@ namespace OHOS {
             iva->receiverConsumerSurface_ = Surface::CreateSurfaceAsConsumer();
             if (iva->receiverConsumerSurface_ == nullptr) {
                 HiLog::Debug(LABEL, "SurfaceAsConsumer == nullptr");
+                return iva;
             }
+
             iva->receiverConsumerSurface_->SetDefaultWidthAndHeight(width, height);
             iva->receiverConsumerSurface_->SetQueueSize(capicity);
             auto p = iva->receiverConsumerSurface_->GetProducer();
             iva->receiverProducerSurface_ = Surface::CreateSurfaceAsProducer(p);
             if (iva->receiverProducerSurface_ == nullptr) {
                 HiLog::Debug(LABEL, "SurfaceAsProducer == nullptr");
+                return iva;
             }
+
+            iva->receiverProducerSurface_->SetDefaultWidthAndHeight(width, height);
             iva->iraContext_->SetReceiverBufferConsumer(iva->receiverConsumerSurface_);
             iva->iraContext_->SetReceiverBufferProducer(iva->receiverProducerSurface_);
             iva->iraContext_->SetWidth(width);
