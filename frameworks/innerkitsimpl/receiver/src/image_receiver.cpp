@@ -29,6 +29,7 @@ namespace OHOS {
             MODE_PREVIEW = 0,
             MODE_PHOTO
         };
+
         int64_t PackImage(int &fd, std::unique_ptr<PixelMap> pixelMap)
         {
             HiLog::Debug(LABEL, "PackImage");
@@ -85,6 +86,7 @@ namespace OHOS {
             }
             return errorCode;
         }
+
         int32_t ImageReceiver::SaveBufferAsImage(int &fd,
                                                  OHOS::sptr<OHOS::SurfaceBuffer> buffer,
                                                  InitializationOptions initializationOpts)
@@ -182,6 +184,7 @@ namespace OHOS {
             }
             return iraContext_->GetCurrentBuffer();
         }
+
         OHOS::sptr<OHOS::SurfaceBuffer> ImageReceiver::ReadLastImage()
         {
             int32_t flushFence = 0;
@@ -198,6 +201,7 @@ namespace OHOS {
             iraContext_->currentBuffer_ = bufferBefore;
             return iraContext_->GetCurrentBuffer();
         }
+
         sptr<Surface> ImageReceiver::GetReceiverSurface()
         {
             return iraContext_->GetReceiverBufferProducer();
