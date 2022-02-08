@@ -822,7 +822,7 @@ declare namespace image {
    * Provides basic image operations, including obtaining image information, and reading and writing image data.
    * @Since 8
    */
-   interface Image {
+  interface Image {
     /**
      * Sets or gets the image area to crop, default is size.
      * @since 8
