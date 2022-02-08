@@ -122,6 +122,54 @@ declare namespace image {
   }
 
   /**
+   * Enum for image formats.
+   * @since 8
+   * @SysCap SystemCapability.Multimedia.Image
+   * @import import image from '@ohos.multimedia.image'
+   * @devices phone, tablet, tv, wearable, car
+   */
+   enum ImageFormat {
+    /**
+     * YCBCR422 semi-planar format.
+     */
+    YCBCR_422_SP = 1000,
+
+    /**
+     * JPEG encoding format.
+     */
+    JPEG = 2000
+  }
+
+  /**
+   * The componet type of image.
+   * @since 8
+   * @SysCap SystemCapability.Multimedia.Image
+   * @import import image from '@ohos.multimedia.image'
+   * @devices phone, tablet, tv, wearable, car
+   */
+  enum ComponentType {
+    /**
+     * Luma info.
+     */
+    YUV_Y = 1,
+
+    /**
+     * Chrominance info.
+     */
+    YUV_U = 2,
+
+    /**
+     * Chroma info.
+     */
+    YUV_V = 3,
+
+    /**
+     * Jpeg type.
+     */
+    JPEG = 4, 
+  }
+
+  /**
    * Describes region information.
    */
   interface Region {
@@ -306,6 +354,44 @@ declare namespace image {
   }
 
   /**
+   * Describes image color components.
+   * @Since 8
+   */
+   interface Component {
+    /**
+     * Component type.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     */
+    readonly componentType: ComponentType;
+
+    /**
+     * Row stride.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     */
+    readonly rowStride: number;
+
+    /**
+     * Pixel stride.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     */
+    readonly pixelStride: number;
+
+    /**
+     * Component buffer.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     */
+    readonly byteBuffer: ArrayBuffer;
+  }
+
+  /**
    * Creates an ImageSource instance based on the URI.
    * @since 6
    * @SysCap SystemCapability.Multimedia.Image
@@ -336,6 +422,21 @@ declare namespace image {
    * @return Returns the ImagePacker instance if the operation is successful; returns null otherwise.
    */
   function createImagePacker(): ImagePacker;
+
+  /**
+   * Creates an ImageReceiver instance.
+   * @since 8
+   * @SysCap SystemCapability.Multimedia.Image
+   * @devices phone, tablet, tv, wearable, car
+   * @import import image from '@ohos.multimedia.image'
+   * @param width The default width in pixels of the Images that this receiver will produce.
+   * @param height The default height in pixels of the Images that this receiver will produce.
+   * @param format The format of the Image that this receiver will produce. This must be one of the
+   *            {@link ImageFormat} constants. Note that not all formats are supported, like ImageFormat.NV21.
+   * @param capacity The maximum number of images the user will want to access simultaneously.
+   * @return Returns the ImageReceiver instance if the operation is successful; returns null otherwise.
+   */
+  function createImageReceiver(width: number, height: number, format: number, capacity: number): ImageReceiver;
 
   interface PixelMap {
     /**
@@ -691,6 +792,207 @@ declare namespace image {
      * @import import image from '@ohos.multimedia.image'
      */
     readonly supportedFormats: Array<string>;
+  }
+
+  /**
+   * Provides basic image operations, including obtaining image information, and reading and writing image data.
+   * @Since 8
+   */
+   interface Image {
+    /**
+     * Sets or gets the image area to crop, default is size.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     */
+    clipRect: Region;
+
+    /**
+     * Image size.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     */
+    readonly size: number;
+
+    /**
+     * Image format.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     */
+    readonly format: number;
+
+    /**
+     * Get component buffer from image and uses a callback to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param componentType The componet type of image.
+     * @param callback Callback used to return the component buffer.
+     */
+    getComponent(componentType: ComponentType, callback: AsyncCallback<Component>): void;
+
+    /**
+     * Get component buffer from image and uses a promise to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param componentType The componet type of image.
+     * @return A Promise instance used to return the component buffer.
+     */
+    getComponent(componentType: ComponentType): Promise<Component>;
+
+    /**
+     * Release current image to receive another and uses a callback to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param callback Callback to return the operation result.
+     */
+    release(callback: AsyncCallback<void>): void;
+
+    /**
+     * Release current image to receive another and uses a promise to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @return A Promise instance used to return the operation result.
+     */
+    release(): Promise<void>;
+  }
+
+  /**
+   * Image receiver object.
+   * @Since 8
+   */
+  interface ImageReceiver {
+    /**
+     * Image size.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     */
+    readonly size: Size;
+
+    /**
+     * Image capacity.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     */
+    readonly capacity: number;
+
+    /**
+     * Image format.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     */
+    readonly format: ImageFormat;
+
+    /**
+     * get an id which indicates a surface and can be used to set to Camera or other component can receive a surface
+     * and uses a callback to return the result.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param callback Callback used to return the surface id.
+     */
+    getReceivingSurfaceId(callback: AsyncCallback<string>): void;
+
+    /**
+     * get an id which indicates a surface and can be used to set to Camera or other component can receive a surface
+     * and uses a promise to return the result.
+     * @Since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @return A Promise instance used to return the surface id.
+     */
+    getReceivingSurfaceId(): Promise<string>;
+
+    /**
+     * Get lasted image from receiver and uses a callback to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param callback Callback used to return the latest image.
+     */
+    readLatestImage(callback: AsyncCallback<Image>): void;
+
+    /**
+     * Get lasted image from receiver and uses a promise to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @return A Promise instance used to return the latest image.
+     */
+    readLatestImage(): Promise<Image>;
+
+    /**
+     * Get next image from receiver and uses a callback to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param callback Callback used to return the next image.
+     */
+    readNextImage(callback: AsyncCallback<Image>): void;
+
+    /**
+     * Get next image from receiver and uses a promise to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @return A Promise instance used to return the next image.
+     */
+    readNextImage(): Promise<Image>;
+
+    /**
+     * Subscribe callback when receiving an image
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param type Callback used to return the next image.
+     * @param callback Callback used to return image.
+     */
+    on(type: 'imageArrival', callback: AsyncCallback<void>): void;
+
+    /**
+     * Release image receiver instance and uses a callback to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @param callback Callback to return the operation result.
+     */
+    release(callback: AsyncCallback<void>): void;
+
+    /**
+     * Release image receiver instance and uses a promise to return the result.
+     * @since 8
+     * @SysCap SystemCapability.Multimedia.Image
+     * @devices phone, tablet, tv, wearable, car
+     * @import import image from '@ohos.multimedia.image'
+     * @return A Promise instance used to return the operation result.
+     */
+    release(): Promise<void>;
   }
 }
 
