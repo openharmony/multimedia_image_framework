@@ -668,6 +668,7 @@ napi_value ImageSourceNapi::CreatePixelMap(napi_env env, napi_callback_info info
         napi_get_undefined(env, &result);
     }
 
+    ImageNapiUtils::HicheckerReport();
     IMG_CREATE_CREATE_ASYNC_WORK(env, status, "CreatePixelMap", CreatePixelMapExecute,
         CreatePixelMapComplete, asyncContext, asyncContext->work);
 
