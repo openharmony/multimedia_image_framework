@@ -16,7 +16,7 @@
 /**
  * @file pixel_map_ndk.h
  *
- * @brief Declares functions for you to lock and access or unlock pixel data, 
+ * @brief Declares functions for you to lock and access or unlock pixel data,
  * and obtain the width and height of a pixel map.
  *
  * @since 8
@@ -34,13 +34,16 @@ extern "C" {
 
 struct OhosPixelMapInfo {
     /** Image width, in pixels. */
-	uint32_t width;
-	/** Image height, in pixels. */
-	uint32_t height;
-	/** Number of bytes in each row of a pixel map */
-	uint32_t rowSize;
-	/** Pixel format */
-	int32_t pixelFormat;
+    uint32_t width;
+
+    /** Image height, in pixels. */
+    uint32_t height;
+
+    /** Number of bytes in each row of a pixel map */
+    uint32_t rowSize;
+
+    /** Pixel format */
+    int32_t pixelFormat;
 };
 
 int32_t OH_GetImageInfo(napi_env env, napi_value value, OhosPixelMapInfo *info);
