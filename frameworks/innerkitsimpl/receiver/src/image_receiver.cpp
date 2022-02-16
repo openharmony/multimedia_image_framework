@@ -217,7 +217,6 @@ namespace OHOS {
             sptr<Surface> listenerConsumerSerface = iraContext_->GetReceiverBufferConsumer();
             SurfaceError surfaceError = listenerConsumerSerface->AcquireBuffer(buffer, flushFence, timestamp, damage);
             while (surfaceError == SURFACE_ERROR_OK) {
-                ReleaseBuffer(bufferBefore);
                 bufferBefore = buffer;
                 surfaceError = listenerConsumerSerface->AcquireBuffer(buffer, flushFence, timestamp, damage);
             }
