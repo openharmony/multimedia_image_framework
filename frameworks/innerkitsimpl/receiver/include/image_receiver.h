@@ -66,6 +66,7 @@ public:
                               OHOS::sptr<OHOS::SurfaceBuffer> buffer,
                               InitializationOptions initializationOpts);
     int32_t SaveBufferAsImage(int &fd, InitializationOptions initializationOpts);
+    void ReleaseBuffer(OHOS::sptr<OHOS::SurfaceBuffer> &buffer);
     std::unique_ptr<PixelMap> getSurfacePixelMap(InitializationOptions initializationOpts);
     void RegisterBufferAvaliableListener(
         std::shared_ptr<SurfaceBufferAvaliableListener> surfaceBufferAvaliableListener)
