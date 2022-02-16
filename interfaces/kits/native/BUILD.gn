@@ -16,7 +16,6 @@ import("//build/ohos/ndk/ndk.gni")
 
 ohos_ndk_library("libpixelmap_ndk") {
   output_name = "image_pixelmap"
-  output_extension = "so"
   ndk_description_file = "./libpixelmap.ndk.json"
 }
 
