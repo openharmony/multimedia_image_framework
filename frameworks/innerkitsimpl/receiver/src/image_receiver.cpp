@@ -115,6 +115,23 @@ namespace OHOS {
             return 0;
         }
 
+        void ImageReceiver::ReleaseBuffer(OHOS::sptr<OHOS::SurfaceBuffer> &buffer)
+        {
+            if (buffer != nullptr) {
+                if (iraContext_ != nullptr) {
+                    auto listenerConsumerSerface = iraContext_->GetReceiverBufferConsumer();
+                    if (listenerConsumerSerface != nullptr) {
+                        listenerConsumerSerface->ReleaseBuffer(buffer, -1);
+                    } else {
+                        HiLog::Debug(LABEL, "listenerConsumerSerface == nullptr");
+                    }
+                } else {
+                        HiLog::Debug(LABEL, "iraContext_ == nullptr");
+                }
+                buffer = nullptr;
+            }
+        }
+
         void ImageReceiverSurfaceListener ::OnBufferAvailable()
         {
             HiLog::Debug(LABEL, "OnBufferAvailable");

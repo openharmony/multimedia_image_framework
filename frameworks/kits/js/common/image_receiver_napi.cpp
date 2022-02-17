@@ -610,7 +610,7 @@ napi_value ImageReceiverNapi::JsReadLatestImage(napi_env env, napi_callback_info
                 DoCallBackTest(surfacebuffer);
             }
 #endif
-            result = ImageNapi::Create(env, surfacebuffer);
+            result = ImageNapi::Create(env, surfacebuffer, native);
             if (result == nullptr) {
                 IMAGE_ERR("ImageNapi Create failed");
                 context->status = ERR_IMAGE_INIT_ABNORMAL;
@@ -656,7 +656,7 @@ napi_value ImageReceiverNapi::JsReadNextImage(napi_env env, napi_callback_info i
                 DoCallBackTest(surfacebuffer);
             }
 #endif
-            result = ImageNapi::Create(env, surfacebuffer);
+            result = ImageNapi::Create(env, surfacebuffer, native);
             if (result == nullptr) {
                 IMAGE_ERR("ImageNapi Create failed");
                 context->status = ERR_IMAGE_INIT_ABNORMAL;
