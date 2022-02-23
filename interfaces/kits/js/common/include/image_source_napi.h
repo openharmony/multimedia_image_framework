@@ -47,8 +47,7 @@ private:
     // methods
     static napi_value GetImageInfo(napi_env env, napi_callback_info info);
     static napi_value CreatePixelMap(napi_env env, napi_callback_info info);
-    static napi_value GetImagePropertyInt(napi_env env, napi_callback_info info);
-    static napi_value GetImagePropertyString(napi_env env, napi_callback_info info);
+    static napi_value GetImageProperty(napi_env env, napi_callback_info info);
     static napi_value UpdateData(napi_env env, napi_callback_info info);
     static napi_value Release(napi_env env, napi_callback_info info);
 

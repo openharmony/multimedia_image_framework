@@ -49,6 +49,7 @@ struct ImageSourceAsyncContext {
     size_t sourceBufferSize;
     std::string keyStr;
     std::string valueStr;
+    std::string defaultValueStr;
     int32_t valueInt;
     int32_t deufltValueInt;
     void *updataBuffer;
@@ -142,8 +143,7 @@ napi_value ImageSourceNapi::Init(napi_env env, napi_value exports)
 {
     napi_property_descriptor properties[] = {
         DECLARE_NAPI_FUNCTION("getImageInfo", GetImageInfo),
-        DECLARE_NAPI_FUNCTION("getImagePropertyInt", GetImagePropertyInt),
-        DECLARE_NAPI_FUNCTION("getImagePropertyString", GetImagePropertyString),
+        DECLARE_NAPI_FUNCTION("getImageProperty", GetImageProperty),
         DECLARE_NAPI_FUNCTION("createPixelMap", CreatePixelMap),
         DECLARE_NAPI_FUNCTION("updateData", UpdateData),
         DECLARE_NAPI_FUNCTION("release", Release),
@@ -352,10 +352,14 @@ static PixelFormat ParsePixlForamt(int32_t val)
     return PixelFormat::UNKNOWN;
 }
 
-static bool ParseDecodeOptions(napi_env env, napi_value root, DecodeOptions* opts)
+static bool ParseDecodeOptions(napi_env env, napi_value root, DecodeOptions* opts, uint32_t* pIndex)
 {
     uint32_t tmpNumber = 0;
     napi_value tmpValue = nullptr;
+
+    if (!ImageNapiUtils::GetUint32ByName(env, root, "index", pIndex)) {
+        HiLog::Debug(LABEL, "no index");
+    }
 
     if (!GET_UINT32_BY_NAME(root, "sampleSize", opts->sampleSize)) {
         HiLog::Debug(LABEL, "no sampleSize");
@@ -616,8 +620,8 @@ napi_value ImageSourceNapi::CreatePixelMap(napi_env env, napi_callback_info info
     int32_t refCount = 1;
     napi_status status;
     napi_value thisVar = nullptr;
-    napi_value argValue[NUM_3] = {0};
-    size_t argCount = 3;
+    napi_value argValue[NUM_2] = {0};
+    size_t argCount = NUM_2;
     IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
     IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, thisVar), nullptr, HiLog::Error(LABEL, "fail to get thisVar"));
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), nullptr, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
@@ -635,33 +639,22 @@ napi_value ImageSourceNapi::CreatePixelMap(napi_env env, napi_callback_info info
     IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, asyncContext->rImageSource),
         nullptr, HiLog::Error(LABEL, "empty native rImageSource"));
 
-    if (argCount == NUM_2) {
-        if (ImageNapiUtils::getType(env, argValue[NUM_1]) == napi_function) {
-            napi_create_reference(env, argValue[NUM_1], refCount, &asyncContext->callbackRef);
-        }
+    if (argCount == NUM_0) {
+        HiLog::Debug(LABEL, "CreatePixelMap with no arg");
+    } else if (argCount == NUM_1 || argCount == NUM_2) {
         if (ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_object) {
-            IMG_NAPI_CHECK_RET_D(ParseDecodeOptions(env, argValue[NUM_0], &(asyncContext->decodeOpts)),
+            IMG_NAPI_CHECK_RET_D(ParseDecodeOptions(env, argValue[NUM_0],
+                &(asyncContext->decodeOpts),
+                &asyncContext->index),
                 nullptr, HiLog::Error(LABEL, "DecodeOptions mismatch"));
         }
-    } else if (argCount == NUM_3) {
-        if (ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_number) {
-            napi_get_value_uint32(env, argValue[NUM_0], &asyncContext->index);
+        if (ImageNapiUtils::getType(env, argValue[argCount - 1]) == napi_function) {
+            napi_create_reference(env, argValue[argCount - 1], refCount, &asyncContext->callbackRef);
         }
-
-        if (ImageNapiUtils::getType(env, argValue[NUM_1]) == napi_object) {
-            IMG_NAPI_CHECK_RET_D(ParseDecodeOptions(env, argValue[NUM_1], &(asyncContext->decodeOpts)),
-                nullptr, HiLog::Error(LABEL, "DecodeOptions mismatch"));
-        }
-
-        if (ImageNapiUtils::getType(env, argValue[NUM_2]) == napi_function) {
-            napi_create_reference(env, argValue[NUM_2], refCount, &asyncContext->callbackRef);
-        }
-
     } else {
         HiLog::Error(LABEL, "argCount missmatch");
         return result;
     }
-
     if (asyncContext->callbackRef == nullptr) {
         napi_create_promise(env, &(asyncContext->deferred), &result);
     } else {
@@ -677,129 +670,101 @@ napi_value ImageSourceNapi::CreatePixelMap(napi_env env, napi_callback_info info
     return result;
 }
 
-static void GetImagePropertyIntComplete(napi_env env, napi_status status, void *data)
+static bool ParsePropertyOptions(napi_env env, napi_value root, ImageSourceAsyncContext* context)
 {
-    HiLog::Debug(LABEL, "GetImagePropertyIntComplete IN");
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
-
-    auto context = static_cast<ImageSourceAsyncContext*>(data);
-    napi_create_int32(env, context->valueInt, &result);
-    HiLog::Debug(LABEL, "GetImagePropertyIntComplete OUT");
-    ImageSourceCallbackRoutine(env, context, result);
-}
-
-napi_value ImageSourceNapi::GetImagePropertyInt(napi_env env, napi_callback_info info)
-{
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
-
-    int32_t refCount = 1;
-    napi_status status;
-    napi_value thisVar = nullptr;
-    napi_value argValue[NUM_4] = {0};
-    size_t argCount = 4;
-    IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
-    IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), nullptr, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
-
-    std::unique_ptr<ImageSourceAsyncContext> asyncContext = std::make_unique<ImageSourceAsyncContext>();
-    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&asyncContext->constructor_));
-
-    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, asyncContext->constructor_),
-        nullptr, HiLog::Error(LABEL, "fail to unwrap context"));
-
-    asyncContext->rImageSource = asyncContext->constructor_->nativeImgSrc;
-
-    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, asyncContext->rImageSource),
-        nullptr, HiLog::Error(LABEL, "empty native rImageSource"));
-    if (argCount > NUM_0 && ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_number) {
-        napi_get_value_uint32(env, argValue[NUM_0], &asyncContext->index);
-        HiLog::Debug(LABEL, "asyncContext->index is [%{public}u]", asyncContext->index);
+    napi_value tmpValue = nullptr;
+    if (!GET_UINT32_BY_NAME(root, "index", context->index)) {
+        HiLog::Debug(LABEL, "no index");
+        return false;
     }
-
-    if (argCount > NUM_2 && ImageNapiUtils::getType(env, argValue[NUM_1]) == napi_string) {
-        asyncContext->keyStr = GetStringArgument(env, argValue[NUM_1]);
-        HiLog::Debug(LABEL, "asyncContext->index is [%{public}s]", asyncContext->keyStr.c_str());
-    }
-
-    if (argCount > NUM_3 && ImageNapiUtils::getType(env, argValue[NUM_2]) == napi_number) {
-        napi_get_value_int32(env, argValue[NUM_2], &asyncContext->deufltValueInt);
-        HiLog::Debug(LABEL, "asyncContext->deufltValueInt is [%{public}u]", asyncContext->deufltValueInt);
-    }
-
-    if (argCount == NUM_4 && ImageNapiUtils::getType(env, argValue[NUM_3]) == napi_function) {
-        napi_create_reference(env, argValue[NUM_1], refCount, &asyncContext->callbackRef);
-    }
-
-    if (asyncContext->callbackRef == nullptr) {
-        napi_create_promise(env, &(asyncContext->deferred), &result);
+    if (!GET_NODE_BY_NAME(root, "defaultValue", tmpValue)) {
+        HiLog::Debug(LABEL, "no defaultValue");
     } else {
-        napi_get_undefined(env, &result);
+        if (tmpValue != nullptr) {
+            context->defaultValueStr = GetStringArgument(env, tmpValue);
+        }
     }
-
-    IMG_CREATE_CREATE_ASYNC_WORK(env, status, "GetImagePropertyInt",
-        [](napi_env env, void *data) {
-            auto context = static_cast<ImageSourceAsyncContext*>(data);
-            uint32_t errorCode = context->rImageSource->GetImagePropertyInt(context->index, context->keyStr,
-                context->valueInt);
-            if (errorCode != SUCCESS) {
-                context->valueInt = context->deufltValueInt;
-            }
-            context->status = SUCCESS;
-
-        }, GetImagePropertyIntComplete, asyncContext, asyncContext->work);
-
-    IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
-        nullptr, HiLog::Error(LABEL, "fail to create async work"));
-    return result;
+    return true;
 }
 
-static void GetImagePropertyStringComplete(napi_env env, napi_status status, void *data)
+static void GetImagePropertyComplete(napi_env env, napi_status status, ImageSourceAsyncContext *context)
 {
-    HiLog::Debug(LABEL, "GetImagePropertyStringComplete IN");
+    HiLog::Debug(LABEL, "GetImagePropertyComplete IN");
+
+    if (context == nullptr) {
+        HiLog::Error(LABEL, "context is nullptr");
+        return;
+    }
     napi_value result = nullptr;
     napi_create_object(env, &result);
 
-    auto context = static_cast<ImageSourceAsyncContext*>(data);
-
-    napi_create_string_utf8(env, context->valueStr.c_str(), context->valueStr.length(), &result);
-    HiLog::Debug(LABEL, "GetImagePropertyStringComplete OUT");
+    if (context->status == SUCCESS) {
+        napi_create_string_utf8(env, context->valueStr.c_str(), context->valueStr.length(), &result);
+    } else {
+        napi_create_string_utf8(env, context->defaultValueStr.c_str(), context->defaultValueStr.length(), &result);
+        context->status = SUCCESS;
+    }
+    HiLog::Debug(LABEL, "GetImagePropertyComplete OUT");
     ImageSourceCallbackRoutine(env, context, result);
 }
 
-napi_value ImageSourceNapi::GetImagePropertyString(napi_env env, napi_callback_info info)
+static std::unique_ptr<ImageSourceAsyncContext> UnwrapContext(napi_env env, napi_callback_info info)
+{
+    int32_t refCount = 1;
+    napi_status status;
+    napi_value thisVar = nullptr;
+    napi_value argValue[NUM_3] = {0};
+    size_t argCount = NUM_3;
+    HiLog::Debug(LABEL, "GetImageProperty UnwrapContext");
+    IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
+    HiLog::Debug(LABEL, "GetImageProperty argCount is [%{public}zu]", argCount);
+
+    IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), nullptr, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
+
+    std::unique_ptr<ImageSourceAsyncContext> context = std::make_unique<ImageSourceAsyncContext>();
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&context->constructor_));
+
+    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, context->constructor_),
+        nullptr, HiLog::Error(LABEL, "fail to unwrap context"));
+
+    context->rImageSource = context->constructor_->nativeImgSrc;
+
+    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, context->rImageSource),
+        nullptr, HiLog::Error(LABEL, "empty native rImageSource"));
+
+    if (argCount < NUM_1 || argCount > NUM_3) {
+        HiLog::Error(LABEL, "argCount missmatch");
+        return nullptr;
+    }
+    if (ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_string) {
+        context->keyStr = GetStringArgument(env, argValue[NUM_0]);
+    } else {
+        HiLog::Error(LABEL, "arg 0 type missmatch");
+        return nullptr;
+    }
+    if (argCount == NUM_2 || argCount == NUM_3) {
+        if (ImageNapiUtils::getType(env, argValue[NUM_1]) == napi_object) {
+            IMG_NAPI_CHECK_RET_D(ParsePropertyOptions(env, argValue[NUM_1], context.get()),
+                                 nullptr, HiLog::Error(LABEL, "PropertyOptions mismatch"));
+        }
+        if (ImageNapiUtils::getType(env, argValue[argCount - 1]) == napi_function) {
+            napi_create_reference(env, argValue[argCount - 1], refCount, &context->callbackRef);
+        }
+    }
+    return context;
+}
+
+napi_value ImageSourceNapi::GetImageProperty(napi_env env, napi_callback_info info)
 {
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
-    int32_t refCount = 1;
     napi_status status;
-    napi_value thisVar = nullptr;
-    napi_value argValue[NUM_2] = {0};
-    size_t argCount = 2;
-    HiLog::Debug(LABEL, "GetImagePropertyString IN");
-    IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
-    HiLog::Debug(LABEL, "GetImagePropertyString argCount is [%{public}zu]", argCount);
-
-    IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), nullptr, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
-
-    std::unique_ptr<ImageSourceAsyncContext> asyncContext = std::make_unique<ImageSourceAsyncContext>();
-    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&asyncContext->constructor_));
-
-    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, asyncContext->constructor_),
-        nullptr, HiLog::Error(LABEL, "fail to unwrap context"));
-
-    asyncContext->rImageSource = asyncContext->constructor_->nativeImgSrc;
-
-    IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, asyncContext->rImageSource),
-        nullptr, HiLog::Error(LABEL, "empty native rImageSource"));
-
-    if (argCount > NUM_0 && ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_string) {
-        asyncContext->keyStr = GetStringArgument(env, argValue[NUM_0]);
-    }
-
-    if (argCount == NUM_2 && ImageNapiUtils::getType(env, argValue[NUM_1]) == napi_function) {
-        napi_create_reference(env, argValue[NUM_1], refCount, &asyncContext->callbackRef);
+    HiLog::Debug(LABEL, "GetImageProperty IN");
+    std::unique_ptr<ImageSourceAsyncContext> asyncContext = UnwrapContext(env, info);
+    if (asyncContext == nullptr) {
+        HiLog::Error(LABEL, "async context unwrap failed");
+        return result;
     }
 
     if (asyncContext->callbackRef == nullptr) {
@@ -808,14 +773,17 @@ napi_value ImageSourceNapi::GetImagePropertyString(napi_env env, napi_callback_i
         napi_get_undefined(env, &result);
     }
 
-    IMG_CREATE_CREATE_ASYNC_WORK(env, status, "GetImagePropertyString",
+    IMG_CREATE_CREATE_ASYNC_WORK(env, status, "GetImageProperty",
         [](napi_env env, void *data)
         {
             auto context = static_cast<ImageSourceAsyncContext*>(data);
-            context->rImageSource->GetImagePropertyString(NUM_0, context->keyStr, context->valueStr);
-            context->status = SUCCESS;
-
-        }, GetImagePropertyStringComplete, asyncContext, asyncContext->work);
+            context->status = context->rImageSource->GetImagePropertyString(context->index,
+                                                                            context->keyStr,
+                                                                            context->valueStr);
+        },
+        reinterpret_cast<napi_async_complete_callback>(GetImagePropertyComplete),
+        asyncContext,
+        asyncContext->work);
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
