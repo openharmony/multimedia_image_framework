@@ -31,6 +31,7 @@ config("image_external_config") {
     "//foundation/multimedia/utils/include",
     "//foundation/multimedia/image_standard/plugins/manager/include",
     "//foundation/multimedia/image_standard/interfaces/innerkits/include",
+    "//foundation/multimedia/image_standard/interfaces/kits/native/include",
     "//utils/jni/jnikit/include",
     "//base/hiviewdfx/hilog/interfaces/native/innerkits/include",
     "//foundation/graphic/standard/interfaces/innerkits/surface",
