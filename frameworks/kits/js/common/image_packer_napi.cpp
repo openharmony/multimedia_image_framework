@@ -42,8 +42,8 @@ const int PARAM0 = 0;
 const int PARAM1 = 1;
 const int PARAM2 = 2;
 const int32_t SIZE = 100;
-const int32_t TypeImageSource = 1;
-const int32_t TypePixelMap = 2;
+const int32_t TYPE_IMAGE_SOURCE = 1;
+const int32_t TYPE_PIXEL_MAP = 2;
 
 struct ImagePackerAsyncContext {
     napi_env env;
@@ -360,7 +360,7 @@ static int32_t ParserPackingArguments(napi_env env, napi_value argv)
     ret = napi_instanceof(env, argv, constructor, &isInstance);
     if (ret == napi_ok && isInstance) {
         HiLog::Debug(LABEL, "This is ImageSourceNapi type!");
-        return TypeImageSource;
+        return TYPE_IMAGE_SOURCE;
     }
 
     ret = napi_get_named_property(env, global, "PixelMapNapi", &constructor);
@@ -371,11 +371,11 @@ static int32_t ParserPackingArguments(napi_env env, napi_value argv)
     ret = napi_instanceof(env, argv, constructor, &isInstance);
     if (ret == napi_ok && isInstance) {
         HiLog::Debug(LABEL, "This is PixelMapNapi type!");
-        return TypePixelMap;
+        return TYPE_PIXEL_MAP;
     }
 
     HiLog::Error(LABEL, "Inalued type!");
-    return TypeImageSource;
+    return TYPE_IMAGE_SOURCE;
 }
 
 napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
@@ -386,7 +386,7 @@ napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
     napi_value argv[ARGS_THREE] = {0};
     napi_value thisVar = nullptr;
     int32_t refCount = 1;
-    int32_t packType = TypeImageSource;
+    int32_t packType = TYPE_IMAGE_SOURCE;
 
     std::shared_ptr<ImageSource> imagesourceObj = nullptr;
     std::unique_ptr<PixelMap> pixelMap = nullptr;
@@ -405,7 +405,7 @@ napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
         napi_valuetype argvType = ImageNapiUtils::getType(env, argv[i]);
         if (i == PARAM0 && argvType == napi_object) {
             packType = ParserPackingArguments(env, argv[0]);
-            if (packType == TypeImageSource) {
+            if (packType == TYPE_IMAGE_SOURCE) {
                 std::shared_ptr<ImageSourceNapi> imageSourceNapi = std::make_unique<ImageSourceNapi>();
                 status = napi_unwrap(env, argv[i], reinterpret_cast<void**>(&imageSourceNapi));
                 IMG_NAPI_CHECK_RET_D(IMG_IS_READY(status, imageSourceNapi), nullptr,
@@ -435,7 +435,7 @@ napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
 
     ImageNapiUtils::HicheckerReport();
 
-    if (packType == TypeImageSource) {
+    if (packType == TYPE_IMAGE_SOURCE) {
         IMG_CREATE_CREATE_ASYNC_WORK(env, status, "Packing",
             PackingExec, PackingComplete, asyncContext, asyncContext->work);
     } else {
