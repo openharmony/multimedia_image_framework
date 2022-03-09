@@ -388,7 +388,7 @@ ExifEntry* EXIFInfo::CreateExifTag(ExifData *exif, ExifIfd ifd, ExifTag tag,
     void *buf;
     ExifEntry *entry;
     
-    if (entry = exif_content_get_entry(exif->ifd[ifd], tag)) {
+    if ((entry = exif_content_get_entry(exif->ifd[ifd], tag)) != nullptr) {
         return entry;
     }
 
