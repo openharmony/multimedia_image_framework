@@ -13,13 +13,21 @@
 
 import("//build/ohos.gni")
 
-ohos_ndk_library("libpixelmap_ndk") {
-  ndk_description_file = "./libimage_pixelmap_napi.json"
-  min_compact_version = "1"
-  output_name = "pixelmap_ndk"
-}
+SUBSYSTEM_DIR = "//foundation/multimedia/image_standard"
 
-ohos_ndk_headers("image_header") {
-  dest_dir = "$ndk_headers_out_dir/multimedia/image_standard"
-  sources = [ "./include/image_pixel_map_napi.h" ]
+ohos_shared_library("pixelmap_ndk") {
+  include_dirs = [ "include" ]
+
+  sources = [ "image_pixel_map_napi.cpp" ]
+
+  public_configs =
+      [ "$SUBSYSTEM_DIR/interfaces/innerkits:image_external_config" ]
+
+  deps = [
+    "$SUBSYSTEM_DIR/interfaces/innerkits:image",
+    "//foundation/ace/napi:ace_napi",
+  ]
+
+  subsystem_name = "multimedia"
+  part_name = "multimedia_image_standard"
 }
