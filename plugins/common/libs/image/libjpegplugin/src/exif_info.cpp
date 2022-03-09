@@ -154,7 +154,7 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
     unsigned char lenthArray[LENGTH_ARRAY_SIZE] = {
         fileBuf[BUFFER_POSITION_5], fileBuf[BUFFER_POSITION_4]
     };
-    unsigned int orginExifiDataLength = *(unsigned int)lenthArray;
+    unsigned int orginExifiDataLength = *(unsigned int*)lenthArray;
 
     ExifData *ptrExifData = nullptr;
     if ((fileBuf[BUFFER_POSITION_6] == 'E' && fileBuf[BUFFER_POSITION_7] == 'x' &&
