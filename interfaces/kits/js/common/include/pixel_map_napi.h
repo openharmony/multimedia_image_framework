@@ -34,6 +34,9 @@ public:
     static napi_value CreatePixelMap(napi_env env, std::shared_ptr<PixelMap> pixelmap);
     static std::shared_ptr<PixelMap> GetPixelMap(napi_env env, napi_value pixelmap);
     std::shared_ptr<PixelMap>* GetPixelMap();
+    bool IsLockPixelMap();
+    bool LockPixelMap();
+    void UnlockPixelMap();
 
 private:
     static napi_value Constructor(napi_env env, napi_callback_info info);
@@ -63,6 +66,7 @@ private:
     napi_env env_ = nullptr;
     napi_ref wrapper_ = nullptr;
     std::shared_ptr<PixelMap> nativePixelMap_;
+    int32_t lockCount = 0;
     bool isRelease = false;
 };
 } // namespace Media

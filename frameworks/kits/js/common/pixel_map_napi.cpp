@@ -17,6 +17,7 @@
 #include "media_errors.h"
 #include "hilog/log.h"
 #include "image_napi_utils.h"
+#include "image_pixel_map_napi.h"
 
 using OHOS::HiviewDFX::HiLog;
 namespace {
@@ -271,8 +272,8 @@ napi_value PixelMapNapi::Init(napi_env env, napi_value exports)
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(
         napi_define_class(env, CLASS_NAME.c_str(), NAPI_AUTO_LENGTH,
-                            Constructor, nullptr, IMG_ARRAY_SIZE(props),
-                            props, &constructor)),
+                          Constructor, nullptr, IMG_ARRAY_SIZE(props),
+                          props, &constructor)),
         nullptr,
         HiLog::Error(LABEL, "define class fail")
     );
@@ -322,6 +323,24 @@ std::shared_ptr<PixelMap>* PixelMapNapi::GetPixelMap()
     return &nativePixelMap_;
 }
 
+bool PixelMapNapi::IsLockPixelMap()
+{
+    return (lockCount > 0);
+}
+
+bool PixelMapNapi::LockPixelMap()
+{
+    lockCount++;
+    return true;
+}
+
+void PixelMapNapi::UnlockPixelMap()
+{
+    if (lockCount > 0) {
+        lockCount--;
+    }
+}
+
 extern "C" __attribute__((visibility("default"))) void* OHOS_MEDIA_GetPixelMap(napi_env env, napi_value value)
 {
     PixelMapNapi *pixmapNapi = nullptr;
@@ -331,6 +350,100 @@ extern "C" __attribute__((visibility("default"))) void* OHOS_MEDIA_GetPixelMap(n
         return nullptr;
     }
     return reinterpret_cast<void*>(pixmapNapi->GetPixelMap());
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t OHOS_MEDIA_GetImageInfo(napi_env env, napi_value value,
+    OhosPixelMapInfo *info)
+{
+    HiLog::Debug(LABEL, "GetImageInfo IN");
+
+    if (info == nullptr) {
+        HiLog::Error(LABEL, "info is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    PixelMapNapi *pixmapNapi = nullptr;
+    napi_unwrap(env, value, reinterpret_cast<void**>(&pixmapNapi));
+    if (pixmapNapi == nullptr) {
+        HiLog::Error(LABEL, "pixmapNapi unwrapped is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    std::shared_ptr<PixelMap> *pixelMap = pixmapNapi->GetPixelMap();
+    if ((pixelMap == nullptr) || ((*pixelMap) == nullptr)) {
+        HiLog::Error(LABEL, "pixelMap is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    ImageInfo imageInfo;
+    (*pixelMap)->GetImageInfo(imageInfo);
+    info->width = imageInfo.size.width;
+    info->height = imageInfo.size.height;
+    info->rowSize = (*pixelMap)->GetRowBytes();
+    info->pixelFormat = static_cast<int32_t>(imageInfo.pixelFormat);
+
+    HiLog::Debug(LABEL, "GetImageInfo, w=%{public}u, h=%{public}u, r=%{public}u, f=%{public}d",
+        info->width, info->height, info->rowSize, info->pixelFormat);
+
+    HiLog::Debug(LABEL, "GetImageInfo OUT");
+    return OHOS_IMAGE_RESULT_SUCCESS;
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t OHOS_MEDIA_AccessPixels(napi_env env, napi_value value,
+    uint8_t** addrPtr)
+{
+    HiLog::Debug(LABEL, "AccessPixels IN");
+
+    PixelMapNapi *pixmapNapi = nullptr;
+    napi_unwrap(env, value, reinterpret_cast<void**>(&pixmapNapi));
+    if (pixmapNapi == nullptr) {
+        HiLog::Error(LABEL, "pixmapNapi unwrapped is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    std::shared_ptr<PixelMap> *pixelMap = pixmapNapi->GetPixelMap();
+    if ((pixelMap == nullptr) || ((*pixelMap) == nullptr)) {
+        HiLog::Error(LABEL, "pixelMap is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    const uint8_t *constPixels = (*pixelMap)->GetPixels();
+    if (constPixels == nullptr) {
+        HiLog::Error(LABEL, "const pixels is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    uint8_t *pixels = const_cast<uint8_t*>(constPixels);
+    if (pixels == nullptr) {
+        HiLog::Error(LABEL, "pixels is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    pixmapNapi->LockPixelMap();
+
+    if (addrPtr != nullptr) {
+        *addrPtr = pixels;
+    }
+
+    HiLog::Debug(LABEL, "AccessPixels OUT");
+    return OHOS_IMAGE_RESULT_SUCCESS;
+}
+
+extern "C" __attribute__((visibility("default"))) int32_t OHOS_MEDIA_UnAccessPixels(napi_env env, napi_value value)
+{
+    HiLog::Debug(LABEL, "UnAccessPixels IN");
+
+    PixelMapNapi *pixmapNapi = nullptr;
+    napi_unwrap(env, value, reinterpret_cast<void**>(&pixmapNapi));
+    if (pixmapNapi == nullptr) {
+        HiLog::Error(LABEL, "pixmapNapi unwrapped is nullptr");
+        return OHOS_IMAGE_RESULT_BAD_PARAMETER;
+    }
+
+    pixmapNapi->UnlockPixelMap();
+
+    HiLog::Debug(LABEL, "UnAccessPixels OUT");
+    return OHOS_IMAGE_RESULT_SUCCESS;
 }
 
 napi_value PixelMapNapi::Constructor(napi_env env, napi_callback_info info)
@@ -892,8 +1005,13 @@ napi_value PixelMapNapi::Release(napi_env env, napi_callback_info info)
         [](napi_env env, void *data)
         {
             auto context = static_cast<PixelMapAsyncContext*>(data);
-            context->nConstructor->nativePixelMap_ = nullptr;
-            context->status = SUCCESS;
+            if (context->nConstructor->IsLockPixelMap()) {
+                context->status = ERROR;
+                return;
+            } else {
+                context->nConstructor->nativePixelMap_= nullptr;
+                context->status = SUCCESS;
+            }
         }, EmptyResultComplete, asyncContext, asyncContext->work);
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
