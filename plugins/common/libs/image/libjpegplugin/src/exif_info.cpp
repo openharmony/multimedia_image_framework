@@ -154,7 +154,7 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
     unsigned char lenthArray[LENGTH_ARRAY_SIZE] = {
         fileBuf[BUFFER_POSITION_5], fileBuf[BUFFER_POSITION_4]
     };
-    unsigned int orginExifiDataLength = *(unsigned int*)lenthArray;
+    unsigned int orginExifDataLength = *(unsigned int*)lenthArray;
 
     ExifData *ptrExifData = nullptr;
     if ((fileBuf[BUFFER_POSITION_6] == 'E' && fileBuf[BUFFER_POSITION_7] == 'x' &&
@@ -184,7 +184,7 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
     file = nullptr;
 
     ExifByteOrder order = EXIF_BYTE_ORDER_MOTOROLA;
-    if (fileBuf[BUFFER_POSITION_12]) == 'M' && fileBuf[BUFFER_POSITION_13] == 'M') {
+    if (fileBuf[BUFFER_POSITION_12] == 'M' && fileBuf[BUFFER_POSITION_13] == 'M') {
         order = EXIF_BYTE_ORDER_MOTOROLA;
     } else {
         order = EXIF_BYTE_ORDER_INTEL;
@@ -242,7 +242,7 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
             ExifRational latRational;
             latRational.numerator = atoi(latVec[0].c_str());
             latRational.denominator = atoi(latVec[1].c_str());
-            entry = CreateExifTag(ptrExifData, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_ORIGINAL,
+            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE,
                 sizeof(latRational), EXIF_FORMAT_RATIONAL);
             exif_set_rational(entry->data, order, latRational);
             break;
@@ -259,7 +259,7 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
             ExifRational longRational;
             longRational.numerator = atoi(longVec[0].c_str());
             longRational.denominator = atoi(longVec[1].c_str());
-            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE,
+            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGTITUDE,
                 sizeof(longRational), EXIF_FORMAT_RATIONAL);
             exif_set_rational(entry->data, order, longRational);
             break;
@@ -286,7 +286,7 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
 
     unsigned char* exifDataBuf = nullptr;
     unsigned int exifDataBufLength = 0;
-    exif_data_save_data(ptrExifData_, &exifDataBuf, &exifDataBufLength);
+    exif_data_save_data(ptrExifData, &exifDataBuf, &exifDataBufLength);
     if (exifDataBuf == nullptr) {
         HiLog::Error(LABEL, "Get Exif Data Buf failed!");
         return false;
