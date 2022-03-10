@@ -372,6 +372,8 @@ static bool ParseDecodeOptions(napi_env env, napi_value root, DecodeOptions* opt
 
     if (!GET_UINT32_BY_NAME(root, "rotate", opts->rotateNewDegrees)) {
         HiLog::Debug(LABEL, "no rotate");
+    } else {
+        opts->rotateDegrees = (float)opts->rotateNewDegrees;
     }
 
     if (!GET_BOOL_BY_NAME(root, "editable", opts->editable)) {
