@@ -181,9 +181,7 @@ ohos_shared_library("image_native") {
 
     if (DUAL_ADAPTER) {
     } else {
-      deps += [
-        "//third_party/libpng:libpng",
-      ]
+      deps += [ "//third_party/libpng:libpng" ]
     }
     external_deps = [
       "bytrace_standard:bytrace_core",
@@ -298,9 +296,7 @@ ohos_static_library("image_static") {
 
     if (DUAL_ADAPTER) {
     } else {
-      deps += [
-        "//third_party/libpng:libpng",
-      ]
+      deps += [ "//third_party/libpng:libpng" ]
     }
   }
   subsystem_name = "multimedia"
