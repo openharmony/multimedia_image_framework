@@ -1297,6 +1297,7 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
     ImageInfo imgInfo;
     if (!pixelMap->ReadImageInfo(parcel, imgInfo)) {
         HiLog::Error(LABEL, "read imageInfo fail");
+        delete pixelMap;
         return nullptr;
     }
 
