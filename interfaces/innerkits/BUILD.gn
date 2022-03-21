@@ -48,6 +48,7 @@ config("image_external_config") {
   } else if (use_clang_mac) {
     include_dirs += [
       "//foundation/multimedia/image_standard/mock/native/include",
+      "//third_party/bounds_checking_function/include",
       "//utils/native/base/include",
       "//base/hiviewdfx/hilog/interfaces/native/innerkits/include",
     ]
@@ -164,7 +165,7 @@ ohos_shared_library("image_native") {
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
       "//foundation/multimedia/image_standard/mock/native:log_mock_static",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
-      "//utils/native/base:utilsecurec",
+      "//third_party/bounds_checking_function:libsec_statics",
     ]
   } else {
     defines = [ "DUAL_ADAPTER" ]
@@ -279,7 +280,7 @@ ohos_static_library("image_static") {
       "//foundation/multimedia/image_standard/frameworks/innerkitsimpl/utils:image_utils_static",
       "//foundation/multimedia/image_standard/mock/native:log_mock_static",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
-      "//utils/native/base:utilsecurec",
+      "//third_party/bounds_checking_function:libsec_static",
     ]
   } else {
     defines = [ "DUAL_ADAPTER" ]
