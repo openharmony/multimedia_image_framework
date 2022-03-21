@@ -1296,6 +1296,7 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
     ImageInfo imgInfo;
     if (!pixelMap->ReadImageInfo(parcel, imgInfo)) {
         HiLog::Error(LABEL, "read imageInfo fail");
+        delete pixelMap;
         return nullptr;
     }
 
@@ -1308,11 +1309,13 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
         int fd = ReadFileDescriptor(parcel);
         if (fd < 0) {
             HiLog::Error(LABEL, "fd < 0");
+            delete pixelMap;
             return nullptr;
         }
         void* ptr = ::mmap(nullptr, bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (ptr == MAP_FAILED) {
             ::close(fd);
+            delete pixelMap;
             HiLog::Error(LABEL, "shared memory map failed");
             return nullptr;
         }
@@ -1320,6 +1323,7 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
         if (context == nullptr) {
             ::munmap(ptr, bufferSize);
             ::close(fd);
+            delete pixelMap;
             return nullptr;
         }
         *static_cast<int32_t *>(context) = fd;
@@ -1329,6 +1333,7 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
         base = ReadImageData(parcel, bufferSize);
         if (base == nullptr) {
             HiLog::Error(LABEL, "get pixel memory size:[%{public}d] error.", bufferSize);
+            delete pixelMap;
             return nullptr;
         }
     }
@@ -1339,6 +1344,7 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
         if (context != nullptr) {
             delete static_cast<int32_t *>(context);
         }
+        delete pixelMap;
         HiLog::Error(LABEL, "create pixel map from parcel failed, set image info error.");
         return nullptr;
     }

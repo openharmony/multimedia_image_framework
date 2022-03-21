@@ -457,7 +457,11 @@ napi_value ImageSourceNapi::CreateImageSource(napi_env env, napi_callback_info i
         char* buffer = new char[bufferSize + NUM_1] { 0 };
         status = napi_get_value_string_utf8(env, argValue[NUM_0], buffer,
             bufferSize + NUM_1, &(asyncContext->pathNameLength));
-        IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), nullptr, HiLog::Error(LABEL, "fail to get pathName"));
+        if (!IMG_IS_OK(status)) {
+            delete[] buffer;
+            HiLog::Error(LABEL, "fail to get pathName");
+            return nullptr;
+        }
 
         asyncContext->pathName = buffer;
         asyncContext->pathName = FileUrlToRawPath(asyncContext->pathName);
@@ -619,10 +623,12 @@ static void CreatePixelMapExecute(napi_env env, void *data)
     auto context = static_cast<ImageSourceAsyncContext*>(data);
     if (context == nullptr) {
         HiLog::Error(LABEL, "empty context");
+        return;
     }
 
     if (context->rImageSource == nullptr) {
         HiLog::Error(LABEL, "empty context rImageSource");
+        return;
     }
 
     if (context->constructor_ != nullptr) {
