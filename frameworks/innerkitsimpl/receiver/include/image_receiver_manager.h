@@ -29,8 +29,8 @@ using namespace std;
 class ImageReceiverManager {
 public:
     ~ImageReceiverManager() {};
-    ImageReceiverManager(const ImageReceiverManager&)=delete;
-    ImageReceiverManager& operator=(const ImageReceiverManager&)=delete;
+    ImageReceiverManager(const ImageReceiverManager&) = delete;
+    ImageReceiverManager& operator=(const ImageReceiverManager&) = delete;
     static ImageReceiverManager& getInstance()
     {
         static ImageReceiverManager instance;
