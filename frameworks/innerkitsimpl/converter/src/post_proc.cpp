@@ -141,10 +141,8 @@ bool PostProc::CenterScale(const Size &size, PixelMap &pixelMap)
                    srcWidth, srcHeight, targetWidth, targetHeight);
         return false;
     }
-    if (CenterDisplay(pixelMap, srcWidth, srcHeight, targetWidth, targetHeight)) {
-        return true;
-    }
-    return false;
+
+    return CenterDisplay(pixelMap, srcWidth, srcHeight, targetWidth, targetHeight);
 }
 
 bool PostProc::CenterDisplay(PixelMap &pixelMap, int32_t srcWidth, int32_t srcHeight, int32_t targetWidth,

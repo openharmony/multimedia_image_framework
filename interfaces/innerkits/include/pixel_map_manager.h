@@ -42,16 +42,25 @@ public:
 
     int32_t GetByteCount()
     {
+        if (pixelMap_ == nullptr) {
+            return 0;
+        }
         return pixelMap_->GetByteCount();
     }
 
     void Ref()
     {
+        if (pixelMap_ == nullptr) {
+            return;
+        }
         pixelMap_->IncStrongRef(nullptr);
     }
 
     void UnRef()
     {
+        if (pixelMap_ == nullptr) {
+            return;
+        }
         pixelMap_->DecStrongRef(nullptr);
     }
 

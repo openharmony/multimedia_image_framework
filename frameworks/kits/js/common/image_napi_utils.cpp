@@ -14,9 +14,9 @@
  */
 
 #include "image_napi_utils.h"
+#include "hichecker.h"
 #include <securec.h>
 #include <unistd.h>
-#include "hichecker.h"
 
 namespace OHOS {
 namespace Media {

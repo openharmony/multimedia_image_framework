@@ -37,6 +37,9 @@ sptr<Surface> ImageReceiverManager::getSurfaceByKeyId(string keyId)
     if (iter != mapReceiver_.end()) {
         imageReceiver = iter->second;
     }
+    if (imageReceiver == nullptr) {
+        return nullptr;
+    }
     return imageReceiver->GetReceiverSurface();
 }
 shared_ptr<ImageReceiver> ImageReceiverManager::getImageReceiverByKeyId(string keyId)

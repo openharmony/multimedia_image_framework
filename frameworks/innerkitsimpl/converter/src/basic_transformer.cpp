@@ -141,7 +141,7 @@ uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInf
         return ERR_IMAGE_ALLOC_MEMORY_FAILED;
     }
     int fd = 0;
-    if (CheckAllocateBuffer(outPixmap, allocate, fd, bufferSize, dstSize) != true) {
+    if (!(CheckAllocateBuffer(outPixmap, allocate, fd, bufferSize, dstSize))) {
         return ERR_IMAGE_ALLOC_MEMORY_FAILED;
     }
     outPixmap.bufferSize = bufferSize;
@@ -174,8 +174,7 @@ bool BasicTransformer::DrawPixelmap(const PixmapInfo &pixmapInfo, const int32_t 
                                     uint8_t *data)
 {
     Matrix invertMatrix;
-    bool isInvert = matrix_.Invert(invertMatrix);
-    if (!isInvert) {
+    if (!(matrix_.Invert(invertMatrix))) {
         return false;
     }
 

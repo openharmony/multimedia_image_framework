@@ -13,10 +13,10 @@
  * limitations under the License.
  */
 
+#include "scan_line_filter.h"
 #include "image_log.h"
 #include "image_utils.h"
 #include "media_errors.h"
-#include "scan_line_filter.h"
 #ifndef _WIN32
 #include "securec.h"
 #else

@@ -361,6 +361,7 @@ unique_ptr<PixelMap> ImageSource::CreatePixelMap(uint32_t index, const DecodeOpt
                                  context.pixelsBuffer.bufferSize);
             } else {
                 free(context.pixelsBuffer.buffer);
+                context.pixelsBuffer.buffer = nullptr;
             }
         }
         return nullptr;
@@ -1169,7 +1170,8 @@ FinalOutputStep ImageSource::GetFinalOutputStep(const DecodeOptions &opts, Pixel
     bool convertChange = ImageConverChange(opts.CropRect, dstImageInfo, info);
     if (sizeChange) {
         return FinalOutputStep::SIZE_CHANGE;
-    } else if (densityChange) {
+    }
+    if (densityChange) {
         return FinalOutputStep::DENSITY_CHANGE;
     }
     if (rotateChange) {

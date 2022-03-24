@@ -242,10 +242,7 @@ void ImagePacker::FreeOldPackerStream()
 
 bool ImagePacker::IsPackOptionValid(const PackOption &option)
 {
-    if (option.quality > QUALITY_MAX || option.format.empty()) {
-        return false;
-    }
-    return true;
+    return !(option.quality > QUALITY_MAX || option.format.empty());
 }
 
 // class reference need explicit constructor and destructor, otherwise unique_ptr<T> use unnormal

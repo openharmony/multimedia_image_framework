@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#include <utility>
 #include "attr_data.h"
+#include <utility>
 #include "hilog/log.h"
 #include "log_tags.h"
 #ifndef _WIN32
@@ -255,6 +255,7 @@ void AttrData::ClearData()
         default: {
             // do nothing
             HiLog::Debug(LABEL, "ClearData: do nothing for type %{public}d.", type_);
+            break;
         }
     }
 

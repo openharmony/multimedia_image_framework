@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#include "directory_ex.h"
 #include "file_source_stream.h"
+#include "directory_ex.h"
 #include "image_log.h"
 #include "image_utils.h"
 #include "media_errors.h"

@@ -104,7 +104,7 @@ enum class PixelFormat : int32_t {
     RGB_888 = 5,
     ALPHA_8 = 6,
     RGBA_F16 = 7,
-    NV21 = 8,  // Each pixel is sotred on 3/2 bytes.
+    NV21 = 8,  // Each pixel is sorted on 3/2 bytes.
     NV12 = 9,
     CMYK = 10,
 };
