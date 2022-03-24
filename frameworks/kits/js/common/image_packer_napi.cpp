@@ -51,7 +51,7 @@ struct ImagePackerAsyncContext {
     napi_deferred deferred;
     napi_ref callbackRef = nullptr;
     ImagePackerNapi *constructor_;
-    bool status;
+    bool status = false;
     std::shared_ptr<ImageSource> rImageSource;
     PackOption packOption;
     std::shared_ptr<ImagePacker> rImagePacker;
@@ -337,7 +337,7 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
         } else {
             napi_get_value_int32(env, property, &quality);
             opts->quality = quality;
-            HiLog::Debug(LABEL, "quality is %{public}u.", quality);
+            HiLog::Debug(LABEL, "quality is %{public}d.", quality);
         }
     }
     return true;

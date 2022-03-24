@@ -35,7 +35,7 @@ namespace OHOS {
 namespace Media {
 struct ImageReceiverCommonArgs;
 struct ImageReceiverAsyncContext;
-using Context = ImageReceiverAsyncContext* ;
+using Context = ImageReceiverAsyncContext*;
 using CompleteCallback = void (*)(napi_env env, napi_status status, Context context);
 class ImageReceiverNapi {
 public:
@@ -102,7 +102,7 @@ enum class CallType : uint32_t {
     GETTER = 1,
     ASYNC = 2,
 };
-    
+
 struct ImageReceiverCommonArgs {
     napi_env env;
     napi_callback_info info;
