@@ -12,6 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "plugin_server.h"
 #include "hilog/log.h"
 #include "singleton.h"
@@ -112,7 +113,7 @@ PluginClassBase *PluginServer::CreateObject(uint16_t interfaceID, uint16_t servi
                                             const map<string, AttrData> &capabilities,
                                             const PriorityScheme &priorityScheme, uint32_t &errorCode)
 {
-    HiLog::Debug(LABEL, "create object iid: %{public}u, service Type: %{public}u.", interfaceID, serviceType);
+    HiLog::Debug(LABEL, "create object iid: %{public}hu, service Type: %{public}u.", interfaceID, serviceType);
     PluginClassBase *obj = nullptr;
     // if it is a pipeline service, use the gstreamer framework first.
     if (GetInterfaceIDType(interfaceID) == IID_TYPE_PIPELINE) {

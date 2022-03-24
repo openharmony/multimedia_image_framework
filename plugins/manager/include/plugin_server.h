@@ -160,7 +160,7 @@ private:
     inline T *ConvertToServiceInterface(PluginClassBase *pluginBase)
     {
 #ifdef PLUGIN_FLAG_RTTI_ENABLE
-        // when -frtti is enable, we use dynamic cast directly
+        // when -frtti is enabled, we use dynamic cast directly
         // to achieve the correct base class side-to-side conversion.
         T *serviceObj = dynamic_cast<T *>(pluginBase);
         if (serviceObj == nullptr && pluginBase != nullptr) {

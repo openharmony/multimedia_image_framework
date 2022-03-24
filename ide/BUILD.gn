@@ -37,14 +37,6 @@ group("image_decode_only") {
   }
 }
 
-#ohos_combine_jars("image_decode_only_java") {
-#  deps = [
-#    "//foundation/multimedia/image_standard/interfaces/kits/java:image_decode_java",
-#    "//foundation/multimedia/image_standard/mock/java/src/ohos:mock_java",
-#  ]
-#  subsystem_name = "multimedia"
-#}
-
 config("media_config") {
   defines = []
   if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {

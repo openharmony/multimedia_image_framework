@@ -94,7 +94,7 @@ void ImplClassMgr::DeleteClass(const weak_ptr<Plugin> &plugin)
 
 PluginClassBase *ImplClassMgr::CreateObject(uint16_t interfaceID, const string &className, uint32_t &errorCode)
 {
-    HiLog::Debug(LABEL, "create object iid: %{public}u, className: %{public}s.", interfaceID, className.c_str());
+    HiLog::Debug(LABEL, "create object iid: %{public}hu, className: %{public}s.", interfaceID, className.c_str());
 
     NameClassMultimap::iterator iter = classMultimap_.lower_bound(&className);
     NameClassMultimap::iterator endIter = classMultimap_.upper_bound(&className);
@@ -111,7 +111,7 @@ PluginClassBase *ImplClassMgr::CreateObject(uint16_t interfaceID, const string &
     }
 
     // no this class
-    HiLog::Error(LABEL, "failed to find matching class for iid: %{public}u, className: %{public}s.", interfaceID,
+    HiLog::Error(LABEL, "failed to find matching class for iid: %{public}hu, className: %{public}s.", interfaceID,
                  className.c_str());
     errorCode = ERR_MATCHING_PLUGIN;
     return nullptr;

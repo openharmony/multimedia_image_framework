@@ -18,7 +18,7 @@
 namespace OHOS {
 bool WriteFileDescriptor(int fd)
 {
-    (void) fd;
+    (void)fd;
     return false;
 }
 

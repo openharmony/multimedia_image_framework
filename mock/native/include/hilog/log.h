@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-
 #ifndef HIVIEWDFX_HILOG_H
 #define HIVIEWDFX_HILOG_H
 

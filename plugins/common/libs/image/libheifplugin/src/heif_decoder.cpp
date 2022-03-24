@@ -66,6 +66,7 @@ uint32_t HeifDecoder::SetDecodeOptions(uint32_t index, const PixelDecodeOptions 
     }
     return SUCCESS;
 }
+
 uint32_t HeifDecoder::Decode(uint32_t index, DecodeContext &context)
 {
     if (heifDecoderInterface_ == nullptr) {
