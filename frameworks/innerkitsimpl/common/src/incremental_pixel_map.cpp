@@ -14,7 +14,6 @@
  */
 
 #include "incremental_pixel_map.h"
-#include <iostream>
 #include "hilog/log.h"
 #include "image_source.h"
 #include "log_tags.h"
