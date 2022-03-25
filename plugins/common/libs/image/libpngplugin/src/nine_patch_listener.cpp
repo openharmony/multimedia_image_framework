@@ -77,7 +77,7 @@ bool NinePatchListener::ReadChunk(const std::string &tag, void *data, size_t len
             return false;
         }
         errno_t err = memcpy_s(patchNew, patchSize, patch, patchSize);
-        if (err != 0) {
+        if (err != EOK) {
             HiLog::Error(LABEL, "memcpy failed. errno:%{public}d", err);
             free(patchNew);
             patchNew = nullptr;

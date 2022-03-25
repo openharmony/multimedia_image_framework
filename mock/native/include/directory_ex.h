@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-
 #ifndef DIRECTORY_EX_H
 #define DIRECTORY_EX_H
 

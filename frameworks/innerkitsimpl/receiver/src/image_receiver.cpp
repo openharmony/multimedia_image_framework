@@ -108,10 +108,8 @@ namespace OHOS {
         {
             if (iraContext_->currentBuffer_ != nullptr) {
                 return SaveBufferAsImage(fd, iraContext_->currentBuffer_, initializationOpts);
-            } else {
-                HiLog::Debug(LABEL, "iraContext_->GetCurrentBuffer() == nullptr");
-                return 0;
             }
+            HiLog::Debug(LABEL, "iraContext_->GetCurrentBuffer() == nullptr");
             return 0;
         }
 

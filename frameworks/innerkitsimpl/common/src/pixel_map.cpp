@@ -1095,9 +1095,9 @@ bool PixelMap::WriteImageData(Parcel &parcel, size_t size) const
         return false;
     }
     void *ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-
     if (ptr == MAP_FAILED) {
         ::close(fd);
+        HiLog::Error(LABEL, "WriteImageData map failed, errno:%{public}s", strerror(errno));
         return false;
     }
     HiLog::Info(LABEL, "mmap success");
@@ -1155,7 +1155,7 @@ uint8_t *PixelMap::ReadImageData(Parcel &parcel, int32_t bufferSize)
         void *ptr = ::mmap(nullptr, bufferSize, PROT_READ, MAP_SHARED, fd, 0);
         if (ptr == MAP_FAILED) {
             // do not close fd here. fd will be closed in FileDescriptor, ::close(fd)
-            HiLog::Error(LABEL, "mmap error");
+            HiLog::Error(LABEL, "ReadImageData map failed, errno:%{public}s", strerror(errno));
             return nullptr;
         }
         if (bufferSize <= 0) {
@@ -1327,7 +1327,7 @@ PixelMap *PixelMap::Unmarshalling(Parcel &parcel)
         if (ptr == MAP_FAILED) {
             ::close(fd);
             delete pixelMap;
-            HiLog::Error(LABEL, "shared memory map failed");
+            HiLog::Error(LABEL, "shared memory map failed, errno:%{public}s", strerror(errno));
             return nullptr;
         }
         context = new int32_t();

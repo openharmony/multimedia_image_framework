@@ -195,7 +195,7 @@ std::string DoubleToString(double num)
 {
     char str[256];
     int32_t ret = sprintf_s(str, sizeof(str), "%lf", num);
-    if (ret <= PRINTF_SUCCESS) {
+    if (ret <= 0) {
         return "";
     }
     std::string result = str;

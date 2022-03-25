@@ -58,6 +58,7 @@ FilePackerStream::~FilePackerStream()
 {
     if (file_ != nullptr) {
         fclose(file_);
+        file_ = nullptr;
     }
 }
 

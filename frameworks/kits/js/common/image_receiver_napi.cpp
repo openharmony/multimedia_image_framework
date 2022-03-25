@@ -308,11 +308,17 @@ napi_value ImageReceiverNapi::JSCommonProcess(ImageReceiverCommonArgs &args)
 
     if (args.async != CallType::STATIC) {
         ic.context = std::make_unique<ImageReceiverAsyncContext>();
+        if (ic.context == nullptr) {
+            return ic.result;
+        }
         ic.status = napi_unwrap(args.env, ic.thisVar, reinterpret_cast<void**>(&(ic.context->constructor_)));
 
         IMG_NAPI_CHECK_RET_D(IMG_IS_READY(ic.status, ic.context->constructor_),
             ic.result, IMAGE_ERR("fail to unwrap context"));
 
+        if (ic.context->constructor_ == nullptr) {
+            return ic.result;
+        }
         ic.context->receiver_ = ic.context->constructor_->imageReceiver_;
 
         IMG_NAPI_CHECK_RET_D(IMG_IS_READY(ic.status, ic.context->receiver_),

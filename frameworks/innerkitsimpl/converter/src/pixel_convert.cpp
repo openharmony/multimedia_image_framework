@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
+#include "pixel_convert.h"
 #include <map>
 #include <mutex>
-#include "pixel_convert.h"
 
 namespace OHOS {
 namespace Media {

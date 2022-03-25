@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-
 #include "raw_format_agent.h"
 
 namespace OHOS {
@@ -55,7 +54,7 @@ bool RawFormatAgent::CheckFormat(const void *headerData, uint32_t dataSize)
         return false;
     }
 
-    HiLog::Info(LABEL, "RawFormatAgent now pass all image format.");
+    HiLog::Info(LABEL, "RawFormatAgent now pass all image format. dataSize = [%{public}d]", dataSize);
     return true;
 }
 } // namespace ImagePlugin

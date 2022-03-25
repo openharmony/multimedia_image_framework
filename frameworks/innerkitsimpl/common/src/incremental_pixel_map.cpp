@@ -13,10 +13,9 @@
  * limitations under the License.
  */
 
-#include <iostream>
+#include "incremental_pixel_map.h"
 #include "hilog/log.h"
 #include "image_source.h"
-#include "incremental_pixel_map.h"
 #include "log_tags.h"
 #include "media_errors.h"
 

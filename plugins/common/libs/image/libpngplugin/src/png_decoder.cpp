@@ -465,8 +465,8 @@ void PngDecoder::PngWarningMessage(png_structp pngPtr, png_const_charp message)
 uint32_t PngDecoder::ProcessData(png_structp pngStructPtr, png_infop infoStructPtr, InputDataStream *sourceStream,
                                  DataStreamBuffer streamData, size_t bufferSize, size_t totalSize)
 {
-    if (pngStructPtr == nullptr || infoStructPtr == nullptr || sourceStream == nullptr || totalSize == 0 ||
-        bufferSize == 0) {
+    if ((pngStructPtr == nullptr) || (infoStructPtr == nullptr) || (sourceStream == nullptr) || (totalSize == 0) ||
+        (bufferSize == 0)) {
         HiLog::Error(LABEL, "ProcessData input error, totalSize:%{public}zu, bufferSize:%{public}zu.", totalSize,
                      bufferSize);
         return ERR_IMAGE_INVALID_PARAMETER;
@@ -529,6 +529,10 @@ bool PngDecoder::GetImageInfo(PngImageInfo &info)
 
 uint32_t PngDecoder::IncrementalRead(InputDataStream *stream, uint32_t desiredSize, DataStreamBuffer &outData)
 {
+    if (stream == nullptr) {
+        return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
+    }
+
     uint32_t curPos = stream->Tell();
     if (!stream->Read(desiredSize, outData)) {
         HiLog::Debug(LABEL, "read data fail.");

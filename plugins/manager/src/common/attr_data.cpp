@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#include <utility>
 #include "attr_data.h"
+#include <utility>
 #include "hilog/log.h"
 #include "log_tags.h"
 #ifndef _WIN32
@@ -112,7 +112,7 @@ AttrData::AttrData(const AttrData &data)
 
 AttrData::AttrData(AttrData &&data) noexcept
 {
-    if (memcpy_s(&value_, sizeof(value_), &data.value_, sizeof(data.value_)) == 0) {
+    if (memcpy_s(&value_, sizeof(value_), &data.value_, sizeof(data.value_)) == EOK) {
         type_ = data.type_;
         data.type_ = AttrDataType::ATTR_DATA_NULL;
     } else {
@@ -150,7 +150,7 @@ AttrData &AttrData::operator=(AttrData &&data) noexcept
     }
 
     ClearData();
-    if (memcpy_s(&value_, sizeof(value_), &data.value_, sizeof(data.value_)) == 0) {
+    if (memcpy_s(&value_, sizeof(value_), &data.value_, sizeof(data.value_)) == EOK) {
         type_ = data.type_;
         data.type_ = AttrDataType::ATTR_DATA_NULL;
     } else {
@@ -255,6 +255,7 @@ void AttrData::ClearData()
         default: {
             // do nothing
             HiLog::Debug(LABEL, "ClearData: do nothing for type %{public}d.", type_);
+            break;
         }
     }
 

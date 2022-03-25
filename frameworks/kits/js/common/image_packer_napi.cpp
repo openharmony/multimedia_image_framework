@@ -87,7 +87,7 @@ static void CommonCallbackRoutine(napi_env env, ImagePackerAsyncContext* &connec
     napi_get_undefined(env, &result[NUM_1]);
 
     if (connect->status == SUCCESS) {
-        result[1] = valueParam;
+        result[NUM_1] = valueParam;
     }
 
     if (connect->deferred) {
@@ -184,7 +184,6 @@ STATIC_EXEC_FUNC(PackingFromPixelMap)
     context->resultBuffer = malloc(bufferSize);
     if (context->resultBuffer == nullptr) {
         HiLog::Error(LABEL, "PackingFromPixelMapExec failed, malloc buffer failed");
-
         context->status = ERROR;
     } else {
         context->rImagePacker->StartPacking(static_cast<uint8_t *>(context->resultBuffer),

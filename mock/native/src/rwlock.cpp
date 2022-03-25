@@ -39,9 +39,6 @@ void RWLock::LockRead()
                 while ((count = lockCount_) == LOCK_STATUS_WRITE) {}
             } while (!lockCount_.compare_exchange_weak(count, count + 1));
         }
-    } else {
-        // If the thread has obtained the write lock, it does not need to wait for the read lock to return directly.
-        // Lock counter does not need to be modified
     }
 }
 

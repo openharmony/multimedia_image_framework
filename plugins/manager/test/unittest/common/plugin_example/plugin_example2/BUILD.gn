@@ -34,8 +34,6 @@ ohos_shared_library("pluginexample2") {
     "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
   ]
 
-  #  external_deps = [ "hilog:libhilog" ]
-
   subsystem_name = "multimedia"
   part_name = "multimedia_image"
 }

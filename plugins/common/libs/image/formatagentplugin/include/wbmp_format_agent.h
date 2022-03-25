@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 
-
 #ifndef WBMP_FORMAT_AGENT_H
 #define WBMP_FORMAT_AGENT_H
 
