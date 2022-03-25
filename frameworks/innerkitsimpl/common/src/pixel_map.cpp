@@ -326,6 +326,9 @@ bool PixelMap::SourceCropAndConvert(PixelMap &source, const ImageInfo &srcImageI
         return false;
     }
 
+    if (memset_s(dstPixels, bufferSize, 0, bufferSize) != EOK) {
+        HiLog::Error(LABEL, "dstPixels memset_s failed.");
+    }
     Position srcPosition{ srcRect.left, srcRect.top };
     if (!PixelConvertAdapter::ReadPixelsConvert(source.GetPixels(), srcPosition, source.GetRowBytes(), srcImageInfo,
         dstPixels, dstPixelMap.GetRowBytes(), dstImageInfo)) {
