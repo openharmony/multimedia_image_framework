@@ -142,7 +142,7 @@ unique_ptr<PixelMap> PixelMap::Create(const uint32_t *colors, uint32_t colorLeng
         return nullptr;
     }
     uint32_t bufferSize = dstPixelMap->GetByteCount();
-    if (bufferSize == 0) {
+    if (bufferSize == 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
         HiLog::Error(LABEL, "malloc parameter is zero");
         return nullptr;
     }
@@ -214,7 +214,7 @@ unique_ptr<PixelMap> PixelMap::Create(const InitializationOptions &opts)
         return nullptr;
     }
     uint32_t bufferSize = dstPixelMap->GetByteCount();
-    if (bufferSize <= 0) {
+    if (bufferSize == 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
         HiLog::Error(LABEL, "calloc parameter bufferSize:[%{public}d] error.", bufferSize);
         return nullptr;
     }
@@ -316,7 +316,7 @@ bool PixelMap::SourceCropAndConvert(PixelMap &source, const ImageInfo &srcImageI
                                     const Rect &srcRect, PixelMap &dstPixelMap)
 {
     uint32_t bufferSize = dstPixelMap.GetByteCount();
-    if (bufferSize <= 0) {
+    if (bufferSize == 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
         HiLog::Error(LABEL, "malloc parameter bufferSize:[%{public}d] error.", bufferSize);
         return false;
     }
@@ -384,7 +384,7 @@ bool PixelMap::CopyPixelMap(PixelMap &source, PixelMap &dstPixelMap)
         HiLog::Error(LABEL, "source pixelMap data invalid");
         return false;
     }
-    if (bufferSize <= 0) {
+    if (bufferSize == 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
         HiLog::Error(LABEL, "malloc parameter bufferSize:[%{public}d] error.", bufferSize);
         return false;
     }
@@ -1119,7 +1119,7 @@ uint8_t *PixelMap::ReadImageData(Parcel &parcel, int32_t bufferSize)
 
     if (static_cast<unsigned int>(bufferSize) <= MIN_IMAGEDATA_SIZE) {
         const uint8_t *ptr = parcel.ReadUnpadBuffer(bufferSize);
-        if (bufferSize <= 0) {
+        if (bufferSize <= 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
             HiLog::Error(LABEL, "malloc parameter bufferSize:[%{public}d] error.", bufferSize);
             return nullptr;
         }
@@ -1147,7 +1147,7 @@ uint8_t *PixelMap::ReadImageData(Parcel &parcel, int32_t bufferSize)
             HiLog::Error(LABEL, "ReadImageData map failed, errno:%{public}s", strerror(errno));
             return nullptr;
         }
-        if (bufferSize <= 0) {
+        if (bufferSize <= 0 || bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
             HiLog::Error(LABEL, "malloc parameter bufferSize:[%{public}d] error.", bufferSize);
             return nullptr;
         }
