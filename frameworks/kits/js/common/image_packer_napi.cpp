@@ -326,7 +326,7 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
             HiLog::Error(LABEL, "Parse pack option format failed");
             return false;
         }
-    } else if(isFormatArray) {
+    } else if (isFormatArray) {
         uint32_t len = 0;
         if (napi_get_array_length(env, tmpValue, &len) != napi_ok) {
             HiLog::Error(LABEL, "TONY Parse pack napi_get_array_length failed");
@@ -336,7 +336,7 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
         for (size_t i = 0; i < len; i++) {
             napi_value item;
             napi_get_element(env, tmpValue, i, &item);
-            if(!ImageNapiUtils::GetUtf8String(env, item, opts->format, false)) {
+            if (!ImageNapiUtils::GetUtf8String(env, item, opts->format, false)) {
                 HiLog::Error(LABEL, "Parse format in item failed %{public}d", i);
             }
             HiLog::Debug(LABEL, "format is %{public}s.", opts->format.c_str());
