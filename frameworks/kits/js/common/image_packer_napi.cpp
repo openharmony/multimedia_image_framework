@@ -345,8 +345,7 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
         HiLog::Error(LABEL, "Invalid pack option format type");
         return false;
     }
-    HiLog::Debug(LABEL, "parsePackOptions format:[%{public}s], size: %{public}u",
-        opts->format.c_str(), opts->format.size());
+    HiLog::Debug(LABEL, "parsePackOptions format:[%{public}s]", opts->format.c_str());
 
     if (!GET_UINT32_BY_NAME(root, "quality", tmpNumber)) {
         HiLog::Error(LABEL, "No quality in pack option");
