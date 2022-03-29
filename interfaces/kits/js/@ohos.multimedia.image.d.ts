@@ -492,17 +492,17 @@ declare namespace image {
 
     /**
      * PixelMap expected alpha type.
-     * @since 8
+     * @since 9
      * @syscap SystemCapability.Multimedia.Image.Core
      */
-    alphaType: AlphaType;
+    alphaType?: AlphaType;
 
     /**
      * PixelMap expected scaling effect.
-     * @since 8
+     * @since 9
      * @syscap SystemCapability.Multimedia.Image.Core
      */
-    scaleMode: ScaleMode;
+    scaleMode?: ScaleMode;
   }
 
   /**
