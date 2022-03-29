@@ -160,7 +160,7 @@ declare namespace image {
 
   /**
    * Enumerates alpha types.
-   * @since 8
+   * @since 9
    * @syscap SystemCapability.Multimedia.Image.Core
    */
   enum AlphaType {
@@ -201,7 +201,7 @@ declare namespace image {
   enum ScaleMode {
     /**
      * Indicates the effect that scales an image to fill the target image area and center-crops the part outside the area.
-     * @since 8
+     * @since 9
      * @syscap SystemCapability.Multimedia.Image.Core
      */
     CENTER_CROP = 1, // Indicates the effect that scales an image to fill the target image area and center-crops the part outside the area.
