@@ -1138,7 +1138,7 @@ uint8_t *PixelMap::ReadImageData(Parcel &parcel, int32_t bufferSize)
         }
 
         const uint8_t *ptr = parcel.ReadUnpadBuffer(bufferSize);
-        if (addr == nullptr) {
+        if (ptr == nullptr) {
             HiLog::Error(LABEL, "read buffer from parcel failed, read buffer addr is null");
             return nullptr;
         }
