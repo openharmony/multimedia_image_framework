@@ -71,9 +71,6 @@
             "name": "//foundation/multimedia/image_standard/interfaces/innerkits:image"
           }
         ],
-        "system_capabilities":[
-          "SystemCapability.Multimedia.Image"
-        ]
       }
     }
   }
