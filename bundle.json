@@ -17,7 +17,7 @@
         "SystemCapability.Multimedia.Image.ImageSource",
         "SystemCapability.Multimedia.Image.ImagePacker",
         "SystemCapability.Multimedia.Image.ImageReceiver"
-	  ],
+      ],
       "features": [],
       "adapted_system_type": [ "standard" ],
       "rom": "10000KB",
