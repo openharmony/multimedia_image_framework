@@ -55,7 +55,10 @@ public:
     uint32_t GetImagePropertyString(uint32_t index, const std::string &key, std::string &value) override;
     uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
         const std::string &path) override;
-
+    uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
+        const int fd) override;
+    uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
+        uint8_t *data, uint32_t size) override;
 private:
     DISALLOW_COPY_AND_MOVE(JpegDecoder);
     int ExifPrintMethod();
@@ -69,7 +72,7 @@ private:
     void CreateDecoder();
     bool IsMarker(uint8_t rawPrefix, uint8_t rawMarkderCode, uint8_t markerCode);
     bool FindMarker(InputDataStream &stream, uint8_t marker);
-    ExifTag getExifTagFromKey(const std::string &key, const std::string &value);
+    ExifTag getExifTagFromKey(const std::string &key);
 
     static MultimediaPlugin::PluginServer &pluginServer_;
     jpeg_decompress_struct decodeInfo_;
