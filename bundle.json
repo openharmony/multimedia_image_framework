@@ -12,7 +12,12 @@
     "component": {
       "name": "multimedia_image_standard",
       "subsystem": "multimedia",
-      "syscap": [ "SystemCapability.Multimedia.Image" ],
+      "syscap": [
+        "SystemCapability.Multimedia.Image.Core",
+        "SystemCapability.Multimedia.Image.ImageSource",
+        "SystemCapability.Multimedia.Image.ImagePacker",
+        "SystemCapability.Multimedia.Image.ImageReceiver"
+	  ],
       "features": [],
       "adapted_system_type": [ "standard" ],
       "rom": "10000KB",
