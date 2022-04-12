@@ -18,6 +18,7 @@
 #include "hilog/log.h"
 #include "image_napi_utils.h"
 #include "media_errors.h"
+#include "string_ex.h"
 
 using OHOS::HiviewDFX::HiLog;
 namespace {
@@ -28,6 +29,7 @@ namespace {
     constexpr uint32_t NUM_3 = 3;
     constexpr uint32_t NUM_4 = 4;
     constexpr uint32_t NUM_5 = 5;
+    constexpr uint32_t NUM_8 = 8;
 }
 
 namespace OHOS {
@@ -38,6 +40,9 @@ std::shared_ptr<IncrementalPixelMap> ImageSourceNapi::sIncPixelMap_ = nullptr;
 static const std::string CLASS_NAME = "ImageSource";
 static const std::string FILE_URL_PREFIX = "file://";
 std::string ImageSourceNapi::filePath_ = "";
+int ImageSourceNapi::fileDescriptor_ = -1;
+void* ImageSourceNapi::fileBuffer_ = nullptr;
+size_t ImageSourceNapi::fileBufferSize_ = 0;
 
 struct ImageSourceAsyncContext {
     napi_env env;
@@ -69,6 +74,7 @@ struct ImageSourceAsyncContext {
     std::shared_ptr<ImageSource> rImageSource;
     std::shared_ptr<PixelMap> rPixelMap;
     napi_value error = nullptr;
+    std::string errMsg;
 };
 
 static std::string GetStringArgument(napi_env env, napi_value value)
@@ -473,6 +479,11 @@ napi_value ImageSourceNapi::CreateImageSource(napi_env env, napi_callback_info i
     IMG_JS_ARGS(env, info, status, argCount, argValue, thisVar);
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), nullptr, HiLog::Error(LABEL, "fail to napi_get_cb_info"));
 
+    filePath_ = "";
+    fileDescriptor_ = -1;
+    fileBuffer_ = nullptr;
+    fileBufferSize_ = 0;
+
     std::unique_ptr<ImageSourceAsyncContext> asyncContext = std::make_unique<ImageSourceAsyncContext>();
     uint32_t errorCode = ERR_MEDIA_INVALID_VALUE;
     SourceOptions opts;
@@ -501,10 +512,13 @@ napi_value ImageSourceNapi::CreateImageSource(napi_env env, napi_callback_info i
     } else if (argCount == NUM_1 && ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_number) {
         napi_get_value_int32(env, argValue[NUM_0], &asyncContext->fdIndex);
         HiLog::Debug(LABEL, "CreateImageSource fdIndex is [%{public}d]", asyncContext->fdIndex);
+        fileDescriptor_ = asyncContext->fdIndex;
         imageSource = ImageSource::CreateImageSource(asyncContext->fdIndex, opts, errorCode);
     } else if (argCount == NUM_1) {
         status = napi_get_arraybuffer_info(env, argValue[NUM_0],
             &(asyncContext->sourceBuffer), &(asyncContext->sourceBufferSize));
+        fileBuffer_ = asyncContext->sourceBuffer;
+        fileBufferSize_ = asyncContext->sourceBufferSize;
         imageSource = ImageSource::CreateImageSource(static_cast<uint8_t *>(asyncContext->sourceBuffer),
             asyncContext->sourceBufferSize, opts, errorCode);
     }
@@ -791,11 +805,44 @@ static void ModifyImagePropertyComplete(napi_env env, napi_status status, ImageS
         HiLog::Error(LABEL, "context is nullptr");
         return;
     }
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
 
+    napi_value result[NUM_2] = {0};
+    napi_get_undefined(env, &result[NUM_0]);
+    napi_get_undefined(env, &result[NUM_1]);
+    napi_value retVal;
+    napi_value callback = nullptr;
+    if (context->status == ERR_MEDIA_WRITE_PARCEL_FAIL) {
+        if (context->fdIndex != -1) {
+            napi_create_string_utf8(env, "Create Fd without write permission!", NAPI_AUTO_LENGTH, &result[NUM_0]);
+        }
+    } else if (context->status == ERR_MEDIA_OUT_OF_RANGE) {
+        napi_create_string_utf8(env, "The given buffer size is too small to add new exif data!",
+            NAPI_AUTO_LENGTH, &result[NUM_0]);
+    } else if (context->status == ERR_IMAGE_DECODE_EXIF_UNSUPPORT) {
+        napi_create_string_utf8(env, "The exif data format is not standard, so modify it failed!",
+            NAPI_AUTO_LENGTH, &result[NUM_0]);
+    } else if (context->status == ERR_MEDIA_VALUE_INVALID) {
+        napi_create_string_utf8(env, (context->errMsg).c_str(), NAPI_AUTO_LENGTH, &result[NUM_0]);
+    }
+
+    if (context->deferred) {
+        if (context->status == SUCCESS) {
+            napi_resolve_deferred(env, context->deferred, result[NUM_1]);
+        } else {
+            napi_reject_deferred(env, context->deferred, result[NUM_0]);
+        }
+    } else {
+        HiLog::Debug(LABEL, "call callback function");
+        napi_get_reference_value(env, context->callbackRef, &callback);
+        napi_call_function(env, nullptr, callback, NUM_2, result, &retVal);
+        napi_delete_reference(env, context->callbackRef);
+    }
+
+    napi_delete_async_work(env, context->work);
+
+    delete context;
+    context = nullptr;
     HiLog::Debug(LABEL, "ModifyPropertyComplete OUT");
-    ImageSourceCallbackRoutine(env, context, result);
 }
 
 static void GetImagePropertyComplete(napi_env env, napi_status status, ImageSourceAsyncContext *context)
@@ -865,6 +912,67 @@ static std::unique_ptr<ImageSourceAsyncContext> UnwrapContext(napi_env env, napi
     return context;
 }
 
+static bool CheckExifDataValue(const std::string &key, const std::string &value, std::string &errorInfo)
+{
+    if (IsSameTextStr(key, "BitsPerSample")) {
+        std::vector<std::string> bitsVec;
+        SplitStr(value, ",", bitsVec);
+        if (bitsVec.size() > NUM_2) {
+            errorInfo = "BitsPerSample has invalid exif value: ";
+            errorInfo.append(value);
+            return false;
+        }
+        for (size_t i = 0; i < bitsVec.size(); i++) {
+            if (!IsNumericStr(bitsVec[i])) {
+                errorInfo = "BitsPerSample has invalid exif value: ";
+                errorInfo.append(bitsVec[i]);
+                return false;
+            }
+        }
+    } else if (IsSameTextStr(key, "Orientation")) {
+        if (!IsNumericStr(value) || atoi(value.c_str()) < 1 || atoi(value.c_str()) > NUM_8) {
+            errorInfo = "Orientation has invalid exif value: ";
+            errorInfo.append(value);
+            return false;
+        }
+    } else if (IsSameTextStr(key, "ImageLength") || IsSameTextStr(key, "ImageWidth")) {
+        if (!IsNumericStr(value)) {
+            errorInfo = "ImageLength or ImageWidth has invalid exif value: ";
+            errorInfo.append(value);
+            return false;
+        }
+    } else if (IsSameTextStr(key, "GPSLatitude") || IsSameTextStr(key, "GPSLongitude")) {
+        std::vector<std::string> gpsVec;
+        SplitStr(value, ",", gpsVec);
+        if (gpsVec.size() != NUM_2) {
+            errorInfo = "GPSLatitude or GPSLongitude has invalid exif value: ";
+            errorInfo.append(value);
+            return false;
+        }
+
+        for (size_t i = 0; i < gpsVec.size(); i++) {
+            if (!IsNumericStr(gpsVec[i])) {
+                errorInfo = "GPSLatitude or GPSLongitude has invalid exif value: ";
+                errorInfo.append(gpsVec[i]);
+                return false;
+            }
+        }
+    } else if (IsSameTextStr(key, "GPSLatitudeRef")) {
+        if (!IsSameTextStr(value, "N") && !IsSameTextStr(value, "S")) {
+            errorInfo = "GPSLatitudeRef has invalid exif value: ";
+            errorInfo.append(value);
+            return false;
+        }
+    } else if (IsSameTextStr(key, "GPSLongitudeRef")) {
+        if (!IsSameTextStr(value, "W") && !IsSameTextStr(value, "E")) {
+            errorInfo = "GPSLongitudeRef has invalid exif value: ";
+            errorInfo.append(value);
+            return false;
+        }
+    }
+    return true;
+}
+
 static std::unique_ptr<ImageSourceAsyncContext> UnwrapContextForModify(napi_env env,
     napi_callback_info info)
 {
@@ -914,6 +1022,9 @@ static std::unique_ptr<ImageSourceAsyncContext> UnwrapContextForModify(napi_env 
         }
     }
     context->pathName = ImageSourceNapi::filePath_;
+    context->fdIndex = ImageSourceNapi::fileDescriptor_;
+    context->sourceBuffer = ImageSourceNapi::fileBuffer_;
+    context->sourceBufferSize = ImageSourceNapi::fileBufferSize_;
     return context;
 }
 
@@ -940,8 +1051,25 @@ napi_value ImageSourceNapi::ModifyImageProperty(napi_env env, napi_callback_info
         [](napi_env env, void *data)
         {
             auto context = static_cast<ImageSourceAsyncContext*>(data);
-            context->status = context->rImageSource->ModifyImageProperty(context->index,
-                context->keyStr, context->valueStr, context->pathName);
+
+            if (!CheckExifDataValue(context->keyStr, context->valueStr, context->errMsg)) {
+                HiLog::Error(LABEL, "There is invalid exif data parameter");
+                context->status = ERR_MEDIA_VALUE_INVALID;
+                return;
+            }
+            if (!IsSameTextStr(context->pathName, "")) {
+                context->status = context->rImageSource->ModifyImageProperty(context->index,
+                    context->keyStr, context->valueStr, context->pathName);
+            } else if (context->fdIndex != -1) {
+                context->status = context->rImageSource->ModifyImageProperty(context->index,
+                    context->keyStr, context->valueStr, context->fdIndex);
+            } else if (context->sourceBuffer != nullptr) {
+                context->status = context->rImageSource->ModifyImageProperty(context->index,
+                    context->keyStr, context->valueStr, static_cast<uint8_t *>(context->sourceBuffer),
+                    context->sourceBufferSize);
+            } else {
+                HiLog::Error(LABEL, "There is no image source!");
+            }
         },
         reinterpret_cast<napi_async_complete_callback>(ModifyImagePropertyComplete),
         asyncContext,

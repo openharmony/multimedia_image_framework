@@ -36,7 +36,9 @@ public:
      */
     int ParseExifData(const unsigned char *buf, unsigned len);
     int ParseExifData(const std::string &data);
-    bool ModifyExifData(const ExifTag &tag, const std::string &value, const std::string &path);
+    uint32_t ModifyExifData(const ExifTag &tag, const std::string &value, const std::string &path);
+    uint32_t ModifyExifData(const ExifTag &tag, const std::string &value, const int fd);
+    uint32_t ModifyExifData(const ExifTag &tag, const std::string &value, unsigned char *data, uint32_t size);
 
 public:
     std::string bitsPerSample_; // Number of bits in each pixel of an image.
@@ -51,11 +53,18 @@ public:
 
 private:
     void SetExifTagValues(const ExifTag &tag, const std::string &value);
-    ExifIfd GetImageFileDirectory(const ExifTag &tag);
     ExifEntry* InitExifTag(ExifData *exif, ExifIfd ifd, ExifTag tag);
     ExifEntry* CreateExifTag(ExifData *exif, ExifIfd ifd, ExifTag tag, size_t len, ExifFormat format);
     long GetFileSize(FILE *fp);
-    void ReleaseSource(unsigned char *buf, FILE *file);
+    void ReleaseSource(unsigned char **ptrBuf, FILE **ptrFile);
+    bool CreateExifData(unsigned char *buf, unsigned long length, ExifData **data, bool &isNewExifData);
+    unsigned int GetOrginExifDataLength(const bool &isNewExifData, unsigned char *buf);
+    ExifByteOrder GetExifByteOrder(const bool &isNewExifData, unsigned char *buf);
+    bool CreateExifEntry(const ExifTag &tag, ExifData *data, const std::string &value,
+        ExifByteOrder order, ExifEntry **ptrEntry);
+    bool WriteExifDataToFile(ExifData *data, unsigned int orginExifDataLength, unsigned long fileLength,
+        unsigned char *buf, FILE *fp);
+    void UpdateCacheExifData(FILE *fp);
 
 private:
     ExifIfd imageFileDirectory_;

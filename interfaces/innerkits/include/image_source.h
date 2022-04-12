@@ -164,6 +164,10 @@ public:
     NATIVEEXPORT uint32_t GetImagePropertyString(uint32_t index, const std::string &key, std::string &value);
     NATIVEEXPORT uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
         const std::string &path);
+    NATIVEEXPORT uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
+        const int fd);
+    NATIVEEXPORT uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
+        uint8_t *data, uint32_t size);
     NATIVEEXPORT const NinePatchInfo &GetNinePatchInfo() const;
     NATIVEEXPORT void SetMemoryUsagePreference(const MemoryUsagePreference preference);
     NATIVEEXPORT MemoryUsagePreference GetMemoryUsagePreference();

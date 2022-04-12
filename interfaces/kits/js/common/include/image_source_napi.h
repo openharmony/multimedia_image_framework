@@ -39,6 +39,9 @@ public:
     }
 
     static std::string filePath_;
+    static int fileDescriptor_;
+    static void* fileBuffer_;
+    static size_t fileBufferSize_;
 
 private:
     static napi_value Constructor(napi_env env, napi_callback_info info);

@@ -154,6 +154,18 @@ public:
         return Media::ERR_MEDIA_INVALID_OPERATION;
     }
 
+    virtual uint32_t ModifyImageProperty(uint32_t index, const std::string &key,
+                                         const std::string &value, const int fd)
+    {
+        return Media::ERR_MEDIA_INVALID_OPERATION;
+    }
+
+    virtual uint32_t ModifyImageProperty(uint32_t index, const std::string &key,
+                                         const std::string &value, uint8_t *data, uint32_t size)
+    {
+        return Media::ERR_MEDIA_INVALID_OPERATION;
+    }
+
     // define multiple subservices for this interface
     static constexpr uint16_t SERVICE_DEFAULT = 0;
 };

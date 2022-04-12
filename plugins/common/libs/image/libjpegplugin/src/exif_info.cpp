@@ -15,6 +15,8 @@
 #include "exif_info.h"
 #include <algorithm>
 #include <cstdio>
+#include <unistd.h>
+#include "media_errors.h"
 #include "string_ex.h"
 #include "securec.h"
 
@@ -38,6 +40,7 @@ namespace {
     static const int MOVE_OFFSET_8 = 8;
     static const int LENGTH_ARRAY_SIZE = 2;
     static const int CONSTANT_2 = 2;
+    static const unsigned long MAX_FILE_SIZE = 1000 * 1000 * 1000;
 
     /* raw EXIF header data */
     static const unsigned char exifHeader[] = {
@@ -117,195 +120,188 @@ void EXIFInfo::SetExifTagValues(const ExifTag &tag, const std::string &value)
     }
 }
 
-bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, const std::string &path)
+uint32_t EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, const std::string &path)
 {
     FILE *file = fopen(path.c_str(), "rb");
     if (file == nullptr) {
         HiLog::Error(LABEL, "Error creating file %{public}s", path.c_str());
-        return false;
+        return Media::ERR_MEDIA_IO_ABNORMAL;
     }
 
     // read jpeg file to buff
     unsigned long fileLength = GetFileSize(file);
-    if (fileLength == 0) {
+    if (fileLength == 0 || fileLength > MAX_FILE_SIZE) {
         HiLog::Error(LABEL, "Get file size failed.");
         fclose(file);
-        return false;
+        return Media::ERR_MEDIA_BUFFER_TOO_SMALL;
     }
-    unsigned char *fileBuf = (unsigned char *)malloc(fileLength);
+
+    unsigned char *fileBuf = static_cast<unsigned char *>(malloc(fileLength));
     if (fileBuf == nullptr) {
         HiLog::Error(LABEL, "Allocate buf for %{public}s failed.", path.c_str());
         fclose(file);
-        return false;
+        return Media::ERR_IMAGE_MALLOC_ABNORMAL;
     }
 
     if (fread(fileBuf, fileLength, 1, file) != 1) {
         HiLog::Error(LABEL, "Read %{public}s failed.", path.c_str());
-        ReleaseSource(fileBuf, file);
-        return false;
+        ReleaseSource(&fileBuf, &file);
+        return Media::ERR_MEDIA_READ_PARCEL_FAIL;
     }
 
     if (!(fileBuf[0] == 0xFF && fileBuf[1] == 0xD8)) {
         HiLog::Error(LABEL, "%{public}s is not jpeg file.", path.c_str());
-        ReleaseSource(fileBuf, file);
-        return false;
+        ReleaseSource(&fileBuf, &file);
+        return Media::ERR_IMAGE_MISMATCHED_FORMAT;
     }
 
-    unsigned char lenthArray[LENGTH_ARRAY_SIZE] = {
-        fileBuf[BUFFER_POSITION_5], fileBuf[BUFFER_POSITION_4]
-    };
-    unsigned int orginExifDataLength = *(unsigned int*)lenthArray;
-
     ExifData *ptrExifData = nullptr;
-    if ((fileBuf[BUFFER_POSITION_6] == 'E' && fileBuf[BUFFER_POSITION_7] == 'x' &&
-        fileBuf[BUFFER_POSITION_8] == 'i' && fileBuf[BUFFER_POSITION_9] == 'f')) {
-        ptrExifData = exif_data_new_from_file(path.c_str());
-        if (!ptrExifData) {
-            HiLog::Error(LABEL, "Create exif data from file failed.");
-            ReleaseSource(fileBuf, file);
-            return false;
-        }
-    } else {
-        ptrExifData = exif_data_new();
-        if (!ptrExifData) {
-            HiLog::Error(LABEL, "Create exif data failed.");
-            ReleaseSource(fileBuf, file);
-            return false;
-        }
-        /* Set the image options */
-        exif_data_set_option(ptrExifData, EXIF_DATA_OPTION_FOLLOW_SPECIFICATION);
-        exif_data_set_data_type(ptrExifData, EXIF_DATA_TYPE_COMPRESSED);
-        exif_data_set_byte_order(ptrExifData, EXIF_BYTE_ORDER_INTEL);
-
-        /* Create the mandatory EXIF fields with default data */
-        exif_data_fix(ptrExifData);
+    bool isNewExifData = false;
+    if (!CreateExifData(fileBuf, fileLength, &ptrExifData, isNewExifData)) {
+        ReleaseSource(&fileBuf, &file);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
     (void)fclose(file);
     file = nullptr;
 
-    ExifByteOrder order = EXIF_BYTE_ORDER_MOTOROLA;
-    if (fileBuf[BUFFER_POSITION_12] == 'M' && fileBuf[BUFFER_POSITION_13] == 'M') {
-        order = EXIF_BYTE_ORDER_MOTOROLA;
-    } else {
-        order = EXIF_BYTE_ORDER_INTEL;
+    unsigned int orginExifDataLength = GetOrginExifDataLength(isNewExifData, fileBuf);
+    if (!isNewExifData && orginExifDataLength == 0) {
+        HiLog::Error(LABEL, "There is no orginExifDataLength node in %{public}s.", path.c_str());
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
 
-    FILE *newFile = fopen(path.c_str(), "wb");
+    ExifByteOrder order = GetExifByteOrder(isNewExifData, fileBuf);
+    FILE *newFile = fopen(path.c_str(), "wb+");
     if (newFile == nullptr) {
         HiLog::Error(LABEL, "Error create new file %{public}s", path.c_str());
-        ReleaseSource(fileBuf, newFile);
-        return false;
+        ReleaseSource(&fileBuf, &newFile);
+        return Media::ERR_MEDIA_IO_ABNORMAL;
+    }
+    ExifEntry *entry = nullptr;
+    if (!CreateExifEntry(tag, ptrExifData, value, order, &entry)) {
+        ReleaseSource(&fileBuf, &newFile);
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+    if (!WriteExifDataToFile(ptrExifData, orginExifDataLength, fileLength, fileBuf, newFile)) {
+        ReleaseSource(&fileBuf, &newFile);
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_WRITE_PARCEL_FAIL;
+    }
+    ReleaseSource(&fileBuf, &newFile);
+    exif_data_unref(ptrExifData);
+    return Media::SUCCESS;
+}
+
+uint32_t EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, const int fd)
+{
+    const int localFd = dup(fd);
+    FILE *file = fdopen(localFd, "wb+");
+    if (file == nullptr) {
+        HiLog::Error(LABEL, "Error creating file %{public}d", localFd);
+        return Media::ERR_MEDIA_IO_ABNORMAL;
     }
 
+    // read jpeg file to buff
+    unsigned long fileLength = GetFileSize(file);
+    if (fileLength == 0 || fileLength > MAX_FILE_SIZE) {
+        HiLog::Error(LABEL, "Get file size failed.");
+        fclose(file);
+        return Media::ERR_MEDIA_BUFFER_TOO_SMALL;
+    }
+
+    unsigned char *fileBuf = static_cast<unsigned char *>(malloc(fileLength));
+    if (fileBuf == nullptr) {
+        HiLog::Error(LABEL, "Allocate buf for %{public}d failed.", localFd);
+        fclose(file);
+        return Media::ERR_IMAGE_MALLOC_ABNORMAL;
+    }
+
+    // Set current position to begin of file.
+    (void)fseek(file, 0L, 0);
+    if (fread(fileBuf, fileLength, 1, file) != 1) {
+        HiLog::Error(LABEL, "Read %{public}d failed.", localFd);
+        ReleaseSource(&fileBuf, &file);
+        return Media::ERR_MEDIA_READ_PARCEL_FAIL;
+    }
+
+    if (!(fileBuf[0] == 0xFF && fileBuf[1] == 0xD8)) {
+        HiLog::Error(LABEL, "%{public}d is not jpeg file.", localFd);
+        ReleaseSource(&fileBuf, &file);
+        return Media::ERR_IMAGE_MISMATCHED_FORMAT;
+    }
+
+    ExifData *ptrExifData = nullptr;
+    bool isNewExifData = false;
+    if (!CreateExifData(fileBuf, fileLength, &ptrExifData, isNewExifData)) {
+        ReleaseSource(&fileBuf, &file);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+
+    unsigned int orginExifDataLength = GetOrginExifDataLength(isNewExifData, fileBuf);
+    if (!isNewExifData && orginExifDataLength == 0) {
+        HiLog::Error(LABEL, "There is no orginExifDataLength node in %{public}d.", localFd);
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+
+    ExifByteOrder order = GetExifByteOrder(isNewExifData, fileBuf);
+    // Set current position to begin of new file.
+    (void)fseek(file, 0L, 0);
     ExifEntry *entry = nullptr;
-    switch (tag) {
-        case EXIF_TAG_BITS_PER_SAMPLE: {
-            entry = InitExifTag(ptrExifData, EXIF_IFD_1, EXIF_TAG_BITS_PER_SAMPLE);
-            std::vector<std::string> bitsVec;
-            SplitStr(value, ",", bitsVec);
-            if (bitsVec.size() > CONSTANT_2) {
-                HiLog::Error(LABEL, "BITS_PER_SAMPLE Invalid value %{public}s", value.c_str());
-                ReleaseSource(fileBuf, newFile);
-                return false;
-            }
-            if (entry == nullptr) {
-                return false;
-            }
-            if (bitsVec.size() != 0) {
-                for (size_t i = 0; i < bitsVec.size(); i++) {
-                    exif_set_short(entry->data + i * CONSTANT_2, order, (ExifShort)atoi(bitsVec[i].c_str()));
-                }
-            }
-            break;
-        }
-        case EXIF_TAG_ORIENTATION: {
-            entry = InitExifTag(ptrExifData, EXIF_IFD_0, EXIF_TAG_ORIENTATION);
-            if (entry == nullptr) {
-                return false;
-            }
-            exif_set_short(entry->data, order, (ExifShort)atoi(value.c_str()));
-            break;
-        }
-        case EXIF_TAG_IMAGE_LENGTH: {
-            entry = InitExifTag(ptrExifData, EXIF_IFD_1, EXIF_TAG_IMAGE_LENGTH);
-            if (entry == nullptr) {
-                return false;
-            }
-            exif_set_short(entry->data, order, (ExifShort)atoi(value.c_str()));
-            break;
-        }
-        case EXIF_TAG_IMAGE_WIDTH: {
-            entry = InitExifTag(ptrExifData, EXIF_IFD_1, EXIF_TAG_IMAGE_WIDTH);
-            if (entry == nullptr) {
-                return false;
-            }
-            exif_set_short(entry->data, order, (ExifShort)atoi(value.c_str()));
-            break;
-        }
-        case EXIF_TAG_GPS_LATITUDE: {
-            std::vector<std::string> latVec;
-            SplitStr(value, ",", latVec);
-            if (latVec.size() != CONSTANT_2) {
-                HiLog::Error(LABEL, "GPS_LATITUDE Invalid value %{public}s", value.c_str());
-                ReleaseSource(fileBuf, newFile);
-                return false;
-            }
+    if (!CreateExifEntry(tag, ptrExifData, value, order, &entry)) {
+        ReleaseSource(&fileBuf, &file);
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
 
-            ExifRational latRational;
-            latRational.numerator = atoi(latVec[0].c_str());
-            latRational.denominator = atoi(latVec[1].c_str());
-            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE,
-                sizeof(latRational), EXIF_FORMAT_RATIONAL);
-            if (entry == nullptr) {
-                return false;
-            }
-            exif_set_rational(entry->data, order, latRational);
-            break;
-        }
-        case EXIF_TAG_GPS_LONGITUDE: {
-            std::vector<std::string> longVec;
-            SplitStr(value, ",", longVec);
-            if (longVec.size() != CONSTANT_2) {
-                HiLog::Error(LABEL, "GPS_LONGITUDE Invalid value %{public}s", value.c_str());
-                ReleaseSource(fileBuf, newFile);
-                return false;
-            }
+    if (!WriteExifDataToFile(ptrExifData, orginExifDataLength, fileLength, fileBuf, file)) {
+        ReleaseSource(&fileBuf, &file);
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_WRITE_PARCEL_FAIL;
+    }
+    ReleaseSource(&fileBuf, &file);
+    exif_data_unref(ptrExifData);
+    return Media::SUCCESS;
+}
 
-            ExifRational longRational;
-            longRational.numerator = atoi(longVec[0].c_str());
-            longRational.denominator = atoi(longVec[1].c_str());
-            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGITUDE,
-                sizeof(longRational), EXIF_FORMAT_RATIONAL);
-            if (entry == nullptr) {
-                return false;
-            }
-            exif_set_rational(entry->data, order, longRational);
-            break;
-        }
-        case EXIF_TAG_GPS_LATITUDE_REF: {
-            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE_REF,
-                value.length(), EXIF_FORMAT_ASCII);
-            if (entry == nullptr) {
-                return false;
-            }
-            if (memcpy_s(entry->data, value.length(), value.c_str(), value.length()) != 0) {
-                HiLog::Error(LABEL, "LATITUDE ref memcpy error");
-            }
-            break;
-        }
-        case EXIF_TAG_GPS_LONGITUDE_REF: {
-            entry = CreateExifTag(ptrExifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGITUDE_REF,
-                value.length(), EXIF_FORMAT_ASCII);
-            if (entry == nullptr) {
-                return false;
-            }
-            if (memcpy_s(entry->data, value.length(), value.c_str(), value.length()) != 0) {
-                HiLog::Error(LABEL, "LONGITUDE ref memcpy error");
-            }
-            break;
-        }
-        default:
-            break;
+uint32_t EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value,
+    unsigned char *data, uint32_t size)
+{
+    if (data == nullptr) {
+        HiLog::Error(LABEL, "buffer is nullptr.");
+        return Media::ERR_IMAGE_SOURCE_DATA;
+    }
+
+    if (size == 0) {
+        HiLog::Error(LABEL, "buffer size is 0.");
+        return Media::ERR_MEDIA_BUFFER_TOO_SMALL;
+    }
+
+    if (!(data[0] == 0xFF && data[1] == 0xD8)) {
+        HiLog::Error(LABEL, "This is not jpeg file.");
+        return Media::ERR_IMAGE_MISMATCHED_FORMAT;
+    }
+
+    ExifData *ptrExifData = nullptr;
+    bool isNewExifData = false;
+    if (!CreateExifData(data, size, &ptrExifData, isNewExifData)) {
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+
+    unsigned int orginExifDataLength = GetOrginExifDataLength(isNewExifData, data);
+    if (!isNewExifData && orginExifDataLength == 0) {
+        HiLog::Error(LABEL, "There is no orginExifDataLength node in buffer.");
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+
+    ExifByteOrder order = GetExifByteOrder(isNewExifData, data);
+    ExifEntry *entry = nullptr;
+    if (!CreateExifEntry(tag, ptrExifData, value, order, &entry)) {
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
 
     unsigned char* exifDataBuf = nullptr;
@@ -313,68 +309,95 @@ bool EXIFInfo::ModifyExifData(const ExifTag &tag, const std::string &value, cons
     exif_data_save_data(ptrExifData, &exifDataBuf, &exifDataBufLength);
     if (exifDataBuf == nullptr) {
         HiLog::Error(LABEL, "Get Exif Data Buf failed!");
-        return false;
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
 
-    /* Write EXIF header */
-    if (fwrite(exifHeader, sizeof(exifHeader), 1, newFile) != 1) {
-        HiLog::Error(LABEL, "Error writing EXIF header to file!");
-        ReleaseSource(fileBuf, newFile);
-        return false;
+    if (size == 0 || size > MAX_FILE_SIZE) {
+        HiLog::Error(LABEL, "Buffer size is out of range.");
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+    unsigned char *tempBuf = static_cast<unsigned char *>(malloc(size));
+    if (tempBuf == nullptr) {
+        HiLog::Error(LABEL, "Allocate temp buffer ailed.");
+        exif_data_unref(ptrExifData);
+        return Media::ERR_IMAGE_MALLOC_ABNORMAL;
     }
 
-    /* Write EXIF block length in big-endian order */
-    if (fputc((exifDataBufLength + LENGTH_OFFSET_2) >> MOVE_OFFSET_8, newFile) < 0) {
-        HiLog::Error(LABEL, "Error writing EXIF block length to file!");
-        ReleaseSource(fileBuf, newFile);
-        return false;
-    }
-    if (fputc((exifDataBufLength + LENGTH_OFFSET_2) & 0xff, newFile) < 0) {
-        HiLog::Error(LABEL, "Error writing EXIF block length to file!");
-        ReleaseSource(fileBuf, newFile);
-        return false;
+    // Write EXIF header to buffer
+    uint32_t index = 0;
+    if (sizeof(exifHeader) >= size) {
+        HiLog::Error(LABEL, "There is not enough space for EXIF header!");
+        free(tempBuf);
+        tempBuf = nullptr;
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_OUT_OF_RANGE;
     }
 
-    /* Write EXIF data block */
-    if (fwrite(exifDataBuf, exifDataBufLength, 1, newFile) != 1) {
-        HiLog::Error(LABEL, "Error writing EXIF data block to file!");
-        ReleaseSource(fileBuf, newFile);
-        return false;
-    }
-    /* Write JPEG image data, skipping the non-EXIF header */
-    unsigned int dataOffset = orginExifDataLength + sizeof(exifHeader);
-    if (fwrite(fileBuf + dataOffset, fileLength - dataOffset, 1, newFile) != 1) {
-        HiLog::Error(LABEL, "Error writing JPEG image data to file!");
-        ReleaseSource(fileBuf, newFile);
-        return false;
+    for (size_t i = 0; i < sizeof(exifHeader); i++) {
+        tempBuf[index] = exifHeader[i];
+        index += 1;
     }
 
-    ReleaseSource(fileBuf, newFile);
-    return true;
-}
-
-ExifIfd EXIFInfo::GetImageFileDirectory(const ExifTag &tag)
-{
-    switch (tag) {
-        case EXIF_TAG_BITS_PER_SAMPLE:
-        case EXIF_TAG_ORIENTATION:
-        case EXIF_TAG_IMAGE_LENGTH:
-        case EXIF_TAG_IMAGE_WIDTH: {
-            return EXIF_IFD_0;
-        }
-        case EXIF_TAG_DATE_TIME_ORIGINAL: {
-            return EXIF_IFD_EXIF;
-        }
-        case EXIF_TAG_GPS_LATITUDE:
-        case EXIF_TAG_GPS_LONGITUDE:
-        case EXIF_TAG_GPS_LATITUDE_REF:
-        case EXIF_TAG_GPS_LONGITUDE_REF: {
-            return EXIF_IFD_GPS;
-        }
-        default:
-            break;
+    // Write EXIF block length in big-endian order
+    unsigned char highBit = static_cast<unsigned char>((exifDataBufLength + LENGTH_OFFSET_2) >> MOVE_OFFSET_8);
+    if (index >= size) {
+        HiLog::Error(LABEL, "There is not enough space for writing EXIF block length!");
+        free(tempBuf);
+        tempBuf = nullptr;
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_OUT_OF_RANGE;
     }
-    return EXIF_IFD_COUNT;
+    tempBuf[index] = highBit;
+    index += 1;
+
+    unsigned char lowBit = static_cast<unsigned char>((exifDataBufLength + LENGTH_OFFSET_2) & 0xff);
+    if (index >= size) {
+        HiLog::Error(LABEL, "There is not enough space for writing EXIF block length!");
+        free(tempBuf);
+        tempBuf = nullptr;
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_OUT_OF_RANGE;
+    }
+    tempBuf[index] = lowBit;
+    index += 1;
+
+    // Write EXIF data block
+    if ((index +  exifDataBufLength) >= size) {
+        HiLog::Error(LABEL, "There is not enough space for writing EXIF data block!");
+        free(tempBuf);
+        tempBuf = nullptr;
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_OUT_OF_RANGE;
+    }
+    for (unsigned int i = 0; i < exifDataBufLength; i++) {
+        tempBuf[index] = exifDataBuf[i];
+        index += 1;
+    }
+
+    // Write JPEG image data, skipping the non-EXIF header
+    if ((index + size - orginExifDataLength - sizeof(exifHeader)) > size) {
+        HiLog::Error(LABEL, "There is not enough space for writing JPEG image data!");
+        free(tempBuf);
+        tempBuf = nullptr;
+        exif_data_unref(ptrExifData);
+        return Media::ERR_MEDIA_OUT_OF_RANGE;
+    }
+    for (unsigned int i = 0; i < (size - orginExifDataLength - sizeof(exifHeader)); i++) {
+        tempBuf[index] = data[orginExifDataLength + sizeof(exifHeader) + i];
+        index += 1;
+    }
+
+    for (unsigned int i = 0; i < size; i++) {
+        data[i] = tempBuf[i];
+    }
+
+    ParseExifData(data, static_cast<unsigned int>(index));
+    free(tempBuf);
+    tempBuf = nullptr;
+    exif_data_unref(ptrExifData);
+    return Media::SUCCESS;
 }
 
 ExifEntry* EXIFInfo::InitExifTag(ExifData *exif, ExifIfd ifd, ExifTag tag)
@@ -411,7 +434,7 @@ ExifEntry* EXIFInfo::CreateExifTag(ExifData *exif, ExifIfd ifd, ExifTag tag,
 {
     void *buf;
     ExifEntry *entry;
-    
+
     if ((entry = exif_content_get_entry(exif->ifd[ifd], tag)) != nullptr) {
         return entry;
     }
@@ -461,30 +484,247 @@ long EXIFInfo::GetFileSize(FILE *fp)
 
     /* Save the current position. */
     position = ftell(fp);
-    
+
     /* Jump to the end of the file. */
-    fseek(fp, 0L, SEEK_END);
-    
+    (void)fseek(fp, 0L, SEEK_END);
+
     /* Get the end position. */
     size = ftell(fp);
-    
+
     /* Jump back to the original position. */
-    fseek(fp, position, SEEK_SET);
+    (void)fseek(fp, position, SEEK_SET);
 
     return size;
 }
 
-void EXIFInfo::ReleaseSource(unsigned char *buf, FILE *file)
+bool EXIFInfo::CreateExifData(unsigned char *buf, unsigned long length, ExifData **ptrData, bool &isNewExifData)
 {
-    if (buf) {
-        free(buf);
-        buf = nullptr;
+    if ((buf[BUFFER_POSITION_6] == 'E' && buf[BUFFER_POSITION_7] == 'x' &&
+        buf[BUFFER_POSITION_8] == 'i' && buf[BUFFER_POSITION_9] == 'f')) {
+        *ptrData = exif_data_new_from_data(buf, static_cast<unsigned int>(length));
+        if (!(*ptrData)) {
+            HiLog::Error(LABEL, "Create exif data from file failed.");
+            return false;
+        }
+        isNewExifData = false;
+        HiLog::Error(LABEL, "Create exif data from buffer.");
+    } else {
+        *ptrData = exif_data_new();
+        if (!(*ptrData)) {
+            HiLog::Error(LABEL, "Create exif data failed.");
+            return false;
+        }
+        /* Set the image options */
+        exif_data_set_option(*ptrData, EXIF_DATA_OPTION_FOLLOW_SPECIFICATION);
+        exif_data_set_data_type(*ptrData, EXIF_DATA_TYPE_COMPRESSED);
+        exif_data_set_byte_order(*ptrData, EXIF_BYTE_ORDER_INTEL);
+
+        /* Create the mandatory EXIF fields with default data */
+        exif_data_fix(*ptrData);
+        isNewExifData = true;
+        HiLog::Error(LABEL, "Create new exif data.");
+    }
+    return true;
+}
+
+unsigned int EXIFInfo::GetOrginExifDataLength(const bool &isNewExifData, unsigned char *buf)
+{
+    unsigned int orginExifDataLength = 0;
+    if (!isNewExifData) {
+        unsigned char lenthArray[LENGTH_ARRAY_SIZE] = {
+            buf[BUFFER_POSITION_5], buf[BUFFER_POSITION_4]
+        };
+        orginExifDataLength = *(unsigned int*)lenthArray;
+    }
+    return orginExifDataLength;
+}
+
+ExifByteOrder EXIFInfo::GetExifByteOrder(const bool &isNewExifData, unsigned char *buf)
+{
+    if (isNewExifData) {
+        return EXIF_BYTE_ORDER_INTEL;
+    } else {
+        if (buf[BUFFER_POSITION_12] == 'M' && buf[BUFFER_POSITION_13] == 'M') {
+            return EXIF_BYTE_ORDER_MOTOROLA;
+        } else {
+            return EXIF_BYTE_ORDER_INTEL;
+        }
+    }
+}
+
+bool EXIFInfo::CreateExifEntry(const ExifTag &tag, ExifData *data, const std::string &value,
+    ExifByteOrder order, ExifEntry **ptrEntry)
+{
+    switch (tag) {
+        case EXIF_TAG_BITS_PER_SAMPLE: {
+            *ptrEntry = InitExifTag(data, EXIF_IFD_1, EXIF_TAG_BITS_PER_SAMPLE);
+            std::vector<std::string> bitsVec;
+            SplitStr(value, ",", bitsVec);
+            if (bitsVec.size() > CONSTANT_2) {
+                HiLog::Error(LABEL, "BITS_PER_SAMPLE Invalid value %{public}s", value.c_str());
+                return false;
+            }
+            if (bitsVec.size() != 0) {
+                for (size_t i = 0; i < bitsVec.size(); i++) {
+                    exif_set_short((*ptrEntry)->data + i * CONSTANT_2, order, (ExifShort)atoi(bitsVec[i].c_str()));
+                }
+            }
+            break;
+        }
+        case EXIF_TAG_ORIENTATION: {
+            *ptrEntry = InitExifTag(data, EXIF_IFD_0, EXIF_TAG_ORIENTATION);
+            exif_set_short((*ptrEntry)->data, order, (ExifShort)atoi(value.c_str()));
+            break;
+        }
+        case EXIF_TAG_IMAGE_LENGTH: {
+            *ptrEntry = InitExifTag(data, EXIF_IFD_1, EXIF_TAG_IMAGE_LENGTH);
+            exif_set_long((*ptrEntry)->data, order, (ExifLong)atoi(value.c_str()));
+            break;
+        }
+        case EXIF_TAG_IMAGE_WIDTH: {
+            *ptrEntry = InitExifTag(data, EXIF_IFD_1, EXIF_TAG_IMAGE_WIDTH);
+            exif_set_long((*ptrEntry)->data, order, (ExifLong)atoi(value.c_str()));
+            break;
+        }
+        case EXIF_TAG_GPS_LATITUDE: {
+            std::vector<std::string> latVec;
+            SplitStr(value, ",", latVec);
+            if (latVec.size() != CONSTANT_2) {
+                HiLog::Error(LABEL, "GPS_LATITUDE Invalid value %{public}s", value.c_str());
+                return false;
+            }
+
+            ExifRational latRational;
+            latRational.numerator = atoi(latVec[0].c_str());
+            latRational.denominator = atoi(latVec[1].c_str());
+            *ptrEntry = CreateExifTag(data, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE,
+                sizeof(latRational), EXIF_FORMAT_RATIONAL);
+            exif_set_rational((*ptrEntry)->data, order, latRational);
+            break;
+        }
+        case EXIF_TAG_GPS_LONGITUDE: {
+            std::vector<std::string> longVec;
+            SplitStr(value, ",", longVec);
+            if (longVec.size() != CONSTANT_2) {
+                HiLog::Error(LABEL, "GPS_LONGITUDE Invalid value %{public}s", value.c_str());
+                return false;
+            }
+
+            ExifRational longRational;
+            longRational.numerator = atoi(longVec[0].c_str());
+            longRational.denominator = atoi(longVec[1].c_str());
+            *ptrEntry = CreateExifTag(data, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGITUDE,
+                sizeof(longRational), EXIF_FORMAT_RATIONAL);
+            exif_set_rational((*ptrEntry)->data, order, longRational);
+            break;
+        }
+        case EXIF_TAG_GPS_LATITUDE_REF: {
+            *ptrEntry = CreateExifTag(data, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE_REF,
+                value.length(), EXIF_FORMAT_ASCII);
+            if (memcpy_s((*ptrEntry)->data, value.length(), value.c_str(), value.length()) != 0) {
+                HiLog::Error(LABEL, "LATITUDE ref memcpy error");
+            }
+            break;
+        }
+        case EXIF_TAG_GPS_LONGITUDE_REF: {
+            *ptrEntry = CreateExifTag(data, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGITUDE_REF,
+                value.length(), EXIF_FORMAT_ASCII);
+            if (memcpy_s((*ptrEntry)->data, value.length(), value.c_str(), value.length()) != 0) {
+                HiLog::Error(LABEL, "LONGITUDE ref memcpy error");
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    return true;
+}
+
+bool EXIFInfo::WriteExifDataToFile(ExifData *data, unsigned int orginExifDataLength, unsigned long fileLength,
+    unsigned char *buf, FILE *fp)
+{
+    unsigned char* exifDataBuf = nullptr;
+    unsigned int exifDataBufLength = 0;
+    exif_data_save_data(data, &exifDataBuf, &exifDataBufLength);
+    if (exifDataBuf == nullptr) {
+        HiLog::Error(LABEL, "Get Exif Data Buf failed!");
+        return false;
     }
 
-    if (file != nullptr) {
-        fclose(file);
-        file = nullptr;
+    // Write EXIF header
+    if (fwrite(exifHeader, sizeof(exifHeader), 1, fp) != 1) {
+        HiLog::Error(LABEL, "Error writing EXIF header to file!");
+        return false;
     }
+
+    // Write EXIF block length in big-endian order
+    if (fputc((exifDataBufLength + LENGTH_OFFSET_2) >> MOVE_OFFSET_8, fp) < 0) {
+        HiLog::Error(LABEL, "Error writing EXIF block length to file!");
+        return false;
+    }
+
+    if (fputc((exifDataBufLength + LENGTH_OFFSET_2) & 0xff, fp) < 0) {
+        HiLog::Error(LABEL, "Error writing EXIF block length to file!");
+        return false;
+    }
+
+    // Write EXIF data block
+    if (fwrite(exifDataBuf, exifDataBufLength, 1, fp) != 1) {
+        HiLog::Error(LABEL, "Error writing EXIF data block to file!");
+        return false;
+    }
+    // Write JPEG image data, skipping the non-EXIF header
+    unsigned int dataOffset = orginExifDataLength + sizeof(exifHeader);
+    if (fwrite(buf + dataOffset, fileLength - dataOffset, 1, fp) != 1) {
+        HiLog::Error(LABEL, "Error writing JPEG image data to file!");
+        return false;
+    }
+
+    UpdateCacheExifData(fp);
+    return true;
+}
+
+void EXIFInfo::ReleaseSource(unsigned char **ptrBuf, FILE **ptrFile)
+{
+    if (*ptrBuf) {
+        free(*ptrBuf);
+        *ptrBuf = nullptr;
+        ptrBuf = nullptr;
+    }
+
+    if (*ptrFile != nullptr) {
+        fclose(*ptrFile);
+        *ptrFile = nullptr;
+        ptrFile = nullptr;
+    }
+}
+
+void EXIFInfo::UpdateCacheExifData(FILE *fp)
+{
+    unsigned long fileLength = GetFileSize(fp);
+    if (fileLength == 0 || fileLength > MAX_FILE_SIZE) {
+        HiLog::Error(LABEL, "Get file size failed.");
+        return;
+    }
+
+    unsigned char *fileBuf = static_cast<unsigned char *>(malloc(fileLength));
+    if (fileBuf == nullptr) {
+        HiLog::Error(LABEL, "Allocate buf failed.");
+        return;
+    }
+
+    // Set current position to begin of file.
+    (void)fseek(fp, 0L, 0);
+    if (fread(fileBuf, fileLength, 1, fp) != 1) {
+        HiLog::Error(LABEL, "Read new file failed.");
+        free(fileBuf);
+        fileBuf = nullptr;
+        return;
+    }
+
+    ParseExifData(fileBuf, static_cast<unsigned int>(fileLength));
+    free(fileBuf);
+    fileBuf = nullptr;
 }
 } // namespace ImagePlugin
 } // namespace OHOS

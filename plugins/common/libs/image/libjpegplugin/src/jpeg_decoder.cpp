@@ -600,34 +600,25 @@ uint32_t JpegDecoder::GetImagePropertyString(uint32_t index, const std::string &
     return Media::SUCCESS;
 }
 
-ExifTag JpegDecoder::getExifTagFromKey(const std::string &key, const std::string &value)
+ExifTag JpegDecoder::getExifTagFromKey(const std::string &key)
 {
     if (IsSameTextStr(key, BITS_PER_SAMPLE)) {
-        exifInfo_.bitsPerSample_ = value;
         return EXIF_TAG_BITS_PER_SAMPLE;
     } else if (IsSameTextStr(key, ORIENTATION)) {
-        exifInfo_.orientation_ = value;
         return EXIF_TAG_ORIENTATION;
     } else if (IsSameTextStr(key, IMAGE_LENGTH)) {
-        exifInfo_.imageLength_ = value;
         return EXIF_TAG_IMAGE_LENGTH;
     } else if (IsSameTextStr(key, IMAGE_WIDTH)) {
-        exifInfo_.imageWidth_ = value;
         return EXIF_TAG_IMAGE_WIDTH;
     } else if (IsSameTextStr(key, GPS_LATITUDE)) {
-        exifInfo_.gpsLatitude_ = value;
         return EXIF_TAG_GPS_LATITUDE;
     } else if (IsSameTextStr(key, GPS_LONGITUDE)) {
-        exifInfo_.gpsLongitude_ = value;
         return EXIF_TAG_GPS_LONGITUDE;
     } else if (IsSameTextStr(key, GPS_LATITUDE_REF)) {
-        exifInfo_.gpsLatitudeRef_ = value;
         return EXIF_TAG_GPS_LATITUDE_REF;
     } else if (IsSameTextStr(key, GPS_LONGITUDE_REF)) {
-        exifInfo_.gpsLongitudeRef_ = value;
         return EXIF_TAG_GPS_LONGITUDE_REF;
     } else if (IsSameTextStr(key, DATE_TIME_ORIGINAL)) {
-        exifInfo_.dateTimeOriginal_ = value;
         return EXIF_TAG_DATE_TIME_ORIGINAL;
     } else {
         return EXIF_TAG_PRINT_IMAGE_MATCHING;
@@ -637,15 +628,50 @@ ExifTag JpegDecoder::getExifTagFromKey(const std::string &key, const std::string
 uint32_t JpegDecoder::ModifyImageProperty(uint32_t index, const std::string &key,
     const std::string &value, const std::string &path)
 {
-    HiLog::Error(LABEL, "[ModifyImageProperty] enter jped plugin, key:%{public}s, value:%{public}s",
-        key.c_str(), value.c_str());
-    ExifTag tag = getExifTagFromKey(key, value);
+    HiLog::Error(LABEL, "[ModifyImageProperty] with path:%{public}s, key:%{public}s, value:%{public}s",
+        path.c_str(), key.c_str(), value.c_str());
+    ExifTag tag = getExifTagFromKey(key);
     if (tag == EXIF_TAG_PRINT_IMAGE_MATCHING) {
         return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
 
-    if (!exifInfo_.ModifyExifData(tag, value, path)) {
-        return ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    uint32_t ret = exifInfo_.ModifyExifData(tag, value, path);
+    if (ret != Media::SUCCESS) {
+        return ret;
+    }
+    return Media::SUCCESS;
+}
+
+uint32_t JpegDecoder::ModifyImageProperty(uint32_t index, const std::string &key,
+    const std::string &value, const int fd)
+{
+    HiLog::Error(LABEL, "[ModifyImageProperty] with fd:%{public}d, key:%{public}s, value:%{public}s",
+        fd, key.c_str(), value.c_str());
+    ExifTag tag = getExifTagFromKey(key);
+    if (tag == EXIF_TAG_PRINT_IMAGE_MATCHING) {
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+
+    uint32_t ret = exifInfo_.ModifyExifData(tag, value, fd);
+    if (ret != Media::SUCCESS) {
+        return ret;
+    }
+    return Media::SUCCESS;
+}
+
+uint32_t JpegDecoder::ModifyImageProperty(uint32_t index, const std::string &key,
+    const std::string &value, uint8_t *data, uint32_t size)
+{
+    HiLog::Error(LABEL, "[ModifyImageProperty] with buffer:%{public}p, key:%{public}s, value:%{public}s",
+        data, key.c_str(), value.c_str());
+    ExifTag tag = getExifTagFromKey(key);
+    if (tag == EXIF_TAG_PRINT_IMAGE_MATCHING) {
+        return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
+    }
+
+    uint32_t ret = exifInfo_.ModifyExifData(tag, value, data, size);
+    if (ret != Media::SUCCESS) {
+        return ret;
     }
     return Media::SUCCESS;
 }
