@@ -40,7 +40,7 @@ ohos_shared_library("mypixelmap") {
   ]
 
   deps = [
-    "//foundation/ace/napi:ace_napi",
+    "//foundation/arkui/napi:ace_napi",
     "//foundation/multimedia/image_standard/frameworks/kits/js/common/pixelmap_ndk:pixelmap_ndk",
   ]
 

@@ -25,7 +25,7 @@ ohos_shared_library("pixelmap_ndk") {
 
   deps = [
     "$SUBSYSTEM_DIR/interfaces/innerkits:image",
-    "//foundation/ace/napi:ace_napi",
+    "//foundation/arkui/napi:ace_napi",
   ]
 
   subsystem_name = "multimedia"
