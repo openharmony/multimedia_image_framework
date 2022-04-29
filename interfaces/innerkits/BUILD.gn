@@ -98,8 +98,8 @@ ohos_shared_library("image") {
   ]
 
   external_deps = [
-    "hitrace_native:hitrace_meter",
     "hichecker_native:libhichecker",
+    "hitrace_native:hitrace_meter",
     "hiviewdfx_hilog_native:libhilog",
     "ipc:ipc_core",
   ]
