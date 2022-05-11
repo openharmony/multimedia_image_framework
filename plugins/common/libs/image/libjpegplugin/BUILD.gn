@@ -46,10 +46,10 @@ ohos_shared_library("jpegplugin") {
       "//third_party/flutter/skia/third_party/libjpeg-turbo",
     ]
     deps = [
-      "//foundation/arkui/ace_engine/build/external_config/flutter/libjpeg:ace_libjpeg",
       "//foundation/multimedia/image_standard/interfaces/innerkits:image_static",
       "//foundation/multimedia/image_standard/mock/native:utils_mock_static",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
+      "//third_party/flutter/build/libjpeg:ace_libjpeg",
       "//third_party/libexif:libexif",
     ]
   } else if (use_clang_mac) {
@@ -59,10 +59,10 @@ ohos_shared_library("jpegplugin") {
       "//third_party/flutter/skia/third_party/libjpeg-turbo",
     ]
     deps = [
-      "//foundation/arkui/ace_engine/build/external_config/flutter/libjpeg:ace_libjpeg",
       "//foundation/multimedia/image_standard/interfaces/innerkits:image_static",
       "//foundation/multimedia/image_standard/mock/native:utils_mock_static",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager_static",
+      "//third_party/flutter/build/libjpeg:ace_libjpeg",
       "//third_party/libexif:libexif",
     ]
   } else {
@@ -72,9 +72,9 @@ ohos_shared_library("jpegplugin") {
     sources += [ "//foundation/multimedia/image_standard/plugins/common/libs/image/libjpegplugin/src/jpeg_encoder.cpp" ]
     deps = [
       #"//third_party/flutter/skia/third_party/libjpeg-turbo:libjpeg",
-      "//foundation/arkui/ace_engine/build/external_config/flutter/libjpeg:ace_libjpeg",
       "//foundation/multimedia/image_standard/interfaces/innerkits:image_native",
       "//foundation/multimedia/image_standard/plugins/manager:pluginmanager",
+      "//third_party/flutter/build/libjpeg:ace_libjpeg",
       "//third_party/libexif:libexif",
       "//utils/native/base:utils",
     ]
@@ -82,7 +82,7 @@ ohos_shared_library("jpegplugin") {
     if (DUAL_ADAPTER) {
     } else {
       deps += [
-        "//foundation/arkui/ace_engine/build/external_config/flutter/libjpeg:ace_libjpeg",
+        "//third_party/flutter/build/libjpeg:ace_libjpeg",
         "//third_party/libexif:libexif",
       ]
       include_dirs += [ "//third_party/flutter/skia/third_party/libjpeg-turbo" ]
