@@ -1225,10 +1225,10 @@ napi_value ImageSourceNapi::UpdateData(napi_env env, napi_callback_info info)
         HiLog::Debug(LABEL, "asyncContext->updataLength is [%{public}u]", asyncContext->updataLength);
     }
 
-	if (!IMG_IS_OK(status)) {
-		HiLog::Error(LABEL, "fail to UpdateData");
-		return napi_get_undefined(env, &result);
-	}
+    if (!IMG_IS_OK(status)) {
+	    HiLog::Error(LABEL, "fail to UpdateData");
+	    return napi_get_undefined(env, &result);
+    }
 
     if (argCount == NUM_5 && ImageNapiUtils::getType(env, argValue[NUM_4]) == napi_function) {
         napi_create_reference(env, argValue[NUM_4], refCount, &asyncContext->callbackRef);
