@@ -90,7 +90,7 @@ static void CommonCallbackRoutine(napi_env env, ImagePackerAsyncContext* &connec
 
     if (connect->status == SUCCESS) {
         result[NUM_1] = valueParam;
-        } else if (connect->errorMsg != nullptr) {
+    } else if (connect->errorMsg != nullptr) {
         napi_get_reference_value(env, connect->errorMsg, &result[NUM_0]);
         napi_delete_reference(env, connect->errorMsg);
     } else {
