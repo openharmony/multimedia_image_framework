@@ -86,7 +86,7 @@ ohos_shared_library("image") {
     "//foundation/multimedia/image_standard/frameworks/kits/js/common/pixel_map_napi.cpp",
   ]
 
-  cflags = [ 
+  cflags = [
     "-DIMAGE_DEBUG_FLAG",
     "-DIMAGE_COLORSPACE_FLAG",
   ]
@@ -116,7 +116,7 @@ ohos_shared_library("image") {
 ohos_shared_library("image_native") {
   public_configs = [ ":image_external_config" ]
 
-  cflags = [ 
+  cflags = [
     "-DIMAGE_DEBUG_FLAG",
     "-DIMAGE_COLORSPACE_FLAG",
   ]
@@ -222,7 +222,7 @@ ohos_static_library("image_static_napi") {
     "//foundation/multimedia/image_standard/frameworks/kits/js/common/pixel_map_napi.cpp",
   ]
 
-  cflags = [ 
+  cflags = [
     "-DIMAGE_DEBUG_FLAG",
     "-DIMAGE_COLORSPACE_FLAG",
   ]
