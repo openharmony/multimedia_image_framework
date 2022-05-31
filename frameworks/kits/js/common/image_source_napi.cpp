@@ -575,9 +575,7 @@ napi_value ImageSourceNapi::CreateImageSourceComplete(napi_env env, napi_status 
     if (context == nullptr) {
         return result;
     }
-
     status = napi_get_reference_value(env, sConstructor_, &constructor);
-
     if (IMG_IS_OK(status)) {
         sImgSrc_ = context->rImageSource;
         status = napi_new_instance(env, constructor, NUM_0, nullptr, &result);
@@ -669,7 +667,6 @@ napi_value ImageSourceNapi::GetImageInfo(napi_env env, napi_callback_info info)
         napi_get_value_uint32(env, argValue[NUM_0], &asyncContext->index);
     } else if (argCount == NUM_2 && ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_number
                 && ImageNapiUtils::getType(env, argValue[NUM_1]) == napi_function) {
-
         HiLog::Debug(LABEL, "GetImageInfo arg0 getType is [%{public}u]", ImageNapiUtils::getType(env, argValue[NUM_0]));
         HiLog::Debug(LABEL, "GetImageInfo arg1 getType is [%{public}u]", ImageNapiUtils::getType(env, argValue[NUM_1]));
         napi_get_value_uint32(env, argValue[NUM_0], &asyncContext->index);
@@ -685,10 +682,8 @@ napi_value ImageSourceNapi::GetImageInfo(napi_env env, napi_callback_info info)
     IMG_CREATE_CREATE_ASYNC_WORK(env, status, "GetImageInfo",
         [](napi_env env, void *data) {
             auto context = static_cast<ImageSourceAsyncContext*>(data);
-
             int index = (context->index >= NUM_0) ? context->index : NUM_0;
             context->status = context->rImageSource->GetImageInfo(index, context->imageInfo);
-
         }, GetImageInfoComplete, asyncContext, asyncContext->work);
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
@@ -790,7 +785,6 @@ napi_value ImageSourceNapi::CreatePixelMap(napi_env env, napi_callback_info info
                                     &(asyncContext->index), &(asyncContext->error))) {
                 HiLog::Error(LABEL, "DecodeOptions mismatch");
             }
-
         }
         if (ImageNapiUtils::getType(env, argValue[argCount - 1]) == napi_function) {
             napi_create_reference(env, argValue[argCount - 1], refCount, &asyncContext->callbackRef);
