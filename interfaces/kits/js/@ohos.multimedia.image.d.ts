@@ -744,7 +744,7 @@ declare namespace image {
      * @param rate The value of transparent rate.
      * @param callback Callback used to return the operation result. If the operation fails, an error message is returned.
      */
-    setAlphaRate(rate: number, callback: AsyncCallback<void>): void;
+    opacity(rate: number, callback: AsyncCallback<void>): void;
 
     /**
      * Set the transparent rate of pixel map. This method uses a promise to return the result.
@@ -753,7 +753,7 @@ declare namespace image {
      * @param rate The value of transparent rate.
      * @return A Promise instance used to return the operation result. If the operation fails, an error message is returned.
      */
-    setAlphaRate(rate: number): Promise<void>;
+    opacity(rate: number): Promise<void>;
 
     /**
      * Obtains new pixel map with allpha information. This method uses a promise to return the information.
