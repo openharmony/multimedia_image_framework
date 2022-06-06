@@ -1246,7 +1246,6 @@ napi_value PixelMapNapi::Release(napi_env env, napi_callback_info info)
                 context->status = ERROR;
                 return;
             } else {
-                context->nConstructor->nativePixelMap_= nullptr;
                 if (context->nConstructor->nativePixelMap_ != nullptr
 					&& context->nConstructor->nativePixelMap_ == context->nConstructor->nativeInner_)
 		        {
