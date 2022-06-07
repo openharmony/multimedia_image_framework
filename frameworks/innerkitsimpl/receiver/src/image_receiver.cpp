@@ -54,7 +54,7 @@ namespace OHOS {
             imagePacker.AddImage(*pixelMap);
             int64_t packedSize = 0;
             imagePacker.FinalizePacking(packedSize);
-            HiLog::Debug(LABEL, "packedSize=%{public}lld.", static_cast<int64_t>(packedSize));
+            HiLog::Debug(LABEL, "packedSize=%{public}lld.", static_cast<long long>(packedSize));     
             return packedSize;
         }
 

@@ -157,7 +157,7 @@ bool ImageUtils::PathToRealPath(const string &path, string &realPath)
     }
 
     if ((path.length() >= PATH_MAX)) {
-        IMAGE_LOGE("path len is error, the len is: [%{public}llu]", static_cast<uint64_t>(path.length()));
+        IMAGE_LOGE("path len is error, the len is: [%{public}llu]", static_cast<unsigned long>(path.length()));     
         return false;
     }
 
