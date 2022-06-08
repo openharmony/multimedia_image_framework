@@ -147,6 +147,7 @@ uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInf
     if (bufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("[BasicTransformer] buffer size:%{public}llu out of range.",
                    static_cast<unsigned long long>(bufferSize));                  
+                   static_cast<unsigned long long>(bufferSize));                  
         return ERR_IMAGE_ALLOC_MEMORY_FAILED;
     }
     int fd = 0;
