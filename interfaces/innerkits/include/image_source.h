@@ -51,6 +51,8 @@ namespace Media {
 struct SourceOptions {
     std::string formatHint;
     int32_t baseDensity = 0;
+    PixelFormat pixelFormat = PixelFormat::UNKNOWN;
+    Size size;
 };
 
 struct IncrementalSourceOptions {
@@ -138,8 +140,10 @@ public:
 
     NATIVEEXPORT std::unique_ptr<PixelMap> CreatePixelMap(const DecodeOptions &opts, uint32_t &errorCode)
     {
-        return CreatePixelMap(0, opts, errorCode);
+        return CreatePixelMapEx(0, opts, errorCode);
     }
+    NATIVEEXPORT std::unique_ptr<PixelMap> CreatePixelMapEx(uint32_t index, const DecodeOptions &opts,
+                                                            uint32_t &errorCode);
     NATIVEEXPORT std::unique_ptr<PixelMap> CreatePixelMap(uint32_t index, const DecodeOptions &opts,
                                                           uint32_t &errorCode);
     NATIVEEXPORT std::unique_ptr<IncrementalPixelMap> CreateIncrementalPixelMap(uint32_t index,
@@ -212,6 +216,9 @@ private:
     void Reset();
     static std::unique_ptr<SourceStream> DecodeBase64(const uint8_t *data, uint32_t size);
     static std::unique_ptr<SourceStream> DecodeBase64(const std::string &data);
+    bool IsSpecialYUV();
+    bool ConvertYUV420ToRGBA(uint8_t *data, uint32_t size, bool isSupportOdd, bool isAddUV, uint32_t &errorCode);
+    std::unique_ptr<PixelMap> CreatePixelMapForYUV(uint32_t &errorCode);
 
     const std::string NINE_PATCH = "ninepatch";
     const std::string SKIA_DECODER = "SKIA_DECODER";
@@ -220,6 +227,7 @@ private:
     std::unique_ptr<SourceStream> sourceStreamPtr_;
     SourceDecodingState decodeState_ = SourceDecodingState::UNRESOLVED;
     SourceInfo sourceInfo_;
+    SourceOptions sourceOptions_;
     NinePatchInfo ninePatchInfo_;
     ImageStatusMap imageStatusMap_;
     IncrementalRecordMap incDecodingMap_;

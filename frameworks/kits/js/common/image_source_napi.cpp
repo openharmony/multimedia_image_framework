@@ -492,6 +492,24 @@ static void parseSourceOptions(napi_env env, napi_value root, SourceOptions* opt
     if (!ImageNapiUtils::GetInt32ByName(env, root, "sourceDensity", &(opts->baseDensity))) {
         HiLog::Debug(LABEL, "no sourceDensity");
     }
+
+    int32_t pixelFormat = 0;
+    if (!ImageNapiUtils::GetInt32ByName(env, root, "sourcePixelFormat", &pixelFormat)) {
+        HiLog::Debug(LABEL, "no sourcePixelFormat");
+    } else {
+        opts->pixelFormat = static_cast<PixelFormat>(pixelFormat);
+        HiLog::Info(LABEL, "sourcePixelFormat:%{public}d", static_cast<int32_t>(opts->pixelFormat));
+    }
+
+    napi_value tmpValue = nullptr;
+    if (!GET_NODE_BY_NAME(root, "sourceSize", tmpValue)) {
+        HiLog::Debug(LABEL, "no sourceSize");
+    } else {
+        if (!ParseSize(env, tmpValue, &(opts->size))) {
+            HiLog::Debug(LABEL, "ParseSize error");
+        }
+        HiLog::Info(LABEL, "sourceSize:(%{public}d, %{public}d)", opts->size.width, opts->size.height);
+    }
 }
 
 napi_value ImageSourceNapi::CreateImageSource(napi_env env, napi_callback_info info)
@@ -723,7 +741,7 @@ static void CreatePixelMapExecute(napi_env env, void *data)
     }
     if (context->rPixelMap == nullptr) {
         int index = (context->index >= NUM_0) ? context->index : NUM_0;
-        context->rPixelMap = context->rImageSource->CreatePixelMap(index, context->decodeOpts, errorCode);
+        context->rPixelMap = context->rImageSource->CreatePixelMapEx(index, context->decodeOpts, errorCode);
     }
 
     if (IMG_NOT_NULL(context->rPixelMap)) {
