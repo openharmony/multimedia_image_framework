@@ -93,6 +93,10 @@ static const std::string IMAGE_URL_PREFIX = "data:image/";
 static const std::string BASE64_URL_PREFIX = ";base64,";
 static const int INT_2 = 2;
 static const int INT_8 = 8;
+static const uint8_t NUM_0 = 0;
+static const uint8_t NUM_1 = 1;
+static const uint8_t NUM_2 = 2;
+static const uint8_t NUM_3 = 3;
 
 PluginServer &ImageSource::pluginServer_ = ImageUtils::GetPluginServer();
 ImageSource::FormatAgentMap ImageSource::formatAgentMap_ = InitClass();
@@ -288,6 +292,18 @@ void ImageSource::Reset()
     decodeState_ = SourceDecodingState::UNRESOLVED;
     sourceStreamPtr_->Seek(0);
     mainDecoder_ = nullptr;
+}
+
+unique_ptr<PixelMap> ImageSource::CreatePixelMapEx(uint32_t index, const DecodeOptions &opts, uint32_t &errorCode)
+{
+    IMAGE_LOGD("[ImageSource]CreatePixelMapEx srcPixelFormat:%{public}d, srcSize:(%{public}d, %{public}d)",
+        sourceOptions_.pixelFormat, sourceOptions_.size.width, sourceOptions_.size.height);
+
+    if (IsSpecialYUV()) {
+        return CreatePixelMapForYUV(errorCode);
+    }
+
+    return CreatePixelMap(index, opts, errorCode);
 }
 
 unique_ptr<PixelMap> ImageSource::CreatePixelMap(uint32_t index, const DecodeOptions &opts, uint32_t &errorCode)
@@ -649,6 +665,9 @@ uint32_t ImageSource::GetImagePropertyString(uint32_t index, const std::string &
 const SourceInfo &ImageSource::GetSourceInfo(uint32_t &errorCode)
 {
     std::lock_guard<std::mutex> guard(decodingMutex_);
+    if (IsSpecialYUV()) {
+        return sourceInfo_;
+    }
     errorCode = DecodeSourceInfo(true);
     return sourceInfo_;
 }
@@ -717,6 +736,11 @@ ImageSource::ImageSource(unique_ptr<SourceStream> &&stream, const SourceOptions 
 {
     sourceInfo_.encodedFormat = opts.formatHint;
     sourceInfo_.baseDensity = opts.baseDensity;
+    sourceOptions_.formatHint = opts.formatHint;
+    sourceOptions_.baseDensity = opts.baseDensity;
+    sourceOptions_.pixelFormat = opts.pixelFormat;
+    sourceOptions_.size.width = opts.size.width;
+    sourceOptions_.size.height = opts.size.height;
 }
 
 ImageSource::FormatAgentMap ImageSource::InitClass()
@@ -1320,6 +1344,122 @@ unique_ptr<SourceStream> ImageSource::DecodeBase64(const string &data)
         base64Data = nullptr;
     }
     return result;
+}
+
+bool ImageSource::IsSpecialYUV()
+{
+    const bool isBufferSource = (sourceStreamPtr_ != nullptr)
+        && (sourceStreamPtr_->GetStreamType() == ImagePlugin::BUFFER_SOURCE_TYPE);
+    const bool isSizeValid = (sourceOptions_.size.width > 0) && (sourceOptions_.size.height > 0);
+    const bool isYUV = (sourceOptions_.pixelFormat == PixelFormat::NV12)
+        || (sourceOptions_.pixelFormat == PixelFormat::NV21);
+    return (isBufferSource && isSizeValid && isYUV);
+}
+
+static inline uint8_t FloatToUint8(float f)
+{
+    int data = static_cast<int>(f + 0.5f);
+    if (data < 0) {
+        data = 0;
+    } else if (data > UINT8_MAX) {
+        data = UINT8_MAX;
+    }
+    return static_cast<uint8_t>(data);
+}
+
+bool ImageSource::ConvertYUV420ToRGBA(uint8_t *data, uint32_t size,
+    bool isSupportOdd, bool isAddUV, uint32_t &errorCode)
+{
+    IMAGE_LOGD("[ImageSource]ConvertYUV420ToRGBA IN srcPixelFormat:%{public}d, srcSize:(%{public}d, %{public}d)",
+        sourceOptions_.pixelFormat, sourceOptions_.size.width, sourceOptions_.size.height);
+    if ((!isSupportOdd) && (sourceOptions_.size.width & 1) == 1) {
+        IMAGE_LOGE("[ImageSource]ConvertYUV420ToRGBA odd width, %{public}d", sourceOptions_.size.width);
+        errorCode = ERR_IMAGE_DATA_UNSUPPORT;
+        return false;
+    }
+
+    const size_t width = sourceOptions_.size.width;
+    const size_t height = sourceOptions_.size.height;
+    const size_t uvwidth = (isSupportOdd && isAddUV) ? (width + (width & 1)) : width;
+    const uint8_t *yuvPlane = sourceStreamPtr_->GetDataPtr();
+    const size_t yuvSize = sourceStreamPtr_->GetStreamSize();
+    const size_t ubase = width * height + ((sourceOptions_.pixelFormat == PixelFormat::NV21) ? 0 : 1);
+    const size_t vbase = width * height + ((sourceOptions_.pixelFormat == PixelFormat::NV21) ? 1 : 0);
+    IMAGE_LOGD("[ImageSource]ConvertYUV420ToRGBA uvbase:(%{public}zu, %{public}zu), width:(%{public}zu, %{public}zu)",
+        ubase, vbase, width, uvwidth);
+
+    for (size_t h = 0; h < height; h++) {
+        const size_t yline = h * width;
+        const size_t uvline = (h >> 1) * uvwidth;
+
+        for (size_t w = 0; w < width; w++) {
+            const size_t ypos = yline + w;
+            const size_t upos = ubase + uvline + (w & (~1));
+            const size_t vpos = vbase + uvline + (w & (~1));
+            const uint8_t y = (ypos < yuvSize) ? yuvPlane[ypos] : 0;
+            const uint8_t u = (upos < yuvSize) ? yuvPlane[upos] : 0;
+            const uint8_t v = (vpos < yuvSize) ? yuvPlane[vpos] : 0;
+            // jpeg
+            const uint8_t r = FloatToUint8((1.0f * y) + (1.402f * v) - (0.703749f * UINT8_MAX));
+            const uint8_t g = FloatToUint8((1.0f * y) - (0.344136f * u) - (0.714136f * v) + (0.531211f * UINT8_MAX));
+            const uint8_t b = FloatToUint8((1.0f * y) + (1.772f * u) - (0.889475f * UINT8_MAX));
+
+            const size_t rgbpos = ypos << 2;
+            if ((rgbpos + NUM_3) < size) {
+                data[rgbpos + NUM_0] = r;
+                data[rgbpos + NUM_1] = g;
+                data[rgbpos + NUM_2] = b;
+                data[rgbpos + NUM_3] = UINT8_MAX;
+            }
+        }
+    }
+    IMAGE_LOGD("[ImageSource]ConvertYUV420ToRGBA OUT");
+    return true;
+}
+
+unique_ptr<PixelMap> ImageSource::CreatePixelMapForYUV(uint32_t &errorCode)
+{
+    IMAGE_LOGD("[ImageSource]CreatePixelMapForYUV IN srcPixelFormat:%{public}d, srcSize:(%{public}d, %{public}d)",
+        sourceOptions_.pixelFormat, sourceOptions_.size.width, sourceOptions_.size.height);
+
+    unique_ptr<PixelMap> pixelMap = make_unique<PixelMap>();
+    if (pixelMap == nullptr) {
+        IMAGE_LOGE("[ImageSource]create the pixel map unique_ptr fail.");
+        errorCode = ERR_IMAGE_MALLOC_ABNORMAL;
+        return nullptr;
+    }
+
+    ImageInfo info;
+    info.baseDensity = sourceOptions_.baseDensity;
+    info.size.width = sourceOptions_.size.width;
+    info.size.height = sourceOptions_.size.height;
+    info.pixelFormat = PixelFormat::RGBA_8888;
+    info.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+    errorCode = pixelMap->SetImageInfo(info);
+    if (errorCode != SUCCESS) {
+        IMAGE_LOGE("[ImageSource]update pixelmap info error ret:%{public}u.", errorCode);
+        return nullptr;
+    }
+
+    size_t bufferSize = static_cast<size_t>(pixelMap->GetWidth() * pixelMap->GetHeight() * pixelMap->GetPixelBytes());
+    auto buffer = malloc(bufferSize);
+    if (buffer == nullptr) {
+        HiLog::Error(LABEL, "allocate memory size %{public}zu fail", bufferSize);
+        errorCode = ERR_IMAGE_MALLOC_ABNORMAL;
+        return nullptr;
+    }
+
+    pixelMap->SetEditable(false);
+    pixelMap->SetPixelsAddr(buffer, nullptr, bufferSize, AllocatorType::HEAP_ALLOC, nullptr);
+
+    if (!ConvertYUV420ToRGBA(static_cast<uint8_t *>(buffer), bufferSize, false, false, errorCode)) {
+        HiLog::Error(LABEL, "convert yuv420 to rgba issue");
+        errorCode = ERROR;
+        return nullptr;
+    }
+
+    IMAGE_LOGD("[ImageSource]CreatePixelMapForYUV OUT");
+    return pixelMap;
 }
 } // namespace Media
 } // namespace OHOS

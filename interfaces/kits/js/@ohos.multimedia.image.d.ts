@@ -529,6 +529,20 @@ declare namespace image {
      * @syscap SystemCapability.Multimedia.Image.Core
      */
     sourceDensity: number;
+
+    /**
+     * PixelMap expected format.
+     * @since 8
+     * @syscap SystemCapability.Multimedia.Image.Core
+     */
+    sourcePixelFormat?: PixelMapFormat;
+
+    /**
+     * PixelMap size.
+     * @since 8
+     * @syscap SystemCapability.Multimedia.Image.Core
+     */
+    sourceSize?: Size;
   }
 
   /**
