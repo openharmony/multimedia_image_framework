@@ -1186,8 +1186,8 @@ napi_value ImageSourceNapi::GetImageProperty(napi_env env, napi_callback_info in
     HiLog::Debug(LABEL, "GetImageProperty IN");
     std::unique_ptr<ImageSourceAsyncContext> asyncContext = UnwrapContext(env, info);
     if (asyncContext == nullptr) {
-        HiLog::Error(LABEL, "async context unwrap failed");
-        return result;
+        return ImageNapiUtils::ThrowExceptionError(env, static_cast<int32_t>(napi_invalid_arg),
+            "async context unwrap failed");
     }
 
     if (asyncContext->callbackRef == nullptr) {
