@@ -564,7 +564,7 @@ bool EXIFInfo::CreateExifEntry(const ExifTag &tag, ExifData *data, const std::st
 {
     switch (tag) {
         case EXIF_TAG_BITS_PER_SAMPLE: {
-            *ptrEntry = InitExifTag(data, EXIF_IFD_1, EXIF_TAG_BITS_PER_SAMPLE);
+            *ptrEntry = InitExifTag(data, EXIF_IFD_0, EXIF_TAG_BITS_PER_SAMPLE);
             if ((*ptrEntry) == nullptr) {
                 HiLog::Error(LABEL, "Get exif entry failed.");
                 return false;
@@ -592,7 +592,7 @@ bool EXIFInfo::CreateExifEntry(const ExifTag &tag, ExifData *data, const std::st
             break;
         }
         case EXIF_TAG_IMAGE_LENGTH: {
-            *ptrEntry = InitExifTag(data, EXIF_IFD_1, EXIF_TAG_IMAGE_LENGTH);
+            *ptrEntry = InitExifTag(data, EXIF_IFD_0, EXIF_TAG_IMAGE_LENGTH);
             if ((*ptrEntry) == nullptr) {
                 HiLog::Error(LABEL, "Get exif entry failed.");
                 return false;
@@ -601,7 +601,7 @@ bool EXIFInfo::CreateExifEntry(const ExifTag &tag, ExifData *data, const std::st
             break;
         }
         case EXIF_TAG_IMAGE_WIDTH: {
-            *ptrEntry = InitExifTag(data, EXIF_IFD_1, EXIF_TAG_IMAGE_WIDTH);
+            *ptrEntry = InitExifTag(data, EXIF_IFD_0, EXIF_TAG_IMAGE_WIDTH);
             if ((*ptrEntry) == nullptr) {
                 HiLog::Error(LABEL, "Get exif entry failed.");
                 return false;
@@ -771,7 +771,10 @@ bool EXIFInfo::CheckExifEntryValid(const ExifIfd &ifd, const ExifTag &tag)
     bool ret = false;
     switch (ifd) {
         case EXIF_IFD_0: {
-            if (tag == EXIF_TAG_ORIENTATION) {
+            if (tag == EXIF_TAG_ORIENTATION ||
+                tag == EXIF_TAG_BITS_PER_SAMPLE ||
+                tag == EXIF_TAG_IMAGE_LENGTH ||
+                tag == EXIF_TAG_IMAGE_WIDTH) {
                 ret = true;
             }
             break;
@@ -782,14 +785,6 @@ bool EXIFInfo::CheckExifEntryValid(const ExifIfd &ifd, const ExifTag &tag)
                 tag == EXIF_TAG_FNUMBER ||
                 tag == EXIF_TAG_ISO_SPEED_RATINGS ||
                 tag == EXIF_TAG_SCENE_TYPE) {
-                ret = true;
-            }
-            break;
-        }
-        case EXIF_IFD_1: {
-            if (tag == EXIF_TAG_BITS_PER_SAMPLE ||
-                tag == EXIF_TAG_IMAGE_LENGTH ||
-                tag == EXIF_TAG_IMAGE_WIDTH) {
                 ret = true;
             }
             break;
