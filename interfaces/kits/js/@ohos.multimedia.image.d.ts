@@ -51,6 +51,14 @@ declare namespace image {
      * @syscap SystemCapability.Multimedia.Image.Core
      */
     RGBA_8888 = 3,
+
+    /**
+     * Indicates that each pixel is stored on 32 bits. Components B, G, R, and A each occupies 8 bits
+     * and are stored from the higher-order to the lower-order bits.
+     * @since 7
+     * @syscap SystemCapability.Multimedia.Image.Core
+     */
+     BGRA_8888 = 4,
   }
 
   /**
