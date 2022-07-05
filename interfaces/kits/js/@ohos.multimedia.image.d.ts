@@ -752,6 +752,11 @@ declare namespace image {
    */
   function createImageCreator(width: number, height: number, format: number, capacity: number): ImageCreator;
 
+  /**
+   * PixelMap instance.
+   * @since 6
+   * @syscap SystemCapability.Multimedia.Image.ImageSource
+   */
   interface PixelMap {
     /**
      * Whether the image pixel map can be edited.
@@ -997,7 +1002,7 @@ declare namespace image {
      * @param region The region to crop.
      * @param callback Callback used to return the operation result. If the operation fails, an error message is returned.
      */
-    crop(region: Region callback: AsyncCallback<void>): void;
+    crop(region: Region, callback: AsyncCallback<void>): void;
 
     /**
      * Crop the image. This method uses a promise to return the result.
@@ -1422,6 +1427,12 @@ declare namespace image {
      */
     release(): Promise<void>;
   }
+
+  /**
+   * Image creator object.
+   * @since 9
+   * @syscap SystemCapability.Multimedia.Image.ImageCreator
+   */
   interface ImageCreator {
     /**
      * Image capacity.
