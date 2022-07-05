@@ -85,7 +85,7 @@ declare namespace image {
     RGBA_F16 = 7,
 
     /**
-     * Indicates that The storage order is to store y first and then V U alternately each occupies 8 bits
+     * Indicates that The storage order is to store Y first and then V U alternately each occupies 8 bits
      * and are stored from the higher-order to the lower-order bits.
      * @since 9
      * @syscap SystemCapability.Multimedia.Image.Core
@@ -93,7 +93,7 @@ declare namespace image {
     NV21 = 8,
 
     /**
-     * Indicates that The storage order is to store y first and then U V alternately each occupies 8 bits
+     * Indicates that The storage order is to store Y first and then U V alternately each occupies 8 bits
      * and are stored from the higher-order to the lower-order bits.
      * @since 9
      * @syscap SystemCapability.Multimedia.Image.Core
