@@ -30,10 +30,10 @@
 #include "priority_scheme.h"
 #include "singleton.h"
 
-namespace OHOS { namespace MultimediaPlugin { class GstPluginFw; } }
-namespace OHOS { namespace MultimediaPlugin { class PlatformAdp; } }
-namespace OHOS { namespace MultimediaPlugin { class PluginFw; } } 
-namespace OHOS { namespace MultimediaPlugin { struct ClassInfo; } }
+namespace OHOS::MultimediaPlugin { class GstPluginFw; }
+namespace OHOS::MultimediaPlugin { class PlatformAdp; }
+namespace OHOS::MultimediaPlugin { class PluginFw; }
+namespace OHOS::MultimediaPlugin { struct ClassInfo; }
 namespace OHOS {
 namespace MultimediaPlugin {
 class PlatformAdp;

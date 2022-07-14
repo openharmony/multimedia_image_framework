@@ -25,10 +25,10 @@
 #include "plugin_class_base.h"
 #include "plugin_common_type.h"
 
-namespace OHOS { namespace MultimediaPlugin { class AttrData; } }
-namespace OHOS { namespace MultimediaPlugin { class PluginClassBase; } }
-namespace OHOS { namespace MultimediaPlugin { class PriorityScheme; } }
-namespace OHOS { namespace MultimediaPlugin { struct ClassInfo; } }
+namespace OHOS::MultimediaPlugin { class AttrData; }
+namespace OHOS::MultimediaPlugin { class PluginClassBase; }
+namespace OHOS::MultimediaPlugin { class PriorityScheme; }
+namespace OHOS::MultimediaPlugin { struct ClassInfo; }
 namespace OHOS {
 namespace MultimediaPlugin {
 class PriorityScheme;

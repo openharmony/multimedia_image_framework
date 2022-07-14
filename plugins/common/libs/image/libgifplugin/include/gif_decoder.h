@@ -28,9 +28,9 @@
 #include "memory.h"
 #endif
 
-namespace OHOS { namespace ImagePlugin { class InputDataStream; } }
-namespace OHOS { namespace ImagePlugin { struct PlImageInfo; } }
-namespace OHOS { namespace ImagePlugin { struct PlSize; } }
+namespace OHOS::ImagePlugin { class InputDataStream; }
+namespace OHOS::ImagePlugin { struct PlImageInfo; }
+namespace OHOS::ImagePlugin { struct PlSize; }
 namespace OHOS {
 namespace ImagePlugin {
 static constexpr uint8_t PIXEL_FORMAT_BYTE_SIZE = 4;
