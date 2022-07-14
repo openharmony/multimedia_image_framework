@@ -21,14 +21,14 @@
 #include "image_log.h"
 #include "ios"
 #include "istream"
-#include "limits.h"
-#include "math.h"
+#include <climits.h>
+#include <cmath.h>
 #include "media_errors.h"
 #include "new"
 #include "plugin_errors.h"
 #include "plugin_server.h"
 #include "singleton.h"
-#include "stdint.h"
+#include <cstdint.h>
 #ifdef _WIN32
 #include "stdlib.h"
 #endif

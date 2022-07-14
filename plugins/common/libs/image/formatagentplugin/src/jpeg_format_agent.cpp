@@ -14,7 +14,7 @@
  */
 
 #include "jpeg_format_agent.h"
-#include "hilog/log_c.h" 
+#include "hilog/log_c.h"
 #include "hilog/log_cpp.h"
 #include "log_tags.h"
 #include "plugin_service.h"

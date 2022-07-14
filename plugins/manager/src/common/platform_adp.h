@@ -16,7 +16,7 @@
 #ifndef PLATFORM_ADP_H
 #define PLATFORM_ADP_H
 
-#include <stdint.h>
+#include <cstdint.h>
 #include "iosfwd"
 #include "nocopyable.h"
 #include "singleton.h"

@@ -14,7 +14,7 @@
  */
 
 #include "gif_decoder.h"
-#include <stdlib.h>
+#include <cstdlib.h>
 #include "ashmem.h"
 #include "bits/alltypes.h"
 #include "bits/stdint.h"
@@ -23,7 +23,7 @@
 #include "image_plugin_type.h"
 #include "image_type.h"
 #include "input_data_stream.h"
-#include "limits.h"
+#include <climits.h>
 #include "log_tags.h"
 #include "media_errors.h"
 #include "new"
