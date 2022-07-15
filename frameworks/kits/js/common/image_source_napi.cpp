@@ -765,7 +765,7 @@ static void CreatePixelMapExecute(napi_env env, void *data)
             context->rPixelMap = incPixelMap;
         }
     } else {
-        HiLog::Info(LABEL, "Get Incremental PixelMap!!!");
+        HiLog::Info(LABEL, "Create PixelMap!!!");
     }
     if (context->rPixelMap == nullptr) {
         int index = (context->index >= NUM_0) ? context->index : NUM_0;
@@ -776,7 +776,8 @@ static void CreatePixelMapExecute(napi_env env, void *data)
         context->status = SUCCESS;
     } else {
         context->status = ERROR;
-        HiLog::Error(LABEL, "empty context rPixelMap");
+        CreateErrorMsg(env, "Create PixelMap error", &(context->error));
+        HiLog::Error(LABEL, "Create PixelMap error");
     }
     HiLog::Debug(LABEL, "CreatePixelMapExecute OUT");
 }
