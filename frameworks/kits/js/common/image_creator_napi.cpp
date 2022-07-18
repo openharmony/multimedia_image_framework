@@ -657,7 +657,7 @@ napi_value ImageCreatorNapi::JsQueueImage(napi_env env, napi_callback_info info)
     return result;
 }
 
-static bool CheckOnParam0(napi_env env, napi_value value, std::string& refStr)
+static bool CheckOnParam0(napi_env env, napi_value value, const std::string& refStr)
 {
     bool ret = true;
     size_t bufLength = 0;
@@ -723,7 +723,7 @@ static bool JsOnQueryArgs(ImageCreatorCommonArgs &args, ImageCreatorInnerContext
     napi_get_undefined(args.env, &ic.result);
     return true;
 }
-static void DoCallBackAfterWork(uv_work_t *work)
+static void DoCallBackAfterWork(uv_work_t *work, int status)
 {
     IMAGE_LINE_IN();
     Contextc context = reinterpret_cast<Contextc>(work->data);
