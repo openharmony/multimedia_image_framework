@@ -73,7 +73,6 @@ struct ImageSourceAsyncContext {
     DecodeOptions decodeOpts;
     std::shared_ptr<ImageSource> rImageSource;
     std::shared_ptr<PixelMap> rPixelMap;
-    napi_ref error = nullptr;
     std::string errMsg;
 };
 
@@ -101,18 +100,6 @@ static std::string GetStringArgument(napi_env env, napi_value value)
     return strValue;
 }
 
-static void CreateErrorMsg(napi_env env, const std::string msg, napi_ref* error)
-{
-    napi_value tmpError;
-    int32_t refCount = 1;
-    napi_status status = napi_create_string_utf8(env, msg.c_str(), NAPI_AUTO_LENGTH, &tmpError);
-    if (status != napi_ok) {
-        HiLog::Error(LABEL, "Create error msg error");
-        return;
-    }
-    napi_create_reference(env, tmpError, refCount, error);
-}
-
 static void ImageSourceCallbackRoutine(napi_env env, ImageSourceAsyncContext* &context, const napi_value &valueParam)
 {
     napi_value result[NUM_2] = {0};
@@ -129,11 +116,11 @@ static void ImageSourceCallbackRoutine(napi_env env, ImageSourceAsyncContext* &c
 
     if (context->status == SUCCESS) {
         result[NUM_1] = valueParam;
-    } else if (context->error != nullptr) {
-        napi_get_reference_value(env, context->error, &result[NUM_0]);
-        napi_delete_reference(env, context->error);
+    } else if (context->errMsg.size() > 0) {
+        napi_create_string_utf8(env, context->errMsg.c_str(), NAPI_AUTO_LENGTH, &result[NUM_0]);
     } else {
         HiLog::Debug(LABEL, "error status, no message");
+        napi_create_string_utf8(env, "error status, no message", NAPI_AUTO_LENGTH, &result[NUM_0]);
     }
 
     if (context->deferred) {
@@ -424,7 +411,7 @@ static PixelFormat ParsePixlForamt(int32_t val)
     return PixelFormat::UNKNOWN;
 }
 
-static bool ParseDecodeOptions2(napi_env env, napi_value root, DecodeOptions* opts, napi_ref* error)
+static bool ParseDecodeOptions2(napi_env env, napi_value root, DecodeOptions* opts, std::string &error)
 {
     uint32_t tmpNumber = 0;
     if (!GET_UINT32_BY_NAME(root, "desiredPixelFormat", tmpNumber)) {
@@ -434,7 +421,7 @@ static bool ParseDecodeOptions2(napi_env env, napi_value root, DecodeOptions* op
             opts->desiredPixelFormat = ParsePixlForamt(tmpNumber);
         } else {
             HiLog::Debug(LABEL, "Invalid desiredPixelFormat %{public}d", tmpNumber);
-            CreateErrorMsg(env, "DecodeOptions mismatch", error);
+            error = "DecodeOptions mismatch";
             return false;
         }
     }
@@ -450,7 +437,8 @@ static bool ParseDecodeOptions2(napi_env env, napi_value root, DecodeOptions* op
     return true;
 }
 
-static bool ParseDecodeOptions(napi_env env, napi_value root, DecodeOptions* opts, uint32_t* pIndex, napi_ref* error)
+static bool ParseDecodeOptions(napi_env env, napi_value root, DecodeOptions* opts,
+    uint32_t* pIndex, std::string &error)
 {
     napi_value tmpValue = nullptr;
 
@@ -475,7 +463,7 @@ static bool ParseDecodeOptions(napi_env env, napi_value root, DecodeOptions* opt
             opts->rotateDegrees = (float)opts->rotateNewDegrees;
         } else {
             HiLog::Debug(LABEL, "Invalid rotate %{public}d", opts->rotateNewDegrees);
-            CreateErrorMsg(env, "DecodeOptions mismatch", error);
+            error = "DecodeOptions mismatch";
             return false;
         }
     }
@@ -747,7 +735,7 @@ static void CreatePixelMapExecute(napi_env env, void *data)
         return;
     }
 
-    if (context->error != nullptr) {
+    if (context->errMsg.size() > 0) {
         HiLog::Error(LABEL, "mismatch args");
         context->status = ERROR;
         return;
@@ -765,7 +753,7 @@ static void CreatePixelMapExecute(napi_env env, void *data)
             context->rPixelMap = incPixelMap;
         }
     } else {
-        HiLog::Info(LABEL, "Get Incremental PixelMap!!!");
+        HiLog::Info(LABEL, "Create PixelMap!!!");
     }
     if (context->rPixelMap == nullptr) {
         int index = (context->index >= NUM_0) ? context->index : NUM_0;
@@ -776,7 +764,8 @@ static void CreatePixelMapExecute(napi_env env, void *data)
         context->status = SUCCESS;
     } else {
         context->status = ERROR;
-        HiLog::Error(LABEL, "empty context rPixelMap");
+        context->errMsg = "Create PixelMap error";
+        HiLog::Error(LABEL, "Create PixelMap error");
     }
     HiLog::Debug(LABEL, "CreatePixelMapExecute OUT");
 }
@@ -828,7 +817,7 @@ napi_value ImageSourceNapi::CreatePixelMap(napi_env env, napi_callback_info info
     } else if (argCount == NUM_1 || argCount == NUM_2) {
         if (ImageNapiUtils::getType(env, argValue[NUM_0]) == napi_object) {
             if (!ParseDecodeOptions(env, argValue[NUM_0], &(asyncContext->decodeOpts),
-                                    &(asyncContext->index), &(asyncContext->error))) {
+                                    &(asyncContext->index), asyncContext->errMsg)) {
                 HiLog::Error(LABEL, "DecodeOptions mismatch");
             }
         }
