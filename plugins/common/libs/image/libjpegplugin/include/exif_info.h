@@ -97,6 +97,14 @@ public:
     ~ByteOrderedBuffer();
     void GenerateDEArray();
 
+public:
+    ExifByteOrder byteOrder_ = EXIF_BYTE_ORDER_MOTOROLA;
+    unsigned char *buf_ = nullptr;
+    uint32_t bufferLength_ = 0;
+    uint32_t curPosition_ = 0;
+    std::vector<DirectoryEntry> directoryEntryArray_;
+    std::vector<uint32_t> handledIfdOffsets_;
+
 private:
     void GetDataRangeFromIFD(const ExifIfd &ifd);
     void GetDataRangeFromDE(const ExifIfd &ifd, const int16_t &count);
@@ -116,14 +124,6 @@ private:
     ExifIfd GetNextIfdFromLinkList(const ExifIfd &ifd);
     void ParseIFDPointerTag(const ExifIfd &ifd, const uint16_t &dataFormat);
     uint32_t TransformTiffOffsetToFilePos(const uint32_t &offset);
-
-public:
-    ExifByteOrder byteOrder_ = EXIF_BYTE_ORDER_MOTOROLA;
-    unsigned char *buf_ = nullptr;
-    uint32_t bufferLength_ = 0;
-    uint32_t curPosition_ = 0;
-    std::vector<DirectoryEntry> directoryEntryArray_;
-    std::vector<uint32_t> handledIfdOffsets_;
 };
 } // namespace ImagePlugin
 } // namespace OHOS

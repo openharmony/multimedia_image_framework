@@ -1024,8 +1024,8 @@ uint32_t EXIFInfo::GetRedactionArea(const int &fd, const int &redactionType, std
 }
 
 void EXIFInfo::GetAreaFromExifEntries(const int &redactionType,
-                                               const std::vector<DirectoryEntry> &entryArray,
-                                               std::vector<std::vector<uint32_t>> &ranges)
+                                      const std::vector<DirectoryEntry> &entryArray,
+                                      std::vector<std::vector<uint32_t>> &ranges)
 {
     if (redactionType == PERMISSION_GPS_TYPE) {
         for (size_t i = 0; i < entryArray.size(); i++) {
@@ -1219,7 +1219,6 @@ void ByteOrderedBuffer::ParseIFDPointerTag(const ExifIfd &ifd, const uint16_t &d
     }
     // Transform tiff offset to position of file
     offset = TransformTiffOffsetToFilePos(offset);
-
     // Check if the next IFD offset
     // 1. Exists within the boundaries of the buffer
     // 2. Does not point to a previously read IFD.
