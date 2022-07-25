@@ -631,7 +631,6 @@ uint32_t ImageSource::ModifyImageProperty(uint32_t index, const std::string &key
 
 uint32_t ImageSource::GetImagePropertyInt(uint32_t index, const std::string &key, int32_t &value)
 {
-    StartTrace(HITRACE_TAG_ZIMAGE, "GetImagePropertyInt by index");
     std::unique_lock<std::mutex> guard(decodingMutex_);
     uint32_t ret;
     auto iter = GetValidImageStatus(0, ret);
@@ -645,13 +644,11 @@ uint32_t ImageSource::GetImagePropertyInt(uint32_t index, const std::string &key
         IMAGE_LOGE("[ImageSource] GetImagePropertyInt fail, ret:%{public}u", ret);
         return ret;
     }
-    FinishTrace(HITRACE_TAG_ZIMAGE);
     return SUCCESS;
 }
 
 uint32_t ImageSource::GetImagePropertyString(uint32_t index, const std::string &key, std::string &value)
 {
-    StartTrace(HITRACE_TAG_ZIMAGE, "GetImagePropertyString by index");
     std::unique_lock<std::mutex> guard(decodingMutex_);
     uint32_t ret;
     auto iter = GetValidImageStatus(0, ret);
@@ -664,7 +661,6 @@ uint32_t ImageSource::GetImagePropertyString(uint32_t index, const std::string &
         IMAGE_LOGE("[ImageSource] GetImagePropertyString fail, ret:%{public}u", ret);
         return ret;
     }
-    FinishTrace(HITRACE_TAG_ZIMAGE);
     return SUCCESS;
 }
 const SourceInfo &ImageSource::GetSourceInfo(uint32_t &errorCode)

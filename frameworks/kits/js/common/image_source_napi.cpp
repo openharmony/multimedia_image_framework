@@ -1169,6 +1169,7 @@ napi_value ImageSourceNapi::ModifyImageProperty(napi_env env, napi_callback_info
 
 napi_value ImageSourceNapi::GetImageProperty(napi_env env, napi_callback_info info)
 {
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageProperty");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -1199,6 +1200,7 @@ napi_value ImageSourceNapi::GetImageProperty(napi_env env, napi_callback_info in
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
