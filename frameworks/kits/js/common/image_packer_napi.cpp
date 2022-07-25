@@ -287,7 +287,7 @@ napi_value ImagePackerNapi::Constructor(napi_env env, napi_callback_info info)
 
 napi_value ImagePackerNapi::CreateImagePacker(napi_env env, napi_callback_info info)
 {
-    StartTrace(HITRACE_TAG_ZIMAGE, "CreateImagePacker");
+//    StartTrace(HITRACE_TAG_ZIMAGE, "CreateImagePacker");
     napi_value constructor = nullptr;
     napi_value result = nullptr;
     napi_status status;
@@ -304,7 +304,7 @@ napi_value ImagePackerNapi::CreateImagePacker(napi_env env, napi_callback_info i
             HiLog::Error(LABEL, "New instance could not be obtained");
         }
     }
-    FinishTrace(HITRACE_TAG_ZIMAGE);
+//    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
@@ -477,7 +477,7 @@ static void ParserPackingArguments(napi_env env,
 
 napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
 {
-    StartTrace(HITRACE_TAG_ZIMAGE, "Packing");
+//    StartTrace(HITRACE_TAG_ZIMAGE, "Packing");
     napi_status status;
     napi_value result = nullptr;
     size_t argc = ARGS_THREE;
@@ -512,7 +512,7 @@ napi_value ImagePackerNapi::Packing(napi_env env, napi_callback_info info)
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
-    FinishTrace(HITRACE_TAG_ZIMAGE);
+//    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
@@ -566,7 +566,7 @@ static void ReleaseComplete(napi_env env, napi_status status, void *data)
 
 napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
 {
-    StartTrace(HITRACE_TAG_ZIMAGE, "Release");
+//    StartTrace(HITRACE_TAG_ZIMAGE, "Release");
     HiLog::Debug(LABEL, "Release enter");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
@@ -598,7 +598,7 @@ napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
     IMG_CREATE_CREATE_ASYNC_WORK(env, status, "Release",
         [](napi_env env, void *data) {}, ReleaseComplete, context, context->work);
     HiLog::Debug(LABEL, "Release exit");
-    FinishTrace(HITRACE_TAG_ZIMAGE);
+//    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 }  // namespace Media
