@@ -665,6 +665,7 @@ napi_value ImageSourceNapi::CreateIncrementalSource(napi_env env, napi_callback_
 
 napi_value ImageSourceNapi::GetImageInfo(napi_env env, napi_callback_info info)
 {
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageInfo");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -718,6 +719,7 @@ napi_value ImageSourceNapi::GetImageInfo(napi_env env, napi_callback_info info)
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
