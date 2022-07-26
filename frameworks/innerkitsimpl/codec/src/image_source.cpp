@@ -35,6 +35,7 @@
 #include "post_proc.h"
 #include "source_stream.h"
 #include "include/utils/SkBase64.h"
+#include "image_trace.h"
 
 namespace OHOS {
 namespace Media {

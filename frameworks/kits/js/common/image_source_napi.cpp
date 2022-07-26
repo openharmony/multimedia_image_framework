@@ -19,6 +19,7 @@
 #include "image_napi_utils.h"
 #include "media_errors.h"
 #include "string_ex.h"
+#include "image_trace.h"
 
 using OHOS::HiviewDFX::HiLog;
 namespace {
@@ -665,7 +666,7 @@ napi_value ImageSourceNapi::CreateIncrementalSource(napi_env env, napi_callback_
 
 napi_value ImageSourceNapi::GetImageInfo(napi_env env, napi_callback_info info)
 {
-//    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageInfo");
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageInfo");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -719,7 +720,7 @@ napi_value ImageSourceNapi::GetImageInfo(napi_env env, napi_callback_info info)
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
-//    FinishTrace(HITRACE_TAG_ZIMAGE);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
@@ -1169,7 +1170,7 @@ napi_value ImageSourceNapi::ModifyImageProperty(napi_env env, napi_callback_info
 
 napi_value ImageSourceNapi::GetImageProperty(napi_env env, napi_callback_info info)
 {
-//    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageProperty");
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageProperty");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -1200,7 +1201,7 @@ napi_value ImageSourceNapi::GetImageProperty(napi_env env, napi_callback_info in
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
-//    FinishTrace(HITRACE_TAG_ZIMAGE);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 

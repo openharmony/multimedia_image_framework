@@ -24,6 +24,7 @@
 #include "pixel_map_utils.h"
 #include "post_proc.h"
 #include "parcel.h"
+#include "image_trace.h"
 #ifndef _WIN32
 #include "securec.h"
 #else
