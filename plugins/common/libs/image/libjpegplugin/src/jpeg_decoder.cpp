@@ -715,8 +715,9 @@ uint32_t JpegDecoder::ModifyImageProperty(uint32_t index, const std::string &key
     return Media::SUCCESS;
 }
 
-uint32_t JpegDecoder::GetRedactionArea(const int &fd, const int &redactionType,
-                                       std::vector<std::vector<uint32_t>> &ranges)
+uint32_t JpegDecoder::GetRedactionArea(const int &fd,
+                                       const int &redactionType,
+                                       std::vector<std::pair<uint32_t, uint32_t>> &ranges)
 {
     HiLog::Error(LABEL, "[GetRedactionArea] with fd:%{public}d, redactionType:%{public}d ", fd, redactionType);
     uint32_t ret = exifInfo_.GetRedactionArea(fd, redactionType, ranges);

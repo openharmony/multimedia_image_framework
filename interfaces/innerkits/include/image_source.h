@@ -177,7 +177,7 @@ public:
     NATIVEEXPORT MemoryUsagePreference GetMemoryUsagePreference();
     NATIVEEXPORT uint32_t GetRedactionArea(const int &fd,
                                            const int &redactionType,
-                                           std::vector<std::vector<uint32_t>> &ranges);
+                                           std::vector<std::pair<uint32_t, uint32_t>> &ranges);
 
 private:
     DISALLOW_COPY_AND_MOVE(ImageSource);
