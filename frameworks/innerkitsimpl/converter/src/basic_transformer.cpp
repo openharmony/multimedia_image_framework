@@ -160,7 +160,7 @@ uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInf
     outPixmap.imageInfo.baseDensity = inPixmap.imageInfo.baseDensity;
 
 #ifdef _WIN32
-    errno_t backRet = (outPixmap.data, COLOR_DEFAULT, bufferSize * sizeof(uint8_t));
+    errno_t backRet = memset_s(outPixmap.data, COLOR_DEFAULT, bufferSize * sizeof(uint8_t));
     if (backRet != EOK) {
         IMAGE_LOGE("[BasicTransformer]apply heap memory failed.", backRet);
         ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
