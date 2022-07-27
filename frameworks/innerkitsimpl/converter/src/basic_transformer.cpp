@@ -123,7 +123,8 @@ void BasicTransformer::ReleaseBuffer(AllocatorType allocatorType, int fd, int da
         return;
     }
 }
-uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInfo &outPixmap, AllocateMem allocate)
+uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap,
+                                PixmapInfo &outPixmap, AllocateMem allocate)
 {
     if (inPixmap.data == nullptr) {
         IMAGE_LOGE("[BasicTransformer]input data is null.");
