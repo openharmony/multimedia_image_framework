@@ -35,6 +35,7 @@
 #include "post_proc.h"
 #include "source_stream.h"
 #include "include/utils/SkBase64.h"
+#include "image_trace.h"
 
 namespace OHOS {
 namespace Media {
@@ -565,6 +566,9 @@ DecodeEvent ImageSource::GetDecodeEvent()
 
 uint32_t ImageSource::GetImageInfo(uint32_t index, ImageInfo &imageInfo)
 {
+#if !defined(_WIN32) && !defined(_APPLE)
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetImageInfo by index");
+#endif
     uint32_t ret = SUCCESS;
     std::unique_lock<std::mutex> guard(decodingMutex_);
     auto iter = GetValidImageStatus(index, ret);
@@ -581,6 +585,9 @@ uint32_t ImageSource::GetImageInfo(uint32_t index, ImageInfo &imageInfo)
     }
 
     imageInfo = info;
+#if !defined(_WIN32) && !defined(_APPLE)
+    FinishTrace(HITRACE_TAG_ZIMAGE);
+#endif
     return SUCCESS;
 }
 
@@ -653,7 +660,6 @@ uint32_t ImageSource::GetImagePropertyInt(uint32_t index, const std::string &key
         IMAGE_LOGE("[ImageSource] GetImagePropertyInt fail, ret:%{public}u", ret);
         return ret;
     }
-
     return SUCCESS;
 }
 

@@ -18,6 +18,8 @@
 #include "hilog/log.h"
 #include "image_napi_utils.h"
 #include "image_pixel_map_napi.h"
+#include "image_trace.h"
+#include "hitrace_meter.h"
 
 using OHOS::HiviewDFX::HiLog;
 namespace {
@@ -681,6 +683,7 @@ napi_value PixelMapNapi::GetIsEditable(napi_env env, napi_callback_info info)
 
 napi_value PixelMapNapi::ReadPixelsToBuffer(napi_env env, napi_callback_info info)
 {
+    StartTrace(HITRACE_TAG_ZIMAGE, "ReadPixelsToBuffer");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -732,8 +735,8 @@ napi_value PixelMapNapi::ReadPixelsToBuffer(napi_env env, napi_callback_info inf
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
-
 }
 
 napi_value PixelMapNapi::ReadPixels(napi_env env, napi_callback_info info)
@@ -847,6 +850,7 @@ napi_value PixelMapNapi::WritePixels(napi_env env, napi_callback_info info)
 
 napi_value PixelMapNapi::WriteBufferToPixels(napi_env env, napi_callback_info info)
 {
+    StartTrace(HITRACE_TAG_ZIMAGE, "WriteBufferToPixels");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -897,6 +901,7 @@ napi_value PixelMapNapi::WriteBufferToPixels(napi_env env, napi_callback_info in
 
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status),
         nullptr, HiLog::Error(LABEL, "fail to create async work"));
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
@@ -978,6 +983,7 @@ napi_value PixelMapNapi::GetImageInfo(napi_env env, napi_callback_info info)
 
 napi_value PixelMapNapi::GetBytesNumberPerRow(napi_env env, napi_callback_info info)
 {
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetBytesNumberPerRow");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -1004,11 +1010,13 @@ napi_value PixelMapNapi::GetBytesNumberPerRow(napi_env env, napi_callback_info i
         HiLog::Error(LABEL, "native pixelmap is nullptr!");
     }
     pixelMapNapi.release();
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
 napi_value PixelMapNapi::GetPixelBytesNumber(napi_env env, napi_callback_info info)
 {
+    StartTrace(HITRACE_TAG_ZIMAGE, "GetPixelBytesNumber");
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
@@ -1035,6 +1043,7 @@ napi_value PixelMapNapi::GetPixelBytesNumber(napi_env env, napi_callback_info in
         HiLog::Error(LABEL, "native pixelmap is nullptr!");
     }
     pixelMapNapi.release();
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
 }
 
