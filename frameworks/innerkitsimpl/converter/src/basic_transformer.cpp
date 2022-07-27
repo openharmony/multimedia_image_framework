@@ -124,21 +124,13 @@ void BasicTransformer::ReleaseBuffer(AllocatorType allocatorType, int fd, int da
     }
 }
 
-void backRet(x) {
-    if (x != EOK) {
-        IMAGE_LOGE("[BasicTransformer]apply heap memory failed.", x);
-        ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
-            fd, bufferSize, outPixmap.data);
-        return ERR_IMAGE_GENERAL_ERROR;
-    }
-}
-
-uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInfo &outPixmap, AllocateMem allocate)
+void BasicTransformer::Translate(const PixmapInfo &inPixmap, PixmapInfo &outPixmap, AllocateMem allocate)
 {
     if (inPixmap.data == nullptr) {
         IMAGE_LOGE("[BasicTransformer]input data is null.");
         return ERR_IMAGE_GENERAL_ERROR;
     }
+
     int32_t pixelBytes = ImageUtils::GetPixelBytes(inPixmap.imageInfo.pixelFormat);
     if (pixelBytes == 0) {
         IMAGE_LOGE("[BasicTransformer]input pixel is invalid.");
@@ -168,13 +160,34 @@ uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInf
     outPixmap.imageInfo.colorSpace = inPixmap.imageInfo.colorSpace;
     outPixmap.imageInfo.alphaType = inPixmap.imageInfo.alphaType;
     outPixmap.imageInfo.baseDensity = inPixmap.imageInfo.baseDensity;
+    return;
+}
+
+uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInfo &outPixmap, AllocateMem allocate)
+{
+    if (inPixmap.data == nullptr) {
+        IMAGE_LOGE("[BasicTransformer]input data is null.");
+        return ERR_IMAGE_GENERAL_ERROR;
+    }
+
+    Translate(inPixmap, outPixmap, allocate);
 
 #ifdef _WIN32
-    backRet(memset_s(outPixmap.data, COLOR_DEFAULT, bufferSize * sizeof(uint8_t)));
+    errno_t backRet = memset_s(outPixmap.data, COLOR_DEFAULT, bufferSize * sizeof(uint8_t));
+    if (backRet != EOK) {
+        IMAGE_LOGE("[BasicTransformer]apply heap memory failed.", backRet);
+        ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
+            fd, bufferSize, outPixmap.data);
+        return ERR_IMAGE_GENERAL_ERROR;
+    }
 #else
-    backRet(memset_s(outPixmap.data, bufferSize * sizeof(uint8_t), COLOR_DEFAULT, bufferSize * sizeof(uint8_t)));
+    if (memset_s(outPixmap.data, bufferSize * sizeof(uint8_t), COLOR_DEFAULT, bufferSize * sizeof(uint8_t)) != EOK) {
+        IMAGE_LOGE("[BasicTransformer]apply heap memory failed.");
+        ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
+            fd, bufferSize, outPixmap.data);
+        return ERR_IMAGE_GENERAL_ERROR;
+    }
 #endif
-
     if (!DrawPixelmap(inPixmap, pixelBytes, dstSize, outPixmap.data)) {
         IMAGE_LOGE("[BasicTransformer] the matrix can not invert.");
         ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
