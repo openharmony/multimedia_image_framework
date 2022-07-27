@@ -123,8 +123,17 @@ void BasicTransformer::ReleaseBuffer(AllocatorType allocatorType, int fd, int da
         return;
     }
 }
-uint32_t BasicTransformer::TransformPixmap(
-    const PixmapInfo &inPixmap, PixmapInfo &outPixmap, AllocateMem allocate)
+
+void backRet(x) {
+    if (x != EOK) {
+        IMAGE_LOGE("[BasicTransformer]apply heap memory failed.", x);
+        ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
+            fd, bufferSize, outPixmap.data);
+        return ERR_IMAGE_GENERAL_ERROR;
+    }
+}
+
+uint32_t BasicTransformer::TransformPixmap(const PixmapInfo &inPixmap, PixmapInfo &outPixmap, AllocateMem allocate)
 {
     if (inPixmap.data == nullptr) {
         IMAGE_LOGE("[BasicTransformer]input data is null.");
@@ -161,20 +170,9 @@ uint32_t BasicTransformer::TransformPixmap(
     outPixmap.imageInfo.baseDensity = inPixmap.imageInfo.baseDensity;
 
 #ifdef _WIN32
-    errno_t backRet = memset_s(outPixmap.data, COLOR_DEFAULT, bufferSize * sizeof(uint8_t));
-    if (backRet != EOK) {
-        IMAGE_LOGE("[BasicTransformer]apply heap memory failed.", backRet);
-        ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
-            fd, bufferSize, outPixmap.data);
-        return ERR_IMAGE_GENERAL_ERROR;
-    }
+    backRet(memset_s(outPixmap.data, COLOR_DEFAULT, bufferSize * sizeof(uint8_t)));
 #else
-    if (memset_s(outPixmap.data, bufferSize * sizeof(uint8_t), COLOR_DEFAULT, bufferSize * sizeof(uint8_t)) != EOK) {
-        IMAGE_LOGE("[BasicTransformer]apply heap memory failed.");
-        ReleaseBuffer((allocate == nullptr) ? AllocatorType::HEAP_ALLOC : AllocatorType::SHARE_MEM_ALLOC,
-            fd, bufferSize, outPixmap.data);
-        return ERR_IMAGE_GENERAL_ERROR;
-    }
+    backRet(memset_s(outPixmap.data, bufferSize * sizeof(uint8_t), COLOR_DEFAULT, bufferSize * sizeof(uint8_t)) != EOK))
 #endif
 
     if (!DrawPixelmap(inPixmap, pixelBytes, dstSize, outPixmap.data)) {
