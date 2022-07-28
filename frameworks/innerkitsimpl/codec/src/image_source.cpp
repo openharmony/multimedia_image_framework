@@ -1230,7 +1230,7 @@ MemoryUsagePreference ImageSource::GetMemoryUsagePreference()
 
 uint32_t ImageSource::GetRedactionArea(const int &fd,
                                        const int &redactionType,
-                                       std::vector<std::vector<uint32_t>> &ranges)
+                                       std::vector<std::pair<uint32_t, uint32_t>> &ranges)
 {
     std::unique_lock<std::mutex> guard(decodingMutex_);
     uint32_t ret;
