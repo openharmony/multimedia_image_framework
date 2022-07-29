@@ -50,7 +50,8 @@ public:
     uint32_t ModifyExifData(const ExifTag &tag, const std::string &value, const std::string &path);
     uint32_t ModifyExifData(const ExifTag &tag, const std::string &value, const int fd);
     uint32_t ModifyExifData(const ExifTag &tag, const std::string &value, unsigned char *data, uint32_t size);
-    uint32_t GetRedactionArea(const int &fd, const int &redactionType, std::vector<std::vector<uint32_t>> &ranges);
+    uint32_t
+        GetRedactionArea(const int &fd, const int &redactionType, std::vector<std::pair<uint32_t, uint32_t>> &ranges);
 
 public:
     std::string bitsPerSample_ = ""; // Number of bits in each pixel of an image.
@@ -84,7 +85,7 @@ private:
     bool CheckExifEntryValid(const ExifIfd &ifd, const ExifTag &tag);
     void GetAreaFromExifEntries(const int &redactionType,
                                 const std::vector<DirectoryEntry> &entryArray,
-                                std::vector<std::vector<uint32_t>> &ranges);
+                                std::vector<std::pair<uint32_t, uint32_t>> &ranges);
 
 private:
     ExifIfd imageFileDirectory_;

@@ -171,7 +171,7 @@ public:
 
     // get redaction area.
     virtual uint32_t
-        GetRedactionArea(const int &fd, const int &redactionType, std::vector<std::vector<uint32_t>> &ranges)
+        GetRedactionArea(const int &fd, const int &redactionType, std::vector<std::pair<uint32_t, uint32_t>> &ranges)
     {
         return Media::ERR_MEDIA_INVALID_OPERATION;
     }
