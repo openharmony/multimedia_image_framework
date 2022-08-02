@@ -53,7 +53,7 @@
 /foundation/multimedia/image_standard  
 ├── frameworks                                  # 框架代码
 │   ├── innerkitsimpl                           # 内部接口实现
-│   │   └──iamge                                # Native 实现
+│   │   └──image                                # Native 实现
 │   └── kitsimpl                                # 外部接口实现
 │       └──image                                # 外部  NAPI 实现
 ├── interfaces                                  # 接口代码
