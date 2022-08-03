@@ -172,6 +172,8 @@ bool IstreamSourceStream::GetData(uint32_t desiredSize, DataStreamBuffer &outDat
     inputStream_->seekg(streamOffset_);
     if (!inputStream_->read(reinterpret_cast<char *>(databuffer_), desiredSize)) {
         IMAGE_LOGE("[IstreamSourceStream]read the inputstream fail.");
+        free(databuffer_);
+        databuffer_ = nullptr;
         return false;
     }
     outData.inputStreamBuffer = databuffer_;

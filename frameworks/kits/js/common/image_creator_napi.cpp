@@ -673,6 +673,7 @@ static bool CheckOnParam0(napi_env env, napi_value value, const std::string& ref
 
     status = napi_get_value_string_utf8(env, value, buffer, bufLength + 1, &bufLength);
     if (status != napi_ok) {
+        free(buffer);
         return false;
     }
 
