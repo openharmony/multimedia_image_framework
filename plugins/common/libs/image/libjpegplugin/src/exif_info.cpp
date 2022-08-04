@@ -1098,7 +1098,9 @@ void ByteOrderedBuffer::GetDataRangeFromIFD(const ExifIfd &ifd)
             return;
         }
         // Transform tiff offset to position of file
-        nextIfdOffset = static_cast<int32_t>(TransformTiffOffsetToFilePos(nextIfdOffset));
+        if (nextIfdOffset != -1) {
+            nextIfdOffset = static_cast<int32_t>(TransformTiffOffsetToFilePos(nextIfdOffset));
+        }
         // Check if the next IFD offset
         // 1. Exists within the boundaries of the buffer
         // 2. Does not point to a previously read IFD.
@@ -1138,7 +1140,7 @@ void ByteOrderedBuffer::GetDataRangeFromDE(const ExifIfd &ifd, const int16_t &co
         if (byteCount > CONSTANT_4) {
             int32_t offset = ReadInt32();
             // Transform tiff offset to position of file
-            if (nextIfdOffset != -1) {
+            if (offset != -1) {
                 offset = static_cast<int32_t>(TransformTiffOffsetToFilePos(offset));
             }
             if (static_cast<uint32_t>(offset + byteCount) <= bufferLength_) {
