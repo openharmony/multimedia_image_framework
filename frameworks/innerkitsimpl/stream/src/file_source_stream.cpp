@@ -214,6 +214,8 @@ bool FileSourceStream::GetData(uint32_t desiredSize, DataStreamBuffer &outData)
     size_t bytesRead = fread(readBuffer_, sizeof(uint8_t), desiredSize, filePtr_);
     if (bytesRead < desiredSize) {
         IMAGE_LOGE("[FileSourceStream]read fail, bytesRead:%{public}zu", bytesRead);
+        free(readBuffer_);
+        readBuffer_ = nullptr;
         return false;
     }
     outData.inputStreamBuffer = static_cast<uint8_t *>(readBuffer_);
