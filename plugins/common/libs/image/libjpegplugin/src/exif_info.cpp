@@ -1070,9 +1070,9 @@ void ByteOrderedBuffer::GenerateDEArray()
         return;
     }
     // Transform tiff offset to position of file
-    ifd0Offset = TransformTiffOffsetToFilePos(ifd0Offset);
+    ifd0Offset = static_cast<int32_t>(TransformTiffOffsetToFilePos(ifd0Offset));
     // Move current position to begin of IFD0 segment
-    curPosition_ = ifd0Offset;
+    static_cast<int32_t>(curPosition_) = ifd0Offset;
 
     if (curPosition_ + CONSTANT_2 > bufferLength_) {
         HiLog::Error(LABEL, "There is no data from the offset: %{public}d.", curPosition_);
@@ -1085,7 +1085,7 @@ void ByteOrderedBuffer::GetDataRangeFromIFD(const ExifIfd &ifd)
 {
     handledIfdOffsets_.push_back(curPosition_);
     int16_t entryCount = ReadShort();
-    if (curPosition_ + BYTE_COUNTS_12 * entryCount > bufferLength_ || entryCount <= 0) {
+    if (static_cast<int16_t>(curPosition_ + BYTE_COUNTS_12 * entryCount) > bufferLength_ || entryCount <= 0) {
         HiLog::Error(LABEL, " The size of entries is either too big or negative.");
         return;
     }
@@ -1104,7 +1104,7 @@ void ByteOrderedBuffer::GetDataRangeFromIFD(const ExifIfd &ifd)
         // 2. Does not point to a previously read IFD.
         if (nextIfdOffset > 0L && static_cast<uint32_t>(nextIfdOffset) < bufferLength_) {
             if (!IsIFDhandled(nextIfdOffset)) {
-                curPosition_ = nextIfdOffset;
+                static_cast<int32_t>(curPosition_) = nextIfdOffset;
                 ExifIfd nextIfd = GetNextIfdFromLinkList(ifd);
                 GetDataRangeFromIFD(nextIfd);
             } else {
@@ -1128,7 +1128,7 @@ void ByteOrderedBuffer::GetDataRangeFromDE(const ExifIfd &ifd, const int16_t &co
         bool valid = false;
         valid = SetDEDataByteCount(tagNumber, dataFormat, numberOfComponents, byteCount);
         if (!valid) {
-            static_cast<uint32_t>curPosition_ = nextEntryOffset;
+            static_cast<uint32_t>(curPosition_) = nextEntryOffset;
             continue;
         }
 
@@ -1139,8 +1139,8 @@ void ByteOrderedBuffer::GetDataRangeFromDE(const ExifIfd &ifd, const int16_t &co
             int32_t offset = ReadInt32();
             // Transform tiff offset to position of file
             offset = static_cast<int32_t>(TransformTiffOffsetToFilePos(offset));
-            if (offset + byteCount <= bufferLength_) {
-                curPosition_ = offset;
+            if (offset + byteCount <= static_cast<int32_t>(bufferLength_)) {
+                static_cast<int32_t>(curPosition_) = offset;
             } else {
                 // Skip if invalid data offset.
                 HiLog::Error(LABEL, "Skip the tag entry since data offset is invalid: %{public}d.", offset);
