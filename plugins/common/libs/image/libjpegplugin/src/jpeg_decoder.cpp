@@ -14,7 +14,7 @@
  */
 
 #include "jpeg_decoder.h"
-
+#include <map>
 #include "jerror.h"
 #include "media_errors.h"
 #include "string_ex.h"
@@ -64,6 +64,12 @@ const std::string EXPOSURE_TIME = "ExposureTime";
 const std::string F_NUMBER = "FNumber";
 const std::string ISO_SPEED_RATINGS = "ISOSpeedRatings";
 const std::string SCENE_TYPE = "SceneType";
+static const std::map<std::string, uint32_t> PROPERTY_INT = {
+    {"Top-left", 0},
+    {"Bottom-right", 180},
+    {"Right-top", 90},
+    {"Left-bottom", 270},
+};
 } // namespace
 
 PluginServer &JpegDecoder::pluginServer_ = DelayedRefSingleton<PluginServer>::GetInstance();
@@ -587,6 +593,14 @@ uint32_t JpegDecoder::StartDecompress(const PixelDecodeOptions &opts)
 uint32_t JpegDecoder::GetImagePropertyInt(uint32_t index, const std::string &key, int32_t &value)
 {
     HiLog::Debug(LABEL, "[GetImagePropertyInt] enter jped plugin, key:%{public}s", key.c_str());
+    if (IsSameTextStr(key, ORIENTATION)) {
+        if (PROPERTY_INT.find(exifInfo_.orientation_) != PROPERTY_INT.end()) {
+            value = PROPERTY_INT.at(exifInfo_.orientation_);
+        } else {
+            HiLog::Error(LABEL, "[GetImagePropertyInt] The ORIENTATION parameter is not supported int32_t");
+            return Media::ERR_MEDIA_VALUE_INVALID;
+        }
+    }
     return Media::SUCCESS;
 }
 
