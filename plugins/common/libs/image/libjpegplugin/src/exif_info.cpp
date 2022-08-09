@@ -1130,7 +1130,7 @@ void ByteOrderedBuffer::GetDataRangeFromDE(const ExifIfd &ifd, const int16_t &co
         bool valid = false;
         valid = SetDEDataByteCount(tagNumber, dataFormat, numberOfComponents, byteCount);
         if (!valid) {
-            curPosition_ = static_cast<int32_t>(nextEntryOffset);
+            curPosition_ = static_cast<uint32_t>(nextEntryOffset);
             continue;
         }
 
@@ -1143,7 +1143,7 @@ void ByteOrderedBuffer::GetDataRangeFromDE(const ExifIfd &ifd, const int16_t &co
             if (offset != -1) {
                 offset = static_cast<int32_t>(TransformTiffOffsetToFilePos(offset));
             }
-            if (static_cast<uint32_t>(offset + byteCount) <= bufferLength_) {
+            if ((static_cast<uint32_t>(offset) + byteCount) <= bufferLength_) {
                 curPosition_ = static_cast<uint32_t>(offset);
             } else {
                 // Skip if invalid data offset.
