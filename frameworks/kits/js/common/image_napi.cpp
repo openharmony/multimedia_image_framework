@@ -118,7 +118,7 @@ static uint32_t ProcessYUV422SP(ImageNapi* imageNapi, sptr<SurfaceBuffer> surfac
     uint64_t uvSize = static_cast<uint64_t>(surface->GetHeight() * uvStride);
     if (surfaceSize < (ySize + uvSize * NUM2)) {
         HiLog::Error(LABEL, "Surface size %{public}" PRIu64 " < y plane %{public}" PRIu64
-            " + uv plane %{public}", PRIu64, surfaceSize, ySize, uvSize * NUM2 );
+            " + uv plane %{public}" PRIu64, surfaceSize, ySize, uvSize * NUM2 );
         return ERR_IMAGE_DATA_ABNORMAL;
     }
 
@@ -667,7 +667,7 @@ void ImageNapi::JsGetComponentCallBack(napi_env env, napi_status status, ImageAs
             HiLog::Error(LABEL, "napi_create_arraybuffer failed!");
         }
     } else {
-        HiLog::Error(LABEL, "buffer is nullptr or bufferSize is %{public}", PRIu32, bufferSize);
+        HiLog::Error(LABEL, "buffer is nullptr or bufferSize is %{public}" PRIu32, bufferSize);
     }
 
     IMAGE_FUNCTION_OUT();
