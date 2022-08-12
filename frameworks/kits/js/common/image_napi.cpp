@@ -204,7 +204,7 @@ void ImageNapi::NativeRelease()
         sSurfaceBuffer_ = nullptr;
     }
     if (componentData_.size() > 0) {
-        for( auto iter = componentData_.begin(); iter != componentData_.end(); ) {
+        for (auto iter = componentData_.begin(); iter != componentData_.end();) {
             iter->second = nullptr;
             componentData_.erase(iter++);
         }
@@ -609,10 +609,10 @@ static bool IsYUVType(const int32_t& type)
 }
 static inline bool IsYCbCr422SP(int32_t format)
 {
-    if( int32_t( ImageFormat::YCBCR_422_SP ) == format ) {
+    if (int32_t(ImageFormat::YCBCR_422_SP) == format) {
         return true;
     }
-    if( int32_t( PIXEL_FMT_YCBCR_422_SP ) == format ) {
+    if (int32_t( PIXEL_FMT_YCBCR_422_SP) == format) {
         return true;
     }
     return false;
@@ -667,7 +667,7 @@ void ImageNapi::JsGetComponentCallBack(napi_env env, napi_status status, ImageAs
             HiLog::Error(LABEL, "napi_create_arraybuffer failed!");
         }
     } else {
-        HiLog::Error( LABEL, "buffer is nullptr or bufferSize is %{public}" PRIu32, bufferSize );
+        HiLog::Error(LABEL, "buffer is nullptr or bufferSize is %{public}", PRIu32, bufferSize);
     }
 
     IMAGE_FUNCTION_OUT();
