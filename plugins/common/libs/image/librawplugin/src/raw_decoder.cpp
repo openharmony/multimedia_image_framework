@@ -13,7 +13,6 @@
  * limitations under the License.
  */
 #include "raw_decoder.h"
-#include "src/images/SkImageEncoderFns.h"
 #include "hilog/log.h"
 #include "log_tags.h"
 #include "buffer_source_stream.h"
@@ -260,9 +259,6 @@ uint32_t RawDecoder::DoDecodeHeaderByPiex()
     if (error == piex::Error::kOk) {
         if ((imageData.preview.format == piex::Image::kJpegCompressed) && (imageData.preview.length > 0)) {
             piexImage = imageData.preview;
-            hasImage = true;
-        } else if ((imageData.thumbnail.format == piex::Image::kJpegCompressed) && (imageData.thumbnail.length > 0)) {
-            piexImage = imageData.thumbnail;
             hasImage = true;
         }
     }

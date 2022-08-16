@@ -14,10 +14,6 @@
  */
 #ifndef RAW_DECODER_H
 #define RAW_DECODER_H
-#include <cstdint>
-#include <string>
-#include <map>
-#include <memory>
 #include "plugin_class_base.h"
 #include "abs_image_decoder.h"
 namespace OHOS {
