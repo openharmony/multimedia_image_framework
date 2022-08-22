@@ -1168,7 +1168,7 @@ static bool CheckExifDataValue(const std::string &key, const std::string &value,
 {
     if (IsSameTextStr(key, "BitsPerSample")) {
         std::vector<std::string> bitsVec;
-        SplitStr(value, ", ", bitsVec);
+        SplitStr(value, ",", bitsVec);
         if (bitsVec.size() > NUM_2) {
             errorInfo = "BitsPerSample has invalid exif value: ";
             errorInfo.append(value);
@@ -1195,7 +1195,7 @@ static bool CheckExifDataValue(const std::string &key, const std::string &value,
         }
     } else if (IsSameTextStr(key, "GPSLatitude") || IsSameTextStr(key, "GPSLongitude")) {
         std::vector<std::string> gpsVec;
-        SplitStr(value, ", ", gpsVec);
+        SplitStr(value, ",", gpsVec);
         if (gpsVec.size() != NUM_2) {
             errorInfo = "GPSLatitude or GPSLongitude has invalid exif value: ";
             errorInfo.append(value);
