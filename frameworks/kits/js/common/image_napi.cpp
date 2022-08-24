@@ -53,7 +53,7 @@ ImageNapi::ImageNapi()
 
 ImageNapi::~ImageNapi()
 {
-    NativeRelease();
+    release();
     if (wrapper_ != nullptr) {
         napi_delete_reference(env_, wrapper_);
     }
@@ -210,7 +210,7 @@ void ImageNapi::Destructor(napi_env env, void *nativeObject, void *finalize)
     ImageNapi *pImageNapi = reinterpret_cast<ImageNapi*>(nativeObject);
 
     if (IMG_NOT_NULL(pImageNapi)) {
-        pImageNapi->~ImageNapi();
+        pImageNapi->release();
     }
 }
 
@@ -636,6 +636,17 @@ napi_value ImageNapi::JsGetComponent(napi_env env, napi_callback_info info)
 
     IMAGE_FUNCTION_OUT();
     return result;
+}
+
+void ImageNapi::release()
+{
+    if (!isRelease) {
+        NativeRelease();
+        if (wrapper_ != nullptr) {
+            napi_delete_reference(env_, wrapper_);
+        }
+        isRelease = true;
+    }
 }
 }  // namespace Media
 }  // namespace OHOS

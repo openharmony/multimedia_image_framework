@@ -79,9 +79,7 @@ ImagePackerNapi::ImagePackerNapi()
 
 ImagePackerNapi::~ImagePackerNapi()
 {
-    if (wrapper_ != nullptr) {
-        napi_delete_reference(env_, wrapper_);
-    }
+    release();
 }
 
 static void CommonCallbackRoutine(napi_env env, ImagePackerAsyncContext* &connect, const napi_value &valueParam)
@@ -315,8 +313,7 @@ void ImagePackerNapi::Destructor(napi_env env, void *nativeObject, void *finaliz
     ImagePackerNapi *pImagePackerNapi = reinterpret_cast<ImagePackerNapi*>(nativeObject);
 
     if (IMG_NOT_NULL(pImagePackerNapi)) {
-        pImagePackerNapi->nativeImgPck = nullptr;
-        pImagePackerNapi->~ImagePackerNapi();
+        pImagePackerNapi->release();
     }
 }
 
@@ -561,7 +558,8 @@ static void ReleaseComplete(napi_env env, napi_status status, void *data)
     napi_get_undefined(env, &result);
 
     auto context = static_cast<ImagePackerAsyncContext*>(data);
-    context->constructor_->~ImagePackerNapi();
+    delete context->constructor_;
+    context->constructor_ = nullptr;
     HiLog::Debug(LABEL, "ReleaseComplete OUT");
     CommonCallbackRoutine(env, context, result);
 }
@@ -602,6 +600,16 @@ napi_value ImagePackerNapi::Release(napi_env env, napi_callback_info info)
     HiLog::Debug(LABEL, "Release exit");
     FinishTrace(HITRACE_TAG_ZIMAGE);
     return result;
+}
+void ImagePackerNapi::release()
+{
+    if (!isRelease) {
+        nativeImgPck = nullptr;
+        if (wrapper_ != nullptr) {
+            napi_delete_reference(env_, wrapper_);
+        }
+        isRelease = true;
+    }
 }
 }  // namespace Media
 }  // namespace OHOS

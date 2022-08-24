@@ -269,14 +269,7 @@ PixelMapNapi::PixelMapNapi()
 
 PixelMapNapi::~PixelMapNapi()
 {
-    if (nativePixelMap_ != nullptr) {
-        nativePixelMap_ = nullptr;
-        nativeInner_ = nullptr;
-    }
-
-    if (wrapper_ != nullptr) {
-        napi_delete_reference(env_, wrapper_);
-    }
+    release();
 }
 
 static napi_value DoInitAfter(napi_env env,
@@ -1751,6 +1744,20 @@ napi_value PixelMapNapi::Crop(napi_env env, napi_callback_info info)
         }
     }
     return nVal.result;
+}
+
+void PixelMapNapi::release()
+{
+    if (!isRelease) {
+        if (nativePixelMap_ != nullptr) {
+            nativePixelMap_ = nullptr;
+            nativeInner_ = nullptr;
+        }
+        if (wrapper_ != nullptr) {
+            napi_delete_reference(env_, wrapper_);
+        }
+        isRelease = true;
+    }
 }
 }  // namespace Media
 }  // namespace OHOS

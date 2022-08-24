@@ -55,10 +55,7 @@ ImageCreatorNapi::ImageCreatorNapi()
 
 ImageCreatorNapi::~ImageCreatorNapi()
 {
-    NativeRelease();
-    if (wrapper_ != nullptr) {
-        napi_delete_reference(env_, wrapper_);
-    }
+    release();
 }
 
 static void CommonCallbackRoutine(napi_env env, Contextc &context, const napi_value &valueParam, bool isRelease = true)
@@ -198,7 +195,7 @@ void ImageCreatorNapi::Destructor(napi_env env, void *nativeObject, void *finali
     ImageCreatorNapi *pImageCreatorNapi = reinterpret_cast<ImageCreatorNapi*>(nativeObject);
 
     if (IMG_NOT_NULL(pImageCreatorNapi)) {
-        pImageCreatorNapi->~ImageCreatorNapi();
+        pImageCreatorNapi->release();
     }
 }
 
@@ -843,6 +840,17 @@ napi_value ImageCreatorNapi::JsRelease(napi_env env, napi_callback_info info)
     };
 
     return JSCommonProcess(args);
+}
+
+void ImageCreatorNapi::release()
+{
+    if (!isRelease) {
+        NativeRelease();
+        if (wrapper_ != nullptr) {
+            napi_delete_reference(env_, wrapper_);
+        }
+        isRelease = true;
+    }
 }
 }  // namespace Media
 }  // namespace OHOS
