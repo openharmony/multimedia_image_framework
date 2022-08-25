@@ -618,7 +618,7 @@ static inline bool IsYCbCr422SP(int32_t format)
     return false;
 }
 void ImageNapi::JsGetComponentCallBack(napi_env env,
-        napi_status status, ImageAsyncContext* context)
+    napi_status status, ImageAsyncContext* context)
 {
     IMAGE_FUNCTION_IN();
     napi_value result;

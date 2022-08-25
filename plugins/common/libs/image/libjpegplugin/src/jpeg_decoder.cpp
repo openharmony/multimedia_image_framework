@@ -650,7 +650,7 @@ uint32_t JpegDecoder::GetImagePropertyString(uint32_t index, const std::string &
     return Media::SUCCESS;
 }
 
-void InitOriginalTimes(const std::string &dataTime)
+void InitOriginalTimes(std::string &dataTime)
 {
     for (size_t i = 0; i < dataTime.size() && i < TIMES_LEN; i++) {
         if ((dataTime[i] < '0' || dataTime[i] > '9') && dataTime[i] != ' ') {
