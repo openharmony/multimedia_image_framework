@@ -50,8 +50,7 @@ const int PARAM1 = 1;
 const int PARAM2 = 2;
 const int PARAM3 = 3;
 
-ImageReceiverNapi::ImageReceiverNapi()
-    :env_(nullptr), wrapper_(nullptr)
+ImageReceiverNapi::ImageReceiverNapi():env_(nullptr)
 {}
 
 ImageReceiverNapi::~ImageReceiverNapi()
@@ -183,7 +182,7 @@ napi_value ImageReceiverNapi::Constructor(napi_env env, napi_callback_info info)
             reference->env_ = env;
             reference->imageReceiver_ = staticInstance_;
             status = napi_wrap(env, thisVar, reinterpret_cast<void *>(reference.get()),
-                               ImageReceiverNapi::Destructor, nullptr, &(reference->wrapper_));
+                               ImageReceiverNapi::Destructor, nullptr, nullptr);
             if (status == napi_ok) {
                 IMAGE_FUNCTION_OUT();
                 reference.release();
@@ -904,9 +903,6 @@ void ImageReceiverNapi::release()
 {
     if (!isRelease) {
         NativeRelease();
-        if (wrapper_ != nullptr) {
-            napi_delete_reference(env_, wrapper_);
-        }
         isRelease = true;
     }
 }

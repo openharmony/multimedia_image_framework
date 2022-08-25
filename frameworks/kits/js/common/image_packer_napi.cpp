@@ -73,8 +73,7 @@ struct PackingOption {
     uint8_t quality = 100;
 };
 
-ImagePackerNapi::ImagePackerNapi()
-    :env_(nullptr), wrapper_(nullptr)
+ImagePackerNapi::ImagePackerNapi():env_(nullptr)
 {}
 
 ImagePackerNapi::~ImagePackerNapi()
@@ -272,7 +271,7 @@ napi_value ImagePackerNapi::Constructor(napi_env env, napi_callback_info info)
             pImgPackerNapi->env_ = env;
             pImgPackerNapi->nativeImgPck = sImgPck_;
             status = napi_wrap(env, thisVar, reinterpret_cast<void *>(pImgPackerNapi.get()),
-                               ImagePackerNapi::Destructor, nullptr, &(pImgPackerNapi->wrapper_));
+                               ImagePackerNapi::Destructor, nullptr, nullptr);
             if (status == napi_ok) {
                 pImgPackerNapi.release();
                 return thisVar;
@@ -605,9 +604,6 @@ void ImagePackerNapi::release()
 {
     if (!isRelease) {
         nativeImgPck = nullptr;
-        if (wrapper_ != nullptr) {
-            napi_delete_reference(env_, wrapper_);
-        }
         isRelease = true;
     }
 }

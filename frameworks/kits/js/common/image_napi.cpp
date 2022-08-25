@@ -49,16 +49,13 @@ const int NUM0 = 0;
 const int NUM1 = 1;
 const int NUM2 = 2;
 
-ImageNapi::ImageNapi()
-    :env_(nullptr), wrapper_(nullptr)
+ImageNapi::ImageNapi():env_(nullptr)
 {}
 
 ImageNapi::~ImageNapi()
 {
     release();
-    if (wrapper_ != nullptr) {
-        napi_delete_reference(env_, wrapper_);
-    }
+
 }
 
 static inline void YUV422SPDataCopy(uint8_t* surfaceBuffer, uint64_t bufferSize,
@@ -285,7 +282,7 @@ napi_value ImageNapi::Constructor(napi_env env, napi_callback_info info)
             reference->imageReceiver_ = staticImageReceiverInstance_;
             staticImageReceiverInstance_ = nullptr;
             status = napi_wrap(env, thisVar, reinterpret_cast<void *>(reference.get()),
-                               ImageNapi::Destructor, nullptr, &(reference->wrapper_));
+                               ImageNapi::Destructor, nullptr, nullptr);
             if (status == napi_ok) {
                 IMAGE_FUNCTION_OUT();
                 reference.release();
@@ -841,9 +838,6 @@ void ImageNapi::release()
 {
     if (!isRelease) {
         NativeRelease();
-        if (wrapper_ != nullptr) {
-            napi_delete_reference(env_, wrapper_);
-        }
         isRelease = true;
     }
 }

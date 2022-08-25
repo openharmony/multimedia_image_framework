@@ -82,7 +82,6 @@ private:
     static std::shared_ptr<ImageCreator> staticInstance_;
 
     napi_env env_ = nullptr;
-    napi_ref wrapper_ = nullptr;
     std::shared_ptr<ImageCreator> imageCreator_;
 };
 struct ImageCreatorAsyncContext {

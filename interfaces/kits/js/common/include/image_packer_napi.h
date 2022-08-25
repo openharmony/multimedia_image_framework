@@ -57,7 +57,6 @@ private:
     static std::shared_ptr<ImagePacker> sImgPck_;
 
     napi_env env_ = nullptr;
-    napi_ref wrapper_ = nullptr;
     std::shared_ptr<ImagePacker> nativeImgPck = nullptr;
 };
 } // namespace Media

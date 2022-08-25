@@ -75,7 +75,6 @@ private:
     static std::shared_ptr<ImageReceiver> staticInstance_;
 
     napi_env env_ = nullptr;
-    napi_ref wrapper_ = nullptr;
     std::shared_ptr<ImageReceiver> imageReceiver_;
     bool isRelease = false;
 };

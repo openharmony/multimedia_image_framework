@@ -49,8 +49,7 @@ const int PARAM1 = 1;
 const int PARAM2 = 2;
 const int PARAM3 = 3;
 
-ImageCreatorNapi::ImageCreatorNapi()
-    :env_(nullptr), wrapper_(nullptr)
+ImageCreatorNapi::ImageCreatorNapi():env_(nullptr)
 {}
 
 ImageCreatorNapi::~ImageCreatorNapi()
@@ -176,7 +175,7 @@ napi_value ImageCreatorNapi::Constructor(napi_env env, napi_callback_info info)
             reference->env_ = env;
             reference->imageCreator_ = staticInstance_;
             status = napi_wrap(env, thisVar, reinterpret_cast<void *>(reference.get()),
-                               ImageCreatorNapi::Destructor, nullptr, &(reference->wrapper_));
+                               ImageCreatorNapi::Destructor, nullptr, nullptr);
             if (status == napi_ok) {
                 IMAGE_FUNCTION_OUT();
                 reference.release();
@@ -849,9 +848,6 @@ void ImageCreatorNapi::release()
 {
     if (!isRelease) {
         NativeRelease();
-        if (wrapper_ != nullptr) {
-            napi_delete_reference(env_, wrapper_);
-        }
         isRelease = true;
     }
 }

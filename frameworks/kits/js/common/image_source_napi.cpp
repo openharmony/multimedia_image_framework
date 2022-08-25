@@ -144,8 +144,7 @@ static void ImageSourceCallbackRoutine(napi_env env, ImageSourceAsyncContext* &c
     context = nullptr;
 }
 
-ImageSourceNapi::ImageSourceNapi()
-    :env_(nullptr), wrapper_(nullptr)
+ImageSourceNapi::ImageSourceNapi():env_(nullptr)
 {
 
 }
@@ -234,7 +233,7 @@ napi_value ImageSourceNapi::Constructor(napi_env env, napi_callback_info info)
             sIncPixelMap_ = nullptr;
 
             status = napi_wrap(env, thisVar, reinterpret_cast<void *>(pImgSrcNapi.get()),
-                               ImageSourceNapi::Destructor, nullptr, &(pImgSrcNapi->wrapper_));
+                               ImageSourceNapi::Destructor, nullptr, nullptr);
             if (status == napi_ok) {
                 pImgSrcNapi.release();
                 return thisVar;
@@ -1409,9 +1408,6 @@ void ImageSourceNapi::release()
     if (!isRelease) {
         if (nativeImgSrc != nullptr) {
             nativeImgSrc = nullptr;
-        }
-        if (wrapper_ != nullptr) {
-            napi_delete_reference(env_, wrapper_);
         }
         isRelease = true;
     }

@@ -70,8 +70,6 @@ private:
     std::shared_ptr<IncrementalPixelMap> navIncPixelMap_ = nullptr;
 
     napi_env env_ = nullptr;
-    napi_ref wrapper_ = nullptr;
-
     bool isRelease = false;
 };
 } // namespace Media

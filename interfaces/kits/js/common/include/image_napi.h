@@ -79,7 +79,6 @@ private:
     static std::shared_ptr<ImageCreator> staticImageCreatorInstance_;
 
     napi_env env_ = nullptr;
-    napi_ref wrapper_ = nullptr;
     std::shared_ptr<ImageReceiver> imageReceiver_;
     std::shared_ptr<ImageCreator> imageCreator_;
     std::shared_ptr<ImageNapi> nativeImage_;

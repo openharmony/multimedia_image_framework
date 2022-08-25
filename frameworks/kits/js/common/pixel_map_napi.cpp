@@ -261,8 +261,7 @@ STATIC_COMPLETE_FUNC(EmptyResult)
     CommonCallbackRoutine(env, context, result);
 }
 
-PixelMapNapi::PixelMapNapi()
-    :env_(nullptr), wrapper_(nullptr)
+PixelMapNapi::PixelMapNapi():env_(nullptr)
 {
 
 }
@@ -525,7 +524,7 @@ napi_value PixelMapNapi::Constructor(napi_env env, napi_callback_info info)
     pPixelMapNapi->nativeInner_ = sPixelMap_;
 
     status = napi_wrap(env, thisVar, reinterpret_cast<void*>(pPixelMapNapi.get()),
-                        PixelMapNapi::Destructor, nullptr, &(pPixelMapNapi->wrapper_));
+                        PixelMapNapi::Destructor, nullptr, nullptr);
     IMG_NAPI_CHECK_RET_D(IMG_IS_OK(status), undefineVar, HiLog::Error(LABEL, "Failure wrapping js to native napi"));
 
     pPixelMapNapi.release();
@@ -1752,9 +1751,6 @@ void PixelMapNapi::release()
         if (nativePixelMap_ != nullptr) {
             nativePixelMap_ = nullptr;
             nativeInner_ = nullptr;
-        }
-        if (wrapper_ != nullptr) {
-            napi_delete_reference(env_, wrapper_);
         }
         isRelease = true;
     }
