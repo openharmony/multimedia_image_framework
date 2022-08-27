@@ -468,9 +468,17 @@ static void TestRequestBuffer(OHOS::sptr<OHOS::Surface> &receiverSurface,
 {
     OHOS::sptr<OHOS::SurfaceBuffer> buffer;
     int32_t releaseFence;
+    if (receiverSurface == nullptr) {
+        IMAGE_ERR("Image receiver receiverSurface is nullptr");
+        return;
+    }
     requestConfig.width = receiverSurface->GetDefaultWidth();
     requestConfig.height = receiverSurface->GetDefaultHeight();
     receiverSurface->RequestBuffer(buffer, releaseFence, requestConfig);
+    if (buffer == nullptr) {
+        IMAGE_ERR("Image receiver buffer is nullptr");
+        return;
+    }
     IMAGE_ERR("RequestBuffer");
     int32_t *p = reinterpret_cast<int32_t *>(buffer->GetVirAddr());
     uint32_t size = buffer->GetSize() / 4;
@@ -502,9 +510,17 @@ static void DoTest(std::shared_ptr<ImageReceiver> imageReceiver, int pixelFormat
         },
     };
 
+    if (imageReceiver == nullptr || imageReceiver->iraContext_) {
+        IMAGE_ERR("Image receiver DoTest imageReceiver is nullptr");
+        return;
+    }
     std::string receiveKey = imageReceiver->iraContext_->GetReceiverKey();
     IMAGE_ERR("ReceiverKey = %{public}s", receiveKey.c_str());
     OHOS::sptr<OHOS::Surface> receiverSurface = ImageReceiver::getSurfaceById(receiveKey);
+    if (receiverSurface == nullptr) {
+        IMAGE_ERR("Image receiver DoTest receiverSurface is nullptr");
+        return;
+    }
     IMAGE_ERR("getDefaultWidth = %{public}d", receiverSurface->GetDefaultWidth());
     IMAGE_ERR("getDefaultHeight = %{public}d", receiverSurface->GetDefaultHeight());
     IMAGE_ERR("TestRequestBuffer 1 ...");
