@@ -49,16 +49,12 @@ const int NUM0 = 0;
 const int NUM1 = 1;
 const int NUM2 = 2;
 
-ImageNapi::ImageNapi()
-    :env_(nullptr), wrapper_(nullptr)
+ImageNapi::ImageNapi():env_(nullptr)
 {}
 
 ImageNapi::~ImageNapi()
 {
-    NativeRelease();
-    if (wrapper_ != nullptr) {
-        napi_delete_reference(env_, wrapper_);
-    }
+    release();
 }
 
 static inline void YUV422SPDataCopy(uint8_t* surfaceBuffer, uint64_t bufferSize,
@@ -285,7 +281,7 @@ napi_value ImageNapi::Constructor(napi_env env, napi_callback_info info)
             reference->imageReceiver_ = staticImageReceiverInstance_;
             staticImageReceiverInstance_ = nullptr;
             status = napi_wrap(env, thisVar, reinterpret_cast<void *>(reference.get()),
-                               ImageNapi::Destructor, nullptr, &(reference->wrapper_));
+                               ImageNapi::Destructor, nullptr, nullptr);
             if (status == napi_ok) {
                 IMAGE_FUNCTION_OUT();
                 reference.release();
@@ -304,7 +300,7 @@ void ImageNapi::Destructor(napi_env env, void *nativeObject, void *finalize)
     ImageNapi *pImageNapi = reinterpret_cast<ImageNapi*>(nativeObject);
 
     if (IMG_NOT_NULL(pImageNapi)) {
-        pImageNapi->~ImageNapi();
+        pImageNapi->release();
     }
 }
 
@@ -835,6 +831,14 @@ uint32_t ImageNapi::CombineComponentsIntoSurface()
     uint8_t* buffer = static_cast<uint8_t*>(sSurfaceBuffer_->GetVirAddr());
     YUV422SPDataCopy(buffer, bufferSize, y->raw, y->raw.size(), u->raw, v->raw, u->raw.size(), true);
     return SUCCESS;
+}
+
+void ImageNapi::release()
+{
+    if (!isRelease) {
+        NativeRelease();
+        isRelease = true;
+    }
 }
 }  // namespace Media
 }  // namespace OHOS
