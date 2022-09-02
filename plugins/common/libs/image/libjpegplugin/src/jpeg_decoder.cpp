@@ -642,7 +642,7 @@ uint32_t JpegDecoder::GetImagePropertyString(uint32_t index, const std::string &
         return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
 
-    if (IsSameTextStr(value, "")) {
+    if (IsSameTextStr(value, EXIFInfo::DEFAULT_EXIF_VALUE)) {
         HiLog::Error(LABEL, "[GetImagePropertyString] enter jpeg plugin, ifd and entry are not matched!");
         return Media::ERR_MEDIA_VALUE_INVALID;
     }

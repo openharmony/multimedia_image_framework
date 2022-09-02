@@ -259,7 +259,24 @@ namespace {
         {static_cast<ExifTag>(0xffff), "", 0xffff}};
 }
 
-EXIFInfo::EXIFInfo() : imageFileDirectory_(EXIF_IFD_COUNT), exifData_(nullptr)
+const std::string EXIFInfo::DEFAULT_EXIF_VALUE = "default_exif_value";
+
+EXIFInfo::EXIFInfo()
+    : bitsPerSample_(DEFAULT_EXIF_VALUE),
+      orientation_(DEFAULT_EXIF_VALUE),
+      imageLength_(DEFAULT_EXIF_VALUE),
+      imageWidth_(DEFAULT_EXIF_VALUE),
+      gpsLatitude_(DEFAULT_EXIF_VALUE),
+      gpsLongitude_(DEFAULT_EXIF_VALUE),
+      gpsLatitudeRef_(DEFAULT_EXIF_VALUE),
+      gpsLongitudeRef_(DEFAULT_EXIF_VALUE),
+      dateTimeOriginal_(DEFAULT_EXIF_VALUE),
+      exposureTime_(DEFAULT_EXIF_VALUE),
+      fNumber_(DEFAULT_EXIF_VALUE),
+      isoSpeedRatings_(DEFAULT_EXIF_VALUE),
+      sceneType_(DEFAULT_EXIF_VALUE),
+      imageFileDirectory_(EXIF_IFD_COUNT),
+      exifData_(nullptr)
 {
 }
 
