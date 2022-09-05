@@ -27,10 +27,10 @@ group("multimediaplugin") {
       "image/libpngplugin:pngpluginmetadata",
       "image/librawplugin:rawplugin",
       "image/librawplugin:rawpluginmetadata",
-      "//foundation/multimedia/image_standard/adapter/frameworks/libbmpplugin:bmpplugin",
-      "//foundation/multimedia/image_standard/adapter/frameworks/libbmpplugin:bmppluginmetadata",
-      "//foundation/multimedia/image_standard/adapter/frameworks/libwbmpplugin:wbmpplugin",
-      "//foundation/multimedia/image_standard/adapter/frameworks/libwbmpplugin:wbmppluginmetadata",
+      "//foundation/multimedia/image_framework/adapter/frameworks/libbmpplugin:bmpplugin",
+      "//foundation/multimedia/image_framework/adapter/frameworks/libbmpplugin:bmppluginmetadata",
+      "//foundation/multimedia/image_framework/adapter/frameworks/libwbmpplugin:wbmpplugin",
+      "//foundation/multimedia/image_framework/adapter/frameworks/libwbmpplugin:wbmppluginmetadata",
     ]
   } else {
     DUAL_ADAPTER = true
