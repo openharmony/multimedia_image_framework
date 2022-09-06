@@ -54,19 +54,20 @@ public:
         GetRedactionArea(const int &fd, const int &redactionType, std::vector<std::pair<uint32_t, uint32_t>> &ranges);
 
 public:
-    std::string bitsPerSample_ = ""; // Number of bits in each pixel of an image.
-    std::string orientation_ = "";
-    std::string imageLength_ = "";   // Image length.
-    std::string imageWidth_ = "";    // mage width.
-    std::string gpsLatitude_ = "";
-    std::string gpsLongitude_ = "";
-    std::string gpsLatitudeRef_ = "";
-    std::string gpsLongitudeRef_ = "";
-    std::string dateTimeOriginal_ = "";  // Original date and time.
-    std::string exposureTime_ = "";
-    std::string fNumber_ = "";
-    std::string isoSpeedRatings_ = "";
-    std::string sceneType_ = "";
+    static const std::string DEFAULT_EXIF_VALUE;
+    std::string bitsPerSample_; // Number of bits in each pixel of an image.
+    std::string orientation_;
+    std::string imageLength_;   // Image length.
+    std::string imageWidth_;    // mage width.
+    std::string gpsLatitude_;
+    std::string gpsLongitude_;
+    std::string gpsLatitudeRef_;
+    std::string gpsLongitudeRef_;
+    std::string dateTimeOriginal_;  // Original date and time.
+    std::string exposureTime_;
+    std::string fNumber_;
+    std::string isoSpeedRatings_;
+    std::string sceneType_;
 
 private:
     void SetExifTagValues(const ExifTag &tag, const std::string &value);
