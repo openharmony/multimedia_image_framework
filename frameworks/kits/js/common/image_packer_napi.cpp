@@ -445,7 +445,7 @@ static std::shared_ptr<ImageSource> GetImageSourceFromNapi(napi_env env, napi_va
         HiLog::Error(LABEL, "GetImageSourceFromNapi imageSourceNapi is nullptr");
         return nullptr;
     }
-    return imageSourceNapi->nativeImgSrc;
+    return imageSourceNapi.release()->nativeImgSrc;
 }
 
 static void ParserPackingArguments(napi_env env,
