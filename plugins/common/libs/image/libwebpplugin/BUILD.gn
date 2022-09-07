@@ -65,9 +65,7 @@ ohos_shared_library("webpplugin") {
     if (DUAL_ADAPTER) {
     }
 
-    external_deps = [
-      "c_utils:utils",
-    ]
+    external_deps = [ "c_utils:utils" ]
   }
 
   part_name = "multimedia_image_standard"
