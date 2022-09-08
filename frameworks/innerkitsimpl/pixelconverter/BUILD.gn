@@ -109,7 +109,10 @@ ohos_shared_library("pixelconvertadapter") {
       "//third_party/flutter/build/skia:ace_skia_ohos",
     ]
   }
-
+  external_deps = [
+    "c_utils:utils",
+    "hiviewdfx_hilog_native:libhilog",
+  ]
   #relative_install_dir = "module/multimedia"
   subsystem_name = "multimedia"
   part_name = "multimedia_image_standard"
