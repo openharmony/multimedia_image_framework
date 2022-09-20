@@ -205,7 +205,6 @@ ohos_shared_library("image_native") {
     external_deps = [
       "c_utils:utils",
       "hitrace_native:hitrace_meter",
-      "hiviewdfx_hilog_native:libhilog",
       "ipc:ipc_core",
     ]
   }
