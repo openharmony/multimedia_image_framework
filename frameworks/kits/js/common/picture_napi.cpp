@@ -444,7 +444,7 @@ std::shared_ptr<Picture> PictureNapi::GetNativePicture()
 napi_value PictureNapi::GetAuxiliaryPicture(napi_env env, napi_callback_info info)
 {
     napi_value result = nullptr;
-    napi_get_undefined(env, &result);
+    napi_get_null(env, &result);
     napi_status status;
     napi_value thisVar = nullptr;
     napi_value argValue[NUM_1] = {0};
@@ -933,7 +933,7 @@ napi_value PictureNapi::GetHdrComposedPixelMapWithOptions(napi_env env, napi_cal
 napi_value PictureNapi::GetGainmapPixelmap(napi_env env, napi_callback_info info)
 {
     NapiValues nVal;
-    napi_get_undefined(env, &nVal.result);
+    napi_get_null(env, &nVal.result);
     IMAGE_LOGD("GetGainmapPixelmap");
     nVal.argc = NUM_0;
     IMG_JS_ARGS(env, info, nVal.status, nVal.argc, nullptr, nVal.thisVar);
