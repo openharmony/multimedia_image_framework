@@ -538,6 +538,7 @@ enum class MetadataType : int32_t {
     PNG = 19,
     JFIF = 20,
     TIFF = 21,
+    XMP = 22,
     AVIS = 23,
 };
 
@@ -652,25 +653,26 @@ enum class NapiMetadataType {
 
 enum class XMPTagType: int32_t {
     UNKNOWN = 0,
-    SIMPLE = 1,
+    STRING = 1,
     UNORDERED_ARRAY = 2,
     ORDERED_ARRAY = 3,
     ALTERNATE_ARRAY = 4,
     ALTERNATE_TEXT = 5,
     STRUCTURE = 6,
-    QUALIFIER = 7,
 };
 
 struct XMPTag {
     std::string xmlns;
     std::string prefix;
     std::string name;
-    XMPTagType type;
+    XMPTagType type = XMPTagType::UNKNOWN;
+    bool isQualifier = false;
     std::string value;
 };
 
-struct XMPEnumerateOption {
+struct XMPEnumerateOptions {
     bool isRecursive = false;
+    bool onlyQualifier = false;
 };
 } // namespace Media
 } // namespace OHOS

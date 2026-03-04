@@ -100,6 +100,7 @@ struct ImageSourceTaiheContext {
     std::shared_ptr<OHOS::Media::PngMetadata> rPngMetadata;
     std::shared_ptr<OHOS::Media::JfifMetadata> rJfifMetadata;
     std::shared_ptr<OHOS::Media::GifMetadata> rGifMetadata;
+    std::shared_ptr<OHOS::Media::XMPMetadata> rXMPMetadata;
     std::shared_ptr<OHOS::Media::AvisMetadata> rAvisMetadata;
     OHOS::Media::DecodingOptionsForThumbnail decodingOptsForThumbnail;
 };
@@ -1705,40 +1706,6 @@ ImageRawData ImageSourceImpl::CreateImageRawData()
     return res;
 }
 
-#ifdef XMP_TOOLKIT_SDK_ENABLE
-NullableXMPMetadata ImageSourceImpl::ReadXMPMetadataSync()
-{
-    CHECK_ERROR_RETURN_RET_LOG(nativeImgSrc == nullptr, NullableXMPMetadata::make_type_null(),
-        "fail to get nativeImgSrc");
-
-    uint32_t errorCode = OHOS::Media::ERROR;
-    auto xmpMetadata = nativeImgSrc->ReadXMPMetadata(errorCode);
-    if (errorCode != OHOS::Media::SUCCESS) {
-        return NullableXMPMetadata::make_type_null();
-    }
-    CHECK_ERROR_RETURN_RET(errorCode != OHOS::Media::SUCCESS, NullableXMPMetadata::make_type_null());
-    CHECK_ERROR_RETURN_RET_LOG(xmpMetadata == nullptr, NullableXMPMetadata::make_type_null(),
-        "%{public}s xmpMetadata is nullptr", __func__);
-
-    auto res = make_holder<XMPMetadataImpl, XMPMetadata>(xmpMetadata);
-    return NullableXMPMetadata::make_type_xmpMetadata(res);
-}
-
-void ImageSourceImpl::WriteXMPMetadataSync(XMPMetadata xmpMetadata)
-{
-    CHECK_ERROR_RETURN_LOG(nativeImgSrc == nullptr, "fail to get nativeImgSrc");
-
-    XMPMetadataImpl* thisPtr = reinterpret_cast<XMPMetadataImpl*>(xmpMetadata->GetImplPtr());
-    CHECK_ERROR_RETURN_LOG(thisPtr == nullptr, "%{public}s xmpMetadataImpl is nullptr", __func__);
-
-    auto nativeXMPMetadata = thisPtr->GetNativeXMPMetadata();
-    CHECK_ERROR_RETURN_LOG(nativeXMPMetadata == nullptr, "fail to get xmpMetadata");
-
-    uint32_t errorCode = nativeImgSrc->WriteXMPMetadata(nativeXMPMetadata);
-    CHECK_ERROR_RETURN_LOG(errorCode != OHOS::Media::SUCCESS, "%{public}s WriteXMPMetadata failed", __func__);
-}
-#endif
-
 OHOS::Media::MetadataType GetMetadataTypeByKey(const std::string &key)
 {
     static const std::unordered_map<std::string, OHOS::Media::MetadataType> KEY_TYPE_MAP = [] {
@@ -1820,6 +1787,9 @@ static void ReadImageMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> &c
     if (shouldReadType(OHOS::Media::MetadataType::GIF)) {
         context->rGifMetadata = context->rImageSource->GetGifMetadata(context->index, errorCode);
     }
+    if (shouldReadType(OHOS::Media::MetadataType::XMP)) {
+        context->rXMPMetadata = context->rImageSource->ReadXMPMetadata(errorCode);
+    }
     if (shouldReadType(OHOS::Media::MetadataType::AVIS)) {
         context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
     }
@@ -1829,14 +1799,18 @@ static void GetAllMetadataProperties(std::unique_ptr<ImageSourceTaiheContext> &c
 {
     CHECK_ERROR_RETURN(context == nullptr);
     auto allProperties = context->rImageSource->GetAllPropertiesWithType(context->index);
-    context->kValueTypeArray = std::move(allProperties);
 
     // Handle errorCode (As long as 1 Metadata object exists, status is considered as SUCCESS)
+    const bool hasXMP = (context->rXMPMetadata != nullptr);
+    const uint32_t status = (hasXMP || !allProperties.empty()) ? OHOS::Media::SUCCESS : OHOS::Media::ERROR;
+    context->status = status;
 
-    if (context->kValueTypeArray.empty()) {
-        IMAGE_LOGE("%{public}s Failed to get any properties", __func__);
+    if (context->status != OHOS::Media::SUCCESS) {
+        IMAGE_LOGE("%{public}s Failed to get any properties, index: %{public}u", __func__, context->index);
         context->errMsgArray.emplace(OHOS::Media::ERROR, "AllProperties");
     }
+
+    context->kValueTypeArray = std::move(allProperties);
 }
 
 static void ReadImageMetadataProperties(std::unique_ptr<ImageSourceTaiheContext> &context)
@@ -1895,6 +1869,9 @@ static void InitMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> &contex
     }
     if (context->rGifMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::GIF))  {
         imageMetadata.gifMetadata.emplace(make_holder<GifMetadataImpl, GifMetadata>(context->rGifMetadata));
+    }
+    if (context->rXMPMetadata != nullptr) {
+        imageMetadata.xmpMetadata.emplace(make_holder<XMPMetadataImpl, XMPMetadata>(context->rXMPMetadata));
     }
     if (context->rAvisMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::AVIS)) {
         imageMetadata.avisMetadata.emplace(make_holder<AvisMetadataImpl, AvisMetadata>(context->rAvisMetadata));
@@ -2223,6 +2200,10 @@ static bool NeedReadMetadataProperties(const std::set<OHOS::Media::MetadataType>
             ++nonPropertiesNum;
         }
     }
+    if (typeSet.count(OHOS::Media::MetadataType::XMP)) {
+        ++nonPropertiesNum;
+    }
+
     return typeSet.size() > nonPropertiesNum;
 }
 
@@ -2266,7 +2247,12 @@ static void UnwrapImageMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> 
 {
     CHECK_ERROR_RETURN(context == nullptr);
     // Handle Metadata Objects
-    (void)imageMetadata;
+    if (imageMetadata.xmpMetadata.has_value()) {
+        XMPMetadataImpl *impl = reinterpret_cast<XMPMetadataImpl *>(imageMetadata.xmpMetadata.value()->GetImplPtr());
+        if (impl != nullptr) {
+            context->rXMPMetadata = impl->GetNativeXMPMetadata();
+        }
+    }
 }
 
 static std::string HandleIntArrayCase(const std::vector<int64_t> &intArray, const std::string &keyStr)
@@ -2409,7 +2395,7 @@ static void RemoveAllPropertiesIfNeeded(std::unique_ptr<ImageSourceTaiheContext>
 {
     CHECK_ERROR_RETURN(context == nullptr || context->status != OHOS::Media::SUCCESS ||
         context->rImageSource == nullptr);
-    if (context->kVStrArray.empty() && context->kValueTypeArray.empty()) {
+    if (context->kVStrArray.empty() && context->kValueTypeArray.empty() && context->rXMPMetadata == nullptr) {
         context->status = context->rImageSource->RemoveAllProperties();
     }
 }
@@ -2418,7 +2404,13 @@ static void ApplyImageMetadataWithoutProperties(std::unique_ptr<ImageSourceTaihe
 {
     CHECK_ERROR_RETURN(context == nullptr || context->status != OHOS::Media::SUCCESS ||
         context->rImageSource == nullptr);
-    // Handle metadata without properties (such as XMPMetadata)
+    // Handle metadata without properties
+    if (context->rXMPMetadata != nullptr) {
+        context->status = context->rImageSource->WriteXMPMetadata(context->rXMPMetadata);
+        if (context->status != OHOS::Media::SUCCESS) {
+            context->errMsg = OHOS::Media::ImageErrorConvert::WriteXMPMetadataMakeMsg(context->status);
+        }
+    }
 }
 
 static void WriteImageMetadataPackageExecute(std::unique_ptr<ImageSourceTaiheContext> &context)
