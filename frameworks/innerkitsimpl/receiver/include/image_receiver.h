@@ -157,7 +157,6 @@ public:
         surfaceBufferAvaliableListener_.reset();
     }
     static sptr<Surface> getSurfaceById(std::string id);
-    void ReleaseReceiver();
 
     std::shared_ptr<IBufferProcessor> GetBufferProcessor();
     std::shared_ptr<NativeImage> NextNativeImage();

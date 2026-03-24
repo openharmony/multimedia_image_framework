@@ -947,7 +947,7 @@ napi_value ImageCreatorNapi::JsOn(napi_env env, napi_callback_info info)
         listener->context->env = args.env;
         listener->name = args.name;
 
-        native->RegisterBufferReleaseListener((std::shared_ptr<SurfaceBufferReleaseListener> &)listener);
+        native->RegisterBufferReleaseListener(std::static_pointer_cast<SurfaceBufferReleaseListener>(listener));
 
         IMAGE_LINE_OUT();
         return true;
