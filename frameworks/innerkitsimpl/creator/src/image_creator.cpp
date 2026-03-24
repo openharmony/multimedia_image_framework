@@ -51,27 +51,38 @@ GSError ImageCreator::OnBufferRelease(sptr<SurfaceBuffer> &buffer)
     if (buffer == nullptr) {
         return GSERROR_NO_ENTRY;
     }
-    std::lock_guard<std::mutex> guard(creatorMutex_);
-    auto iter = bufferCreatorMap_.find(static_cast<uint8_t*>(buffer->GetVirAddr()));
-    if (iter == bufferCreatorMap_.end()) {
+    uint8_t* virAddr = static_cast<uint8_t*>(buffer->GetVirAddr());
+    if (virAddr == nullptr) {
+        IMAGE_LOGE("OnBufferRelease: GetVirAddr returned nullptr");
         return GSERROR_NO_ENTRY;
     }
-    // Use weak_ptr to safely check if the ImageCreator object is still alive
-    auto weakIcr = iter->second;
-    auto icr = weakIcr.lock();
-    if (icr == nullptr) {
-        // ImageCreator object has been destroyed, remove the stale entry
-        IMAGE_LOGI("ImageCreator has been destroyed, removing stale map entry");
+    std::shared_ptr<SurfaceBufferReleaseListener> listener;
+    {
+        std::lock_guard<std::mutex> guard(creatorMutex_);
+        auto iter = bufferCreatorMap_.find(virAddr);
+        if (iter == bufferCreatorMap_.end()) {
+            return GSERROR_NO_ENTRY;
+        }
+        // Use weak_ptr to safely check if the ImageCreator object is still alive
+        auto weakIcr = iter->second;
+        auto icr = weakIcr.lock();
+        if (icr == nullptr) {
+            // ImageCreator object has been destroyed, remove the stale entry
+            IMAGE_LOGI("ImageCreator has been destroyed, removing stale map entry");
+            bufferCreatorMap_.erase(iter);
+            return GSERROR_NO_ENTRY;
+        }
+        if (icr->surfaceBufferReleaseListener_ == nullptr) {
+            IMAGE_LOGI("empty icr");
+            bufferCreatorMap_.erase(iter);
+            return GSERROR_NO_ENTRY;
+        }
+        listener = icr->surfaceBufferReleaseListener_;
         bufferCreatorMap_.erase(iter);
-        return GSERROR_NO_ENTRY;
     }
-    if (icr->surfaceBufferReleaseListener_ == nullptr) {
-        IMAGE_LOGI("empty icr");
-        bufferCreatorMap_.erase(iter);
-        return GSERROR_NO_ENTRY;
+    if (listener != nullptr) {
+        listener->OnSurfaceBufferRelease();
     }
-    icr->surfaceBufferReleaseListener_->OnSurfaceBufferRelease();
-    bufferCreatorMap_.erase(iter);
     return GSERROR_NO_ENTRY;
 }
 
@@ -306,10 +317,6 @@ sptr<IConsumerSurface> ImageCreator::getSurfaceById(std::string id)
     sptr<IConsumerSurface> surface = imageCreatorManager.GetSurfaceByKeyId(id);
     IMAGE_LOGD("getSurfaceByCreatorId");
     return surface;
-}
-void ImageCreator::ReleaseCreator()
-{
-    ImageCreator::~ImageCreator();
 }
 
 std::shared_ptr<IBufferProcessor> ImageCreator::GetBufferProcessor()

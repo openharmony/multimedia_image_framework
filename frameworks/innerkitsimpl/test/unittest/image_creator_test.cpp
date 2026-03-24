@@ -168,20 +168,6 @@ HWTEST_F(ImageCreatorTest, getSurfaceById001, TestSize.Level3)
 }
 
 /**
- * @tc.name: ReleaseCreator001
- * @tc.desc: test ReleaseCreator
- * @tc.type: FUNC
- */
-HWTEST_F(ImageCreatorTest, ReleaseCreator001, TestSize.Level3)
-{
-    GTEST_LOG_(INFO) << "ImageCreatorTest: ReleaseCreator001 start";
-    ImageCreator creat;
-    creat.ReleaseCreator();
-    ASSERT_NE(&creat, nullptr);
-    GTEST_LOG_(INFO) << "ImageCreatorTest: ReleaseCreator001 end";
-}
-
-/**
  * @tc.name: OnBufferAvailable001
  * @tc.desc: test OnBufferAvailable
  * @tc.type: FUNC
