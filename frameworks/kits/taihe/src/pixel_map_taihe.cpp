@@ -57,14 +57,54 @@ static ImageInfo MakeEmptyImageInfo()
         AlphaType(AlphaType::key_t::UNKNOWN), "", false};
 }
 
+static Media::PixelFormat ParsePixelFormat(PixelMapFormat const& etsFormat)
+{
+    Media::PixelFormat format = Media::PixelFormat(etsFormat.get_value());
+    if (format >= Media::PixelFormat::EXTERNAL_MAX) {
+        format = Media::PixelFormat::UNKNOWN;
+    }
+    return format;
+}
+
+static void ParseInitializationOptions(InitializationOptions const& etsOptions,
+    Media::InitializationOptions &options)
+{
+    options.size = {etsOptions.size.width, etsOptions.size.height};
+    if (etsOptions.srcPixelFormat) {
+        options.srcPixelFormat = ParsePixelFormat(etsOptions.srcPixelFormat.value());
+    }
+    if (etsOptions.pixelFormat) {
+        options.pixelFormat = ParsePixelFormat(etsOptions.pixelFormat.value());
+    }
+    if (etsOptions.editable) {
+        options.editable = *etsOptions.editable;
+    }
+    if (etsOptions.alphaType) {
+        options.alphaType = Media::AlphaType(etsOptions.alphaType->get_value());
+    }
+    if (etsOptions.scaleMode) {
+        options.scaleMode = Media::ScaleMode(etsOptions.scaleMode->get_value());
+    }
+}
+
+PixelMap CreatePixelMapFromPixels(array_view<uint8_t> pixels, InitializationOptions const& options)
+{
+    return make_holder<PixelMapImpl, PixelMap>(pixels, options);
+}
+
+PixelMap CreateEmptyPixelMap(InitializationOptions const& options)
+{
+    return make_holder<PixelMapImpl, PixelMap>(options);
+}
+
 PixelMap CreatePixelMapSync(array_view<uint8_t> colors, InitializationOptions const& options)
 {
-    return make_holder<PixelMapImpl, PixelMap>(colors, options);
+    return make_holder<PixelMapImpl, PixelMap>(colors, options, true);
 }
 
 PixelMap CreateEmptyPixelMapSync(InitializationOptions const& options)
 {
-    return make_holder<PixelMapImpl, PixelMap>(options);
+    return make_holder<PixelMapImpl, PixelMap>(options, true);
 }
 
 PixelMap CreatePixelMapUsingAllocatorSync(array_view<uint8_t> colors, InitializationOptions const& options,
@@ -276,18 +316,21 @@ void CreateUnpremultipliedPixelMapSync(weak::PixelMap src, weak::PixelMap dst)
 
 PixelMapImpl::PixelMapImpl() {}
 
-PixelMapImpl::PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions)
+PixelMapImpl::PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
+    bool useLegacyErrCode)
 {
     Media::InitializationOptions options;
     ParseInitializationOptions(etsOptions, options);
     if (Is10BitFormat(options.pixelFormat)) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERROR, "10-bit format is not supported.");
+        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_IMAGE_UNSUPPORTED_DATA_FORMAT,
+            "10-bit formats are not supported.");
         return;
     }
 
-    nativePixelMap_ = Media::PixelMap::Create(reinterpret_cast<uint32_t*>(colors.data()), colors.size(), options);
+    nativePixelMap_ = Media::PixelMap::Create(reinterpret_cast<uint32_t*>(colors.data()), colors.size(), options); // TODO: 更新 Create 接口，抛出 7600206 / 7600301 / 7600305
     if (nativePixelMap_ == nullptr) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERROR, "Failed to create PixelMap from buffer.");
+        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Failed to create PixelMap from pixels data.");
     }
 }
 
@@ -298,7 +341,7 @@ PixelMapImpl::PixelMapImpl(array_view<uint8_t> const& colors, InitializationOpti
     ParseInitializationOptions(etsOptions, options);
     if (Is10BitYuvFormat(options.pixelFormat) || Is10BitYuvFormat(options.srcPixelFormat)) {
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_UNSUPPORT_OPERATION,
-            "10-bit YUV format is not supported.");
+            "10-bit YUV formats are not supported.");
         return;
     }
     if (!Media::ImageUtils::SetInitializationOptionAllocatorType(options, allocatorType.get_value())) {
@@ -324,16 +367,23 @@ PixelMapImpl::PixelMapImpl(array_view<uint8_t> const& colors, InitializationOpti
     }
 }
 
-PixelMapImpl::PixelMapImpl(InitializationOptions const& etsOptions)
+PixelMapImpl::PixelMapImpl(InitializationOptions const& etsOptions, bool useLegacyErrCode)
 {
     Media::InitializationOptions options;
     ParseInitializationOptions(etsOptions, options);
+    if (options.size.width <= 0 || options.size.height <= 0) {
+        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_IMAGE_INVALID_PARAM,
+            "Invalid image size.");
+        return;
+    }
+
     if (Is10BitFormat(options.pixelFormat)) {
         options.useDMA = true;
     }
     nativePixelMap_ = Media::PixelMap::Create(options);
     if (nativePixelMap_ == nullptr) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERROR, "Failed to create empty PixelMap.");
+        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_MEDIA_MEMORY_ALLOC_FAILED,
+            "Failed to allocate memory for the empty PixelMap.");
     }
 }
 
@@ -417,6 +467,138 @@ ImageInfo PixelMapImpl::GetImageInfoSync()
     return result;
 }
 
+void PixelMapImpl::ReadAllPixelsToBuffer(array_view<uint8_t> dst)
+{
+    ReadAllPixelsToBufferImpl(dst);
+}
+
+void PixelMapImpl::ReadAllPixelsToBufferSync(array_view<uint8_t> dst)
+{
+    ReadAllPixelsToBufferImpl(dst);
+}
+
+void PixelMapImpl::ReadAllPixelsToBufferImpl(array_view<uint8_t> const& dst)
+{
+    if (nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
+        return;
+    }
+
+    uint32_t status = nativePixelMap_->ReadPixels(dst.size(), dst.data());
+    if (status == Media::ERR_IMAGE_INVALID_PARAMETER) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Buffer size is too small.");
+    } else if (status == Media::ERR_IMAGE_READ_PIXELMAP_FAILED) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
+    } else if (status != Media::SUCCESS) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+            "Failed to read the pixel data. (" + std::to_string(status) + ")");
+    }
+}
+
+void PixelMapImpl::ReadPixelsToAreaHelper(weak::PositionArea area, array_view<uint8_t> pixels)
+{
+    ReadPixelsToAreaHelperImpl(area, pixels);
+}
+
+void PixelMapImpl::ReadPixelsToAreaSyncHelper(weak::PositionArea area, array_view<uint8_t> pixels)
+{
+    ReadPixelsToAreaHelperImpl(area, pixels);
+}
+
+// Parameter "pixels" is a reference of "area.pixels" from ArkTS
+void PixelMapImpl::ReadPixelsToAreaHelperImpl(weak::PositionArea const& area, array_view<uint8_t> const& pixels)
+{
+    if (nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
+        return;
+    }
+
+    ohos::multimedia::image::image::Region etsRegion = area->GetRegion();
+    Media::Rect region = {etsRegion.x, etsRegion.y, etsRegion.size.width, etsRegion.size.height};
+    uint32_t status = nativePixelMap_->ReadPixels(pixels.size(), area->GetOffset(), area->GetStride(), region,
+        pixels.data());
+
+    if (status == Media::ERR_IMAGE_INVALID_PARAMETER) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+    } else if (status == Media::ERR_IMAGE_READ_PIXELMAP_FAILED) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED,
+            "Failed to copy the area pixel data.");
+    } else if (status != Media::SUCCESS) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+            "Failed to read the area pixel data. (" + std::to_string(status) + ")");
+    }
+}
+
+void PixelMapImpl::WriteAllPixelsFromBuffer(array_view<uint8_t> src)
+{
+    WriteAllPixelsFromBufferImpl(src);
+}
+
+void PixelMapImpl::WriteAllPixelsFromBufferSync(array_view<uint8_t> src)
+{
+    WriteAllPixelsFromBufferImpl(src);
+}
+
+void PixelMapImpl::WriteAllPixelsFromBufferImpl(array_view<uint8_t> const& src)
+{
+    if (nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
+        return;
+    }
+
+    uint32_t status = nativePixelMap_->WritePixels(src.data(), src.size());
+    if (status == Media::ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_UNSUPPORT_OPERATION,
+            "The PixelMap is not editable or is locked.");
+    } else if (status == Media::ERR_IMAGE_INVALID_PARAMETER) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Buffer size is too small.");
+    } else if (status == Media::ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
+    } else if (status != Media::SUCCESS) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+            "Failed to write the pixel data. (" + std::to_string(status) + ")");
+    }
+}
+
+void PixelMapImpl::WritePixelsFromArea(weak::PositionArea area)
+{
+    WritePixelsFromAreaImpl(area);
+}
+
+void PixelMapImpl::WritePixelsFromAreaSync(weak::PositionArea area)
+{
+    WritePixelsFromAreaImpl(area);
+}
+
+void PixelMapImpl::WritePixelsFromAreaImpl(weak::PositionArea const& area)
+{
+    if (nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
+        return;
+    }
+
+    ohos::multimedia::image::image::Region etsRegion = area->GetRegion();
+    Media::Rect region = {etsRegion.x, etsRegion.y, etsRegion.size.width, etsRegion.size.height};
+    array<uint8_t> etsPixels = area->GetPixels();
+    uint32_t status = nativePixelMap_->WritePixels(etsPixels.data(), etsPixels.size(), area->GetOffset(),
+        area->GetStride(), region);
+
+    if (status == Media::ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_UNSUPPORT_OPERATION,
+            "The PixelMap is not editable or is locked.");
+    } else if (status == Media::ERR_IMAGE_INVALID_PARAMETER) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+    } else if (status == Media::ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED,
+            "Failed to copy the area pixel data.");
+    } else if (status != Media::SUCCESS) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+            "Failed to write the area pixel data. (" + std::to_string(status) + ")");
+    }
+}
+
 void PixelMapImpl::ReadPixelsToBufferSync(array_view<uint8_t> dst)
 {
     if (nativePixelMap_ == nullptr) {
@@ -477,6 +659,35 @@ void PixelMapImpl::WritePixelsSync(weak::PositionArea area)
     if (status != Media::SUCCESS) {
         IMAGE_LOGE("[%{public}s] Failed to write pixels by region (%{public}d)", __func__, status);
     }
+}
+
+PixelMap PixelMapImpl::ExtractAlphaPixelMap()
+{
+    return ExtractAlphaPixelMapSync();
+}
+
+PixelMap PixelMapImpl::ExtractAlphaPixelMapSync()
+{
+    if (nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
+        return make_holder<PixelMapImpl, PixelMap>();
+    }
+
+    Media::InitializationOptions options;
+    options.pixelFormat = Media::PixelFormat::ALPHA_8; // TODO: 改成 ALPHA_U8
+    Media::Rect region;
+    int32_t errCode = Media::SUCCESS;
+    auto alphaPixelMap = Media::PixelMap::Create(*nativePixelMap_, region, options, errCode);
+    if (errCode == Media::IMAGE_RESULT_FORMAT_CONVERT_FAILED) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_DATA_CONVERSION_FAILED, "Failed to convert the pixels.");
+        return make_holder<PixelMapImpl, PixelMap>();
+    } else if (errCode != Media::SUCCESS || alphaPixelMap == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Failed to extract the alpha channel. (" + std::to_string(errCode) + ")");
+        return make_holder<PixelMapImpl, PixelMap>();
+    }
+    
+    return make_holder<PixelMapImpl, PixelMap>(std::move(alphaPixelMap));
 }
 
 PixelMap PixelMapImpl::CreateAlphaPixelmapSync()
@@ -647,6 +858,35 @@ PixelMap PixelMapImpl::CreateCroppedAndScaledPixelMapSync(ohos::multimedia::imag
         clonedPixelMap->scale(static_cast<float>(x), static_cast<float>(y));
     }
     return make_holder<PixelMapImpl, PixelMap>(std::move(clonedPixelMap));
+}
+
+void PixelMapImpl::ApplyCrop(::ohos::multimedia::image::image::Region const& region)
+{
+    ApplyCropSync(region);
+}
+
+void PixelMapImpl::ApplyCropSync(::ohos::multimedia::image::image::Region const& region)
+{
+    if (nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
+        return;
+    }
+
+    Media::Rect rect = {region.x, region.y, region.size.width, region.size.height};
+    uint32_t status = nativePixelMap_->crop(rect);
+
+    if (status == Media::ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_UNSUPPORT_OPERATION, "The PixelMap is locked.");
+    } else if (status == Media::ERR_IMAGE_INVALID_PARAMETER) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_INVALID_REGION,
+            "The specified region is invalid or out of range.");
+    } else if (status == Media::ERR_IMAGE_CROP) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_ALLOC_FAILED,
+            "Failed to allocate memory or process pixel data for crop.");
+    } else if (status != Media::SUCCESS) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+            "Failed to crop the PixelMap. (" + std::to_string(status) + ")");
+    }
 }
 
 void PixelMapImpl::CropSync(ohos::multimedia::image::image::Region const& region)
@@ -1324,36 +1564,6 @@ bool PixelMapImpl::Is10BitYuvFormat(Media::PixelFormat format)
     return format == Media::PixelFormat::YCBCR_P010 || format == Media::PixelFormat::YCRCB_P010;
 }
 
-static Media::PixelFormat ParsePixelFormat(PixelMapFormat const& etsFormat)
-{
-    Media::PixelFormat format = Media::PixelFormat(etsFormat.get_value());
-    if (format >= Media::PixelFormat::EXTERNAL_MAX) {
-        format = Media::PixelFormat::UNKNOWN;
-    }
-    return format;
-}
-
-void PixelMapImpl::ParseInitializationOptions(InitializationOptions const& etsOptions,
-    Media::InitializationOptions &options)
-{
-    options.size = {etsOptions.size.width, etsOptions.size.height};
-    if (etsOptions.srcPixelFormat) {
-        options.srcPixelFormat = ParsePixelFormat(etsOptions.srcPixelFormat.value());
-    }
-    if (etsOptions.pixelFormat) {
-        options.pixelFormat = ParsePixelFormat(etsOptions.pixelFormat.value());
-    }
-    if (etsOptions.editable) {
-        options.editable = *etsOptions.editable;
-    }
-    if (etsOptions.alphaType) {
-        options.alphaType = Media::AlphaType(etsOptions.alphaType->get_value());
-    }
-    if (etsOptions.scaleMode) {
-        options.scaleMode = Media::ScaleMode(etsOptions.scaleMode->get_value());
-    }
-}
-
 void PixelMapImpl::Release()
 {
     if (nativePixelMap_ != nullptr) {
@@ -1364,6 +1574,9 @@ void PixelMapImpl::Release()
 
 } // namespace ANI::Image
 
+TH_EXPORT_CPP_API_CreatePixelMapFromPixels(ANI::Image::CreatePixelMapFromPixels);
+TH_EXPORT_CPP_API_CreatePixelMapFromPixelsSync(ANI::Image::CreatePixelMapFromPixels);
+TH_EXPORT_CPP_API_CreateEmptyPixelMap(ANI::Image::CreateEmptyPixelMap);
 TH_EXPORT_CPP_API_CreatePixelMapSync(ANI::Image::CreatePixelMapSync);
 TH_EXPORT_CPP_API_CreateEmptyPixelMapSync(ANI::Image::CreateEmptyPixelMapSync);
 TH_EXPORT_CPP_API_CreatePixelMapUsingAllocatorSync(ANI::Image::CreatePixelMapUsingAllocatorSync);
