@@ -33,6 +33,7 @@ enum PixelMapFormat: i32 {
   RGBA_1010102 = 10,
   YCBCR_P010 = 11,
   YCRCB_P010 = 12,
+  ALPHA_U8 = 15,
   ASTC_4x4 = 102
 }
 
@@ -510,21 +511,58 @@ interface PixelMap {
   @gen_promise("getImageInfo")
   GetImageInfoSync(): ImageInfo;
 
+  @promise
+  ReadAllPixelsToBuffer(dst: @arraybuffer Array<u8>): void;
+
+  ReadAllPixelsToBufferSync(dst: @arraybuffer Array<u8>): void;
+
   @gen_async("readPixelsToBuffer")
   @gen_promise("readPixelsToBuffer")
   ReadPixelsToBufferSync(dst: @arraybuffer Array<u8>): void;
+
+  // Performance workaround:
+  // Setter of an ArrayBuffer inside an interface (PositionArea.pixels) will copy the data instead of referencing it, but ArrayBuffer along will be referenced.
+  @!sts_inject_into_interface("""
+  readPixelsToArea(area: image.PositionArea): Promise<void> {
+    return this.readPixelsToAreaHelper(area, area.pixels);
+  }
+
+  readPixelsToAreaSync(area: image.PositionArea): void {
+    return this.readPixelsToAreaSyncHelper(area, area.pixels);
+  }
+  """)
+
+  @promise
+  ReadPixelsToAreaHelper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
+
+  ReadPixelsToAreaSyncHelper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
 
   @gen_async("readPixels")
   @gen_promise("readPixels")
   ReadPixelsSync(area: PositionArea): void;
 
+  @promise
+  WriteAllPixelsFromBuffer(src: @arraybuffer Array<u8>): void;
+
+  WriteAllPixelsFromBufferSync(src: @arraybuffer Array<u8>): void;
+
   @gen_async("writeBufferToPixels")
   @gen_promise("writeBufferToPixels")
   WriteBufferToPixelsSync(src: @arraybuffer Array<u8>): void;
 
+  @promise
+  WritePixelsFromArea(area: PositionArea): void;
+
+  WritePixelsFromAreaSync(area: PositionArea): void;
+
   @gen_async("writePixels")
   @gen_promise("writePixels")
   WritePixelsSync(area: PositionArea): void;
+
+  @promise
+  ExtractAlphaPixelMap(): PixelMap;
+
+  ExtractAlphaPixelMapSync(): PixelMap;
 
   @gen_async("createAlphaPixelmap")
   @gen_promise("createAlphaPixelmap")
@@ -557,6 +595,11 @@ interface PixelMap {
   @gen_async("translate")
   @gen_promise("translate")
   TranslateSync(x: f64, y: f64): void;
+
+  @promise
+  ApplyCrop(region: Region): void;
+
+  ApplyCropSync(region: Region): void;
 
   @gen_async("crop")
   @gen_promise("crop")
@@ -1062,7 +1105,14 @@ export function pixelMapTransferDynamic(input: Object): Any {
 }
 """)
 
-// global functions
+// Global functions
+
+@promise
+function CreatePixelMapFromPixels(pixels: @arraybuffer Array<u8>, options: InitializationOptions): PixelMap;
+
+function CreatePixelMapFromPixelsSync(pixels: @arraybuffer Array<u8>, options: InitializationOptions): PixelMap;
+
+function CreateEmptyPixelMap(options: InitializationOptions): PixelMap;
 
 @gen_async("createPixelMap")
 @gen_promise("createPixelMap")

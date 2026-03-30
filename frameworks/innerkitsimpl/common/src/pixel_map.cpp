@@ -912,6 +912,7 @@ unique_ptr<PixelMap> PixelMap::Create(PixelMap &source, const Rect &srcRect, con
     // dst pixelmap is source crop and convert pixelmap
     if ((cropType == CropValue::VALID) || isHasConvert) {
         if (!SourceCropAndConvert(source, srcImageInfo, dstImageInfo, sRect, *dstPixelMap.get())) {
+            errorCode = IMAGE_RESULT_FORMAT_CONVERT_FAILED;
             return nullptr;
         }
     } else {
@@ -2219,7 +2220,7 @@ uint32_t PixelMap::WritePixels(const uint8_t *source, const uint64_t &bufferSize
             errno_t ret = memcpy_s(data_ + tmpSize, readSize, source + tmpSize, readSize);
             if (ret != 0) {
                 IMAGE_LOGE("write pixels by buffer memcpy the pixelmap data to dst fail, error:%{public}d", ret);
-                return ERR_IMAGE_READ_PIXELMAP_FAILED;
+                return ERR_IMAGE_WRITE_PIXELMAP_FAILED;
             }
             tmpSize += static_cast<uint64_t>(readSize);
         }
@@ -4540,7 +4541,7 @@ uint32_t PixelMap::crop(const Rect &rect)
         // Need this conversion because Skia uses 32-byte RGBX instead of 24-byte RGB when processing translation
         std::unique_ptr<uint8_t[]> rgbxPixels = nullptr;
         if (!ExpandRGBToRGBX(data_, GetByteCount(), rgbxPixels)) {
-            return false;
+            return ERR_IMAGE_CROP;
         }
         GenSrcTransInfo(src, imageInfo, rgbxPixels.get(), ToSkColorSpace(this));
     } else {
@@ -4564,7 +4565,7 @@ uint32_t PixelMap::crop(const Rect &rect)
 
     if (!src.r.contains(dst.r)) {
         IMAGE_LOGE("Invalid crop rect");
-        return ERR_IMAGE_CROP;
+        return ERR_IMAGE_INVALID_PARAMETER;
     }
     dst.info = src.info.makeWH(dstIRect.width(), dstIRect.height());
     Size desiredSize = {dst.info.width(), dst.info.height()};
@@ -4598,7 +4599,7 @@ uint32_t PixelMap::crop(const Rect &rect)
     if (imageInfo.pixelFormat == PixelFormat::RGB_888) {
         if (!ShrinkRGBXToRGB(dstMemory, shrinkedMemory)) {
             dstMemory->Release();
-            return false;
+            return ERR_IMAGE_CROP;
         }
         dstMemory->Release();
         m = shrinkedMemory.get();

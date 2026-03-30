@@ -29,10 +29,11 @@ using namespace OHOS;
 class PixelMapImpl {
 public:
     PixelMapImpl();
-    explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions);
+    explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
+        bool useLegacyErrCode = false);
     explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
         AllocatorType const& allocatorType);
-    explicit PixelMapImpl(InitializationOptions const& etsOptions);
+    explicit PixelMapImpl(InitializationOptions const& etsOptions, bool useLegacyErrCode = false);
     explicit PixelMapImpl(InitializationOptions const& etsOptions, AllocatorType const& allocatorType);
     explicit PixelMapImpl(std::shared_ptr<OHOS::Media::PixelMap> pixelMap);
     explicit PixelMapImpl(int64_t aniPtr);
@@ -44,10 +45,20 @@ public:
     static PixelMap CreatePixelMap(std::shared_ptr<OHOS::Media::PixelMap> pixelMap);
 
     ImageInfo GetImageInfoSync();
+    void ReadAllPixelsToBuffer(array_view<uint8_t> dst);
+    void ReadAllPixelsToBufferSync(array_view<uint8_t> dst);
+    void ReadPixelsToAreaHelper(weak::PositionArea area, array_view<uint8_t> pixels);
+    void ReadPixelsToAreaSyncHelper(weak::PositionArea area, array_view<uint8_t> pixels);
+    void WritePixelsFromArea(weak::PositionArea area);
+    void WritePixelsFromAreaSync(weak::PositionArea area);
+    void WriteAllPixelsFromBuffer(array_view<uint8_t> src);
+    void WriteAllPixelsFromBufferSync(array_view<uint8_t> src);
     void ReadPixelsToBufferSync(array_view<uint8_t> dst);
     void ReadPixelsSync(weak::PositionArea area);
     void WriteBufferToPixelsSync(array_view<uint8_t> src);
     void WritePixelsSync(weak::PositionArea area);
+    PixelMap ExtractAlphaPixelMap();
+    PixelMap ExtractAlphaPixelMapSync();
     PixelMap CreateAlphaPixelmapSync();
     int32_t GetBytesNumberPerRow();
     int32_t GetPixelBytesNumber();
@@ -59,6 +70,8 @@ public:
     PixelMap CreateScaledPixelMapSync(double x, double y, optional_view<AntiAliasingLevel> level);
     PixelMap CloneSync();
     void TranslateSync(double x, double y);
+    void ApplyCrop(ohos::multimedia::image::image::Region const& region);
+    void ApplyCropSync(ohos::multimedia::image::image::Region const& region);
     void CropSync(ohos::multimedia::image::image::Region const& region);
     void RotateSync(double angle);
     void FlipSync(bool horizontal, bool vertical);
@@ -86,10 +99,12 @@ public:
 
 private:
     std::shared_ptr<OHOS::Media::PixelMap> nativePixelMap_ = nullptr;
+    void ReadAllPixelsToBufferImpl(array_view<uint8_t> const& dst);
+    void ReadPixelsToAreaHelperImpl(weak::PositionArea const& area, array_view<uint8_t> const& pixels);
+    void WriteAllPixelsFromBufferImpl(array_view<uint8_t> const& src);
+    void WritePixelsFromAreaImpl(weak::PositionArea const& area);
     bool Is10BitFormat(OHOS::Media::PixelFormat format);
     bool Is10BitYuvFormat(OHOS::Media::PixelFormat format);
-    void ParseInitializationOptions(InitializationOptions const& etsOptions,
-        OHOS::Media::InitializationOptions &options);
     void Release();
     int64_t timestamp_ = 0;
     int32_t captureId_ = 0;
