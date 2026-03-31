@@ -46,14 +46,20 @@ public:
     optional<PixelMap> CreatePixelMapWithCallback();
     optional<PixelMap> CreatePixelMapReturnsPromise(optional_view<DecodingOptions> options);
     optional<PixelMap> CreatePixelMapSync(optional_view<DecodingOptions> options);
+    optional<PixelMap> CreatePixelMapUsingAllocatorPromise(optional_view<DecodingOptions> options,
+    optional_view<AllocatorType> allocatorType);
     optional<PixelMap> CreatePixelMapUsingAllocatorSync(optional_view<DecodingOptions> options,
         optional_view<AllocatorType> allocatorType);
     optional<PixelMap> CreateWideGamutSdrPixelMapSync();
     array<PixelMap> CreatePixelMapListSync();
     array<PixelMap> CreatePixelMapListSyncWithOptions(DecodingOptions const& options);
     array<PixelMap> CreatePixelMapListSyncWithOptionalOptions(optional_view<DecodingOptions> options);
+    array<int32_t> GetDelayTimeListAsync();
+    array<int32_t> GetDelayTimeListPromise();
     array<int32_t> GetDelayTimeListSync();
     array<int32_t> GetDisposalTypeListSync();
+    int32_t GetFrameCountAsync();
+    int32_t GetFrameCountPromise();
     int32_t GetFrameCountSync();
     string GetImagePropertyReturnsPromise(PropertyKey key, optional_view<ImagePropertyOptions> options);
     map<string, PropertyValue> GetImagePropertiesSync(array_view<PropertyKey> key);
@@ -61,7 +67,12 @@ public:
     void ModifyImagePropertySync(PropertyKey key, string_view value);
     void ModifyImagePropertiesSync(map_view<string, PropertyValue> records);
     void ModifyImagePropertiesEnhancedSync(map_view<string, PropertyValue> records);
+    void modifyImageAllPropertiesSync(map_view<string, PropertyValue> records);
+    void UpdateDataAsync(array_view<uint8_t> buf, bool isFinished, int32_t offset, int32_t length);
+    void UpdateDataPromise(array_view<uint8_t> buf, bool isFinished, int32_t offset, int32_t length);
     void UpdateDataSync(array_view<uint8_t> buf, bool isFinished, int32_t offset, int32_t length);
+    void ReleaseAsync();
+    void ReleasePromise();
     void ReleaseSync();
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     optional<Picture> CreatePictureSync(optional_view<DecodingOptionsForPicture> options);
@@ -72,6 +83,12 @@ public:
     NullableXMPMetadata ReadXMPMetadataSync();
     void WriteXMPMetadataSync(XMPMetadata xmpMetadata);
 #endif
+    ImageMetadataPackage ReadImageMetadataPackage(optional_view<array<string>> propertyKeys,
+        optional_view<int32_t> index);
+    ImageMetadataPackage ReadImageMetadataPackageByType(optional_view<array<MetadataType>> metadataTypes,
+        optional_view<int32_t> index);
+    void WriteImageMetadataPackage(ImageMetadataPackage const &imageMetadataPackage);
+    ImageRawData CreateImageRawData();
     array<string> GetSupportedFormats();
 
     std::shared_ptr<OHOS::Media::ImageSource> nativeImgSrc = nullptr;

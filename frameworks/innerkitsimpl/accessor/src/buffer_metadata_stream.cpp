@@ -79,7 +79,12 @@ ssize_t BufferMetadataStream::Write(uint8_t *data, ssize_t size)
 
         // Calculate the new capacity, ensuring it is a multiple of
         // BUFFER_IMAGE_STREAM_PAGE_SIZE
-        long newCapacity = CalculateNewCapacity(currentOffset_, size);
+        long newCapacity;
+        if (__builtin_add_overflow(currentOffset_, size, &newCapacity)) {
+            IMAGE_LOGE("New capacity is overflowed!");
+            return -1;
+        }
+        newCapacity = CalculateNewCapacity(currentOffset_, size);
         CHECK_ERROR_RETURN_RET_LOG(newCapacity > METADATA_STREAM_MAX_CAPACITY, -1,
             "BufferMetadataStream::Write failed, new capacity exceeds maximum capacity, "
             "newCapacity:%{public}ld, maxCapacity:%{public}d",
@@ -316,34 +321,34 @@ byte *BufferMetadataStream::Release()
 long BufferMetadataStream::CalculateNewCapacity(long currentOffset, ssize_t size)
 {
     long newCapacity;
+    long capacityStride = 0;
     switch (expandCount_) {
         case INITIAL_EXPANSION:
-            newCapacity =
-                ((currentOffset + size + METADATA_STREAM_INITIAL_CAPACITY - 1) / METADATA_STREAM_INITIAL_CAPACITY) *
-                METADATA_STREAM_INITIAL_CAPACITY;
+            capacityStride = METADATA_STREAM_INITIAL_CAPACITY;
             break;
         case SECOND_EXPANSION:
-            newCapacity =
-                ((currentOffset + size + METADATA_STREAM_CAPACITY_512KB - 1) / METADATA_STREAM_CAPACITY_512KB) *
-                METADATA_STREAM_CAPACITY_512KB;
+            capacityStride = METADATA_STREAM_CAPACITY_512KB;
             break;
         case THIRD_EXPANSION:
-            newCapacity = ((currentOffset + size + METADATA_STREAM_CAPACITY_2MB - 1) / METADATA_STREAM_CAPACITY_2MB) *
-                METADATA_STREAM_CAPACITY_2MB;
+            capacityStride = METADATA_STREAM_CAPACITY_2MB;
             break;
         case FOURTH_EXPANSION:
-            newCapacity = ((currentOffset + size + METADATA_STREAM_CAPACITY_5MB - 1) / METADATA_STREAM_CAPACITY_5MB) *
-                METADATA_STREAM_CAPACITY_5MB;
+            capacityStride = METADATA_STREAM_CAPACITY_5MB;
             break;
         case FIFTH_EXPANSION:
-            newCapacity = ((currentOffset + size + METADATA_STREAM_CAPACITY_15MB - 1) / METADATA_STREAM_CAPACITY_15MB) *
-                METADATA_STREAM_CAPACITY_15MB;
+            capacityStride = METADATA_STREAM_CAPACITY_15MB;
             break;
         default:
-            newCapacity = ((currentOffset + size + METADATA_STREAM_CAPACITY_30MB - 1) / METADATA_STREAM_CAPACITY_30MB) *
-                METADATA_STREAM_CAPACITY_30MB;
+            capacityStride = METADATA_STREAM_CAPACITY_30MB;
             break;
     }
+    long tmpCapacity = 0;
+    if (__builtin_add_overflow((currentOffset + size), capacityStride - 1, &tmpCapacity)) {
+        IMAGE_LOGE("New capacity overflow");
+        return METADATA_STREAM_MAX_CAPACITY + 1;
+    }
+    newCapacity = (tmpCapacity / capacityStride) * capacityStride;
+
     return newCapacity;
 }
 } // namespace Media

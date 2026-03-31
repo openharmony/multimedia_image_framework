@@ -94,6 +94,8 @@ struct DecodeContext {
     bool  isCreateWideGamutSdrPixelMap = false;
     // In : set heifs frame index
     uint32_t index = 0;
+    // In : set animation decode mode
+    bool isAnimationDecode = false;
 };
 
 struct ProgDecodeContext {
@@ -129,6 +131,7 @@ struct PixelDecodeOptions {
     std::shared_ptr<OHOS::ColorManager::ColorSpace> plDesiredColorSpace = nullptr;
     std::shared_ptr<Media::PixelMap> plReusePixelmap = nullptr;
     OHOS::Media::CropAndScaleStrategy cropAndScaleStrategy = OHOS::Media::CropAndScaleStrategy::DEFAULT;
+    bool isAnimationDecode = false;
 };
 
 class AbsImageDecoder {
@@ -187,25 +190,6 @@ public:
 
     // get image property.
     virtual uint32_t GetImagePropertyString(uint32_t index, const std::string &key, std::string &value)
-    {
-        return Media::ERR_MEDIA_INVALID_OPERATION;
-    }
-
-    // modify image property.
-    virtual uint32_t ModifyImageProperty(uint32_t index, const std::string &key,
-        const std::string &value, const std::string &path)
-    {
-        return Media::ERR_MEDIA_INVALID_OPERATION;
-    }
-
-    virtual uint32_t ModifyImageProperty(uint32_t index, const std::string &key,
-                                         const std::string &value, const int fd)
-    {
-        return Media::ERR_MEDIA_INVALID_OPERATION;
-    }
-
-    virtual uint32_t ModifyImageProperty(uint32_t index, const std::string &key,
-                                         const std::string &value, uint8_t *data, uint32_t size)
     {
         return Media::ERR_MEDIA_INVALID_OPERATION;
     }
@@ -305,6 +289,11 @@ public:
     virtual bool IsProgressiveJpeg()
     {
         return false;
+    }
+
+    virtual OHOS::Media::Size GetAnimationImageSize()
+    {
+        return {0, 0};
     }
 
     // define multiple subservices for this interface

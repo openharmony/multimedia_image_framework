@@ -90,12 +90,13 @@ std::pair<int32_t, std::string> ImageErrorConvert::CreateThumbnailMakeErrMsg(uin
         case ERR_IMAGE_TOO_LARGE:
             return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_TOO_LARGE, "Image too large.");
         case ERR_IMAGE_INVALID_PARAMETER:
-            return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_INVALID_PARAMETER, "Unsupported options.");
+            return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_INVALID_PARAMETER, "Invalid parameter.");
         case ERR_NOT_CARRY_THUMBNAIL:
-            return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_NOT_CARRY_THUMBNAIL, "not carry thumbnail.");
+            return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_NOT_CARRY_THUMBNAIL,
+                "Image does not carry thumbnail!");
         case ERR_GENERATE_THUMBNAIL_FAILED:
             return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_GENERATE_THUMBNAIL_FAILED,
-                "Generate thumbnail failed.");
+                "Generate thumbnail failed!");
         default:
             return std::make_pair<int32_t, std::string>(IMAGE_DECODE_FAILED, "Decode failed.");
     }
@@ -161,6 +162,19 @@ std::pair<int32_t, std::string> ImageErrorConvert::WriteXMPMetadataMakeErrMsg(ui
                 "XMP decode failed. Maybe the XMP metadata is invalid.");
         default:
             return std::make_pair<int32_t, std::string>(IMAGE_DECODE_FAILED, "Decode failed.");
+    }
+}
+
+std::pair<int32_t, std::string> ImageErrorConvert::CreateImageRawDataMakeErrMsg(uint32_t errorCode)
+{
+    switch (errorCode) {
+        case ERR_IMAGE_MISMATCHED_FORMAT:
+            return std::make_pair<int32_t, std::string>(IMAGE_SOURCE_UNSUPPORTED_MIMETYPE, "Unsupported mimetype.");
+        case ERR_IMAGE_GET_DATA_ABNORMAL:
+        case ERR_IMAGE_DATA_UNSUPPORT:
+            return std::make_pair<int32_t, std::string>(IMAGE_BAD_SOURCE, "Bad image source.");
+        default:
+            return std::make_pair<int32_t, std::string>(IMAGE_BAD_SOURCE, "Bad image source.");
     }
 }
 }  // namespace Media

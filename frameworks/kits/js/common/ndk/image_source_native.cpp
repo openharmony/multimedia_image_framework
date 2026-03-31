@@ -28,6 +28,7 @@
 #include "image_log.h"
 #include "native_color_space_manager.h"
 #include "ndk_color_space.h"
+#include "image_mime_type.h"
 
 #ifndef _WIN32
 #include "securec.h"
@@ -62,10 +63,6 @@ static size_t g_supportedFormatSize = 0;
 static const size_t MAX_DOUBLE_ARRAY_SIZE = 8 * 1024;
 static const size_t MAX_INT_ARRAY_SIZE = 16 * 1024;
 static const size_t MAX_EXIF_SIZE = 64 * 1024;
-struct OH_DecodingOptionsForThumbnail {
-    struct Image_Size desiredSize;
-    bool needGenerate = false;
-};
 
 struct OH_DecodingOptions {
     int32_t pixelFormat;
@@ -164,6 +161,9 @@ static void releaseMimeType(Image_MimeType *mimeType)
 MIDK_EXPORT
 Image_ErrorCode OH_DecodingOptions_Create(OH_DecodingOptions **options)
 {
+    if (options == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
     *options = new OH_DecodingOptions();
     if (*options == nullptr) {
         return IMAGE_BAD_PARAMETER;
@@ -402,12 +402,16 @@ Image_ErrorCode OH_DecodingOptions_Release(OH_DecodingOptions *options)
         return IMAGE_BAD_PARAMETER;
     }
     delete options;
+    options = nullptr;
     return IMAGE_SUCCESS;
 }
 
 MIDK_EXPORT
 Image_ErrorCode OH_ImageSourceInfo_Create(OH_ImageSource_Info **info)
 {
+    if (info == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
     *info = new OH_ImageSource_Info();
     if (*info == nullptr) {
         return IMAGE_BAD_PARAMETER;
@@ -533,14 +537,6 @@ static void ParseDecodingOps(DecodeOptions &decOps, struct OH_DecodingOptions *o
     }
 }
 
-static void ParseDecodingOptsForThumbnail(DecodingOptionsForThumbnail &decOps,
-    struct OH_DecodingOptionsForThumbnail *ops)
-{
-    decOps.desiredSize.width = static_cast<int32_t>(ops->desiredSize.width);
-    decOps.desiredSize.height = static_cast<int32_t>(ops->desiredSize.height);
-    decOps.needGenerate = ops->needGenerate;
-}
-
 static void ParseImageSourceInfo(struct OH_ImageSource_Info *source, const ImageInfo &info)
 {
     if (source == nullptr) {
@@ -571,7 +567,7 @@ static void ParseImageSourceInfo(struct OH_ImageSource_Info *source, const Image
 MIDK_EXPORT
 Image_ErrorCode OH_ImageSourceNative_CreateFromUri(char *uri, size_t uriSize, OH_ImageSourceNative **res)
 {
-    if (uri == nullptr) {
+    if (uri == nullptr || res == nullptr) {
         return IMAGE_BAD_PARAMETER;
     }
     SourceOptions options;
@@ -579,6 +575,7 @@ Image_ErrorCode OH_ImageSourceNative_CreateFromUri(char *uri, size_t uriSize, OH
     if (imageSource == nullptr || imageSource->GetInnerImageSource() == nullptr) {
         if (imageSource) {
             delete imageSource;
+            imageSource = nullptr;
         }
         *res = nullptr;
         return IMAGE_BAD_PARAMETER;
@@ -586,6 +583,7 @@ Image_ErrorCode OH_ImageSourceNative_CreateFromUri(char *uri, size_t uriSize, OH
     std::string tmp(uri, uriSize);
     if (tmp.empty()) {
         delete imageSource;
+        imageSource = nullptr;
         return IMAGE_BAD_PARAMETER;
     }
     imageSource->filePath_ = tmp;
@@ -596,6 +594,9 @@ Image_ErrorCode OH_ImageSourceNative_CreateFromUri(char *uri, size_t uriSize, OH
 MIDK_EXPORT
 Image_ErrorCode OH_ImageSourceNative_CreateFromFd(int32_t fd, OH_ImageSourceNative **res)
 {
+    if (res == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
     SourceOptions options;
     auto imageSource = new OH_ImageSourceNative(fd, options);
     if (imageSource == nullptr || imageSource->GetInnerImageSource() == nullptr) {
@@ -613,6 +614,9 @@ Image_ErrorCode OH_ImageSourceNative_CreateFromFd(int32_t fd, OH_ImageSourceNati
 
 Image_ErrorCode CreateFromDataInternal(uint8_t *data, size_t dataSize, OH_ImageSourceNative **res, bool isUserBuffer)
 {
+    if (res == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
     if (data == nullptr) {
         return isUserBuffer ? IMAGE_SOURCE_INVALID_PARAMETER : IMAGE_BAD_PARAMETER;
     }
@@ -656,6 +660,7 @@ Image_ErrorCode OH_ImageSourceNative_CreateFromRawFile(RawFileDescriptor *rawFil
     if (imageSource == nullptr || imageSource->GetInnerImageSource() == nullptr) {
         if (imageSource) {
             delete imageSource;
+            imageSource = nullptr;
         }
         *res = nullptr;
         return IMAGE_BAD_PARAMETER;
@@ -730,7 +735,11 @@ Image_ErrorCode OH_ImageSourceNative_CreatePixelmapList(OH_ImageSourceNative *so
     DecodeOptions decOps;
     uint32_t errorCode = IMAGE_BAD_PARAMETER;
     ParseDecodingOps(decOps, ops);
-
+    ImageInfo imageInfo;
+    if (source->GetInnerImageSource()->GetImageInfo(imageInfo) == SUCCESS &&
+        imageInfo.encodedFormat == IMAGE_HEIFS_FORMAT) {
+        decOps.isAnimationDecode = true;
+    }
     auto pixelmapList = source->GetInnerImageSource()->CreatePixelMapList(decOps, errorCode);
     if (pixelmapList == nullptr || errorCode != IMAGE_SUCCESS) {
         return IMAGE_BAD_PARAMETER;
@@ -766,101 +775,6 @@ Image_ErrorCode OH_ImageSourceNative_CreatePicture(OH_ImageSourceNative *source,
     
     auto pictureNative  = new OH_PictureNative(std::move(pictureTemp));
     *picture = pictureNative;
-    return IMAGE_SUCCESS;
-}
-
-MIDK_EXPORT
-Image_ErrorCode OH_DecodingOptionsForThumbnail_Create(OH_DecodingOptionsForThumbnail **options)
-{
-    if (options == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    *options = new OH_DecodingOptionsForThumbnail();
-    return IMAGE_SUCCESS;
-}
-
-MIDK_EXPORT
-Image_ErrorCode OH_DecodingOptionsForThumbnail_GetDesiredSize(OH_DecodingOptionsForThumbnail *options,
-    Image_Size *desiredSize)
-{
-    if (options == nullptr || desiredSize == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    desiredSize->width = options->desiredSize.width;
-    desiredSize->height = options->desiredSize.height;
-    return IMAGE_SUCCESS;
-}
-
-MIDK_EXPORT
-Image_ErrorCode OH_DecodingOptionsForThumbnail_SetDesiredSize(OH_DecodingOptionsForThumbnail *options,
-    Image_Size *desiredSize)
-{
-    if (options == nullptr || desiredSize == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    options->desiredSize.width = desiredSize->width;
-    options->desiredSize.height = desiredSize->height;
-    return IMAGE_SUCCESS;
-}
-
-Image_ErrorCode OH_DecodingOptionsForThumbnail_GetNeedGenerate(OH_DecodingOptionsForThumbnail *options,
-    bool *needGenerate)
-{
-    if (options == nullptr || needGenerate == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    *needGenerate = options->needGenerate;
-    return IMAGE_SUCCESS;
-}
-
-Image_ErrorCode OH_DecodingOptionsForThumbnail_SetNeedGenerate(OH_DecodingOptionsForThumbnail *options,
-    bool *needGenerate)
-{
-    if (options == nullptr || needGenerate == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    options->needGenerate = *needGenerate;
-    return IMAGE_SUCCESS;
-}
-
-MIDK_EXPORT
-Image_ErrorCode OH_DecodingOptionsForThumbnail_Release(OH_DecodingOptionsForThumbnail *options)
-{
-    if (options == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    delete options;
-    options = nullptr;
-    return IMAGE_SUCCESS;
-}
-
-static bool IsSizeInvalid(const Size &size)
-{
-    return size.width < 0 || size.height < 0;
-}
-
-MIDK_EXPORT
-Image_ErrorCode OH_ImageSourceNative_CreateThumbnail(OH_ImageSourceNative *source, OH_DecodingOptionsForThumbnail *ops,
-    OH_PixelmapNative **pixelmap)
-{
-    if (source == nullptr || source->GetInnerImageSource() == nullptr || ops == nullptr || pixelmap == nullptr) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-
-    DecodingOptionsForThumbnail decOps;
-    uint32_t errorCode = IMAGE_SOURCE_INVALID_PARAMETER;
-    ParseDecodingOptsForThumbnail(decOps, ops);
-    if (IsSizeInvalid(decOps.desiredSize)) {
-        return IMAGE_SOURCE_INVALID_PARAMETER;
-    }
-    std::unique_ptr<PixelMap> tmpPixelmap = source->GetInnerImageSource()->CreateThumbnail(decOps, errorCode);
-    if (tmpPixelmap == nullptr || errorCode != IMAGE_SUCCESS) {
-        auto [errCode, _] = ImageErrorConvert::CreateThumbnailMakeErrMsg(errorCode);
-        return static_cast<Image_ErrorCode>(errCode);
-    }
-    std::shared_ptr<PixelMap> nativePixelmap = std::move(tmpPixelmap);
-    OH_PixelmapNative *stPixMap = new OH_PixelmapNative(nativePixelmap);
-    *pixelmap = stPixMap;
     return IMAGE_SUCCESS;
 }
 
@@ -1305,31 +1219,6 @@ Image_ErrorCode OH_ImageSourceNative_ModifyImageProperty(OH_ImageSourceNative *s
     return IMAGE_BAD_PARAMETER;
 }
 
-static std::string IntArrayToString(const std::vector<int32_t> &intArray)
-{
-    std::ostringstream oss;
-    size_t arrayLength = intArray.size();
-    for (size_t i = 0; i < arrayLength; i++) {
-        if (i > 0) {
-            oss << ",";
-        }
-        oss << intArray[i];
-    }
-    return oss.str();
-}
-
-static std::string DoubleArrayToString(const std::vector<double> &doubleArray)
-{
-    std::ostringstream oss;
-    for (size_t i = 0; i < doubleArray.size(); i++) {
-        if (i > 0) {
-            oss << ",";
-        }
-        oss << doubleArray[i];
-    }
-    return oss.str();
-}
-
 Image_ErrorCode OH_ImageSourceNative_ModifyImagePropertyShort(OH_ImageSourceNative *source, Image_String *key,
     uint16_t value)
 {
@@ -1447,7 +1336,7 @@ Image_ErrorCode OH_ImageSourceNative_ModifyImagePropertyIntArray(OH_ImageSourceN
     if (size > MAX_INT_ARRAY_SIZE) {
         return IMAGE_SOURCE_INVALID_PARAMETER;
     }
-    std::string valueString = IntArrayToString(std::vector<int32_t>(value, value + size));
+    std::string valueString = ImageUtils::ArrayToString(std::vector<int64_t>(value, value + size));
     if (keyString == "GPSVersionID") {
         std::vector<int64_t> intArray(value, value + size);
         std::ostringstream oss;
@@ -1510,7 +1399,7 @@ static std::string FormatTimePart(double value)
 static std::string HandleDoubleArray(const std::string& keyStr, std::vector<double> doubleArray)
 {
     if (keyStr != "GPSTimeStamp" || doubleArray.size() < REQUIRED_GPS_COMPONENTS) {
-        return DoubleArrayToString(doubleArray);
+        return ImageUtils::ArrayToString(doubleArray);
     }
 
     return FormatTimePart(doubleArray[0]) + ":" +FormatTimePart(doubleArray[1]) + ":" +
@@ -1605,7 +1494,7 @@ Image_ErrorCode OH_ImageSourceNative_Release(OH_ImageSourceNative *source)
     if (source == nullptr) {
         return IMAGE_BAD_PARAMETER;
     }
-    source->~OH_ImageSourceNative();
+    delete source;
     source = nullptr;
     return IMAGE_SUCCESS;
 }
@@ -1654,6 +1543,9 @@ Image_ErrorCode OH_DecodingOptionsForPicture_SetDesiredAuxiliaryPictures(OH_Deco
     }
     std::set<AuxiliaryPictureType> tmpDesireSet;
     auto innerDecodingOptionsForPicture = options->GetInnerDecodingOptForPicture().get();
+    if (innerDecodingOptionsForPicture == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
     for (size_t index = 0; index < length; index++) {
         auto auxTypeTmp = AuxTypeNativeToInner(desiredAuxiliaryPictures[index]);
         if (!OHOS::Media::ImageUtils::IsAuxiliaryPictureTypeSupported(auxTypeTmp)) {

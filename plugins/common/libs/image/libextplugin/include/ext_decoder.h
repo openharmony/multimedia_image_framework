@@ -25,7 +25,6 @@
 #include "hardware/jpeg_hw_decoder.h"
 #endif
 #include "ext_stream.h"
-#include "exif_info.h"
 #include "include/codec/SkCodec.h"
 #include "nocopyable.h"
 #include "plugin_class_base.h"
@@ -61,13 +60,6 @@ public:
 
     uint32_t GetImagePropertyInt(uint32_t index, const std::string &key, int32_t &value) override;
     uint32_t GetImagePropertyString(uint32_t index, const std::string &key, std::string &value) override;
-    uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
-        const std::string &path) override;
-    uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
-        const int fd) override;
-    uint32_t ModifyImageProperty(uint32_t index, const std::string &key, const std::string &value,
-        uint8_t *data, uint32_t size) override;
-    uint32_t GetFilterArea(const int &privacyType, std::vector<std::pair<uint32_t, uint32_t>> &ranges) override;
     Media::ImageHdrType CheckHdrType() override;
     void ValidateAndCorrectMetaData(Media::HdrMetadata& metadata) override;
     uint32_t GetGainMapOffset() override;
@@ -87,6 +79,7 @@ public:
     bool GetHeifMetadataBlob(std::vector<uint8_t>& metadata, Media::MetadataType type) override;
     void FillYuvInfo(DecodeContext &context, SkImageInfo &dstInfo);
     OHOS::Media::Size GetHeifRegionGridSize() override;
+    OHOS::Media::Size GetAnimationImageSize() override;
 private:
     typedef struct FrameCacheInfo {
         int width;
@@ -126,7 +119,6 @@ private:
     bool ResetCodec();
     SkColorType ConvertToColorType(OHOS::Media::PixelFormat format, OHOS::Media::PixelFormat &outputFormat);
     uint32_t SetContextPixelsBuffer(uint64_t byteCount, DecodeContext &context);
-    uint32_t GetMakerImagePropertyString(const std::string &key, std::string &value);
     uint32_t CheckDecodeOptions(uint32_t index, const PixelDecodeOptions &opts);
     uint32_t CheckCropRect(const PixelDecodeOptions &opts);
     static void ReportImageType(SkEncodedImageFormat skEncodeFormat);
@@ -184,11 +176,11 @@ private:
     uint32_t streamOff_ = 0;
     std::unique_ptr<SkCodec> codec_;
     SkImageInfo info_;
+    OHOS::Media::Size animationSize_;
     SkImageInfo dstInfo_;
     SkCodec::Options dstOptions_;
     SkIRect dstSubset_;
     int32_t frameCount_ = 0;
-    EXIFInfo exifInfo_;
     uint8_t *gifCache_ = nullptr;
     int gifCacheIndex_ = 0;
     FrameCacheInfo frameCacheInfo_ = {0, 0, 0, 0};

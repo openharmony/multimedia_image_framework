@@ -140,6 +140,7 @@ public:
     static bool CheckMulOverflow(int32_t width, int32_t bytesPerPixel);
     static bool CheckMulOverflow(int32_t width, int32_t height, int32_t bytesPerPixel);
     static bool CheckFloatMulOverflow(float num1, float num2);
+    static bool CheckFloatToInt32Overflow(float value);
     static void BGRAToARGB(uint8_t* srcPixels, uint8_t* dstPixels, uint32_t byteCount);
     static void ARGBToBGRA(uint8_t* srcPixels, uint8_t* dstPixels, uint32_t byteCount);
     static int32_t SurfaceBuffer_Reference(void* buffer);
@@ -188,12 +189,16 @@ public:
     static bool IsMetadataTypeSupported(MetadataType metadataType);
     static const std::set<AuxiliaryPictureType> &GetAllAuxiliaryPictureType();
     static const std::set<MetadataType> &GetAllMetadataType();
+    static uint32_t GetThumbnailScaleTargetSize(const Size &sourceSize, const int32_t &maxPixelSize, Size &dstSize,
+        float &scale);
+    static uint32_t ScaleThumbnailWithAspectRatio(std::unique_ptr<PixelMap> &pixelMap, const int32_t &maxPixelSize);
     static size_t GetAstcBytesCount(const ImageInfo& imageInfo);
     static bool StrToUint32(const std::string& str, uint32_t& value);
     static bool IsInRange(uint32_t value, uint32_t minValue, uint32_t maxValue);
     static bool IsInRange(int32_t value, int32_t minValue, int32_t maxValue);
     static bool IsEven(int32_t value);
     static bool HasOverflowed(uint32_t num1, uint32_t num2);
+    static bool HasOverflowed64(uint64_t num1, uint64_t num2);
     static int32_t GetAPIVersion();
     static std::string GetEncodedHeifFormat();
     static std::string GetEncodedHeifsFormat();
@@ -273,6 +278,17 @@ public:
 #if !defined(CROSS_PLATFORM)
     static void FlushSurfaceBuffer(sptr<SurfaceBuffer>& surfaceBuffer);
 #endif
+    template<typename T>
+    static std::string ArrayToString(const std::vector<T>& array)
+    {
+        std::ostringstream oss;
+        for (size_t i = 0; i < array.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << array[i];
+        }
+        return oss.str();
+    }
+    static void GetYUVStrideInfo(int32_t pixelFmt, OH_NativeBuffer_Planes *planes, YUVStrideInfo &dstStrides);
 private:
     static uint32_t RegisterPluginServer();
     static uint32_t SaveDataToFile(const std::string& fileName, const char* data, const size_t& totalSize);

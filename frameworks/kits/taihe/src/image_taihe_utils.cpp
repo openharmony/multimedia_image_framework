@@ -13,8 +13,22 @@
  * limitations under the License.
  */
 
-#include "image_log.h"
 #include "image_taihe_utils.h"
+
+#include "image_log.h"
+#if !defined(CROSS_PLATFORM)
+#include "ipc_skeleton.h"
+#include "tokenid_kit.h"
+#endif
+#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM) && defined(HICHECKER_ENABLE)
+#include "hichecker.h"
+#endif
+
+#undef LOG_DOMAIN
+#define LOG_DOMAIN LOG_TAG_DOMAIN_ID_IMAGE
+
+#undef LOG_TAG
+#define LOG_TAG "ImageTaiheUtils"
 
 namespace ANI::Image {
 constexpr char CLASS_NAME_BUSINESSERROR[] = "@ohos.base.BusinessError";
@@ -147,26 +161,35 @@ const std::set<OHOS::Media::AuxiliaryPictureType> &ImageTaiheUtils::GetTaiheSupp
         OHOS::Media::AuxiliaryPictureType::UNREFOCUS_MAP,
         OHOS::Media::AuxiliaryPictureType::LINEAR_MAP,
         OHOS::Media::AuxiliaryPictureType::FRAGMENT_MAP,
-        OHOS::Media::AuxiliaryPictureType::THUMBNAIL,
     };
     return auxTypes;
+}
+
+std::vector<std::string> ImageTaiheUtils::GetArrayString(const array<string> &src)
+{
+    std::vector<std::string> result(src.begin(), src.end());
+    return result;
 }
 
 array<string> ImageTaiheUtils::ToTaiheArrayString(const std::vector<std::string> &src)
 {
     std::vector<::taihe::string> vec;
+    vec.reserve(src.size());
     for (const auto &item : src) {
         vec.emplace_back(item);
     }
     return array<string>(vec);
 }
 
-array<uint8_t> ImageTaiheUtils::CreateTaiheArrayBuffer(uint8_t* src, size_t srcLen)
+array<uint8_t> ImageTaiheUtils::CreateTaiheArrayBuffer(uint8_t* src, size_t srcLen, bool move)
 {
     if (src == nullptr || srcLen == 0) {
         return array<uint8_t>(0);
     }
-    return array<uint8_t>(copy_data_t{}, src, srcLen);
+    if (move) {
+        return array<uint8_t>(taihe::move_data, src, srcLen);
+    }
+    return array<uint8_t>(taihe::copy_data, src, srcLen);
 }
 
 uintptr_t ImageTaiheUtils::GetUndefinedPtr(ani_env *env)
@@ -236,4 +259,15 @@ bool ImageTaiheUtils::IsValidPtr<weak::ImageSource>(weak::ImageSource data);
 
 template
 bool ImageTaiheUtils::IsValidPtr<weak::Picture>(weak::Picture data);
+
+bool ImageTaiheUtils::IsSystemApp()
+{
+#if !defined(CROSS_PLATFORM)
+    static bool isSys = OHOS::Security::AccessToken::TokenIdKit::IsSystemAppByFullTokenID(
+        OHOS::IPCSkeleton::GetSelfTokenID());
+    return isSys;
+#else
+    return false;
+#endif
+}
 } // namespace ANI::Image

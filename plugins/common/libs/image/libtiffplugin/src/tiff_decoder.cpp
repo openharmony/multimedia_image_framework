@@ -74,7 +74,7 @@ void TiffDecoder::RegisterTiffLogHandler()
 tmsize_t TiffDecoder::ReadProc(thandle_t handle, void* data, tmsize_t size)
 {
     InputDataStream* stream = static_cast<InputDataStream*>(handle);
-    bool cond = !stream || !data || size <= 0;
+    bool cond = !stream || !data || size <= 0 || size > UINT32_MAX;
     CHECK_ERROR_RETURN_RET_LOG(cond, 0, "stream is invalid");
 
     uint32_t bytesRead = static_cast<uint32_t>(size);
@@ -202,13 +202,34 @@ uint32_t TiffDecoder::Decode(uint32_t index, DecodeContext& context)
     }
     context.info.size.width = tiffSize_.width;
     context.info.size.height = tiffSize_.height;
-    AllocBuffer(context, tiffSize_.width * tiffSize_.height * sizeof(uint32_t));
+    if (ImageUtils::CheckMulOverflow(tiffSize_.width, tiffSize_.height, sizeof(uint32_t))) {
+        IMAGE_LOGE("Buffer size overflow: width=%{public}u, height=%{public}u",
+                   tiffSize_.width, tiffSize_.height);
+        return ERR_IMAGE_MALLOC_ABNORMAL;
+    }
+    
+    const size_t bufferSize = static_cast<size_t>(tiffSize_.width) *
+                              static_cast<size_t>(tiffSize_.height) *
+                              sizeof(uint32_t);
+    AllocBuffer(context, bufferSize);
     uint32_t* raster = static_cast<uint32_t*>(context.pixelsBuffer.buffer);
+    std::unique_ptr<uint32_t[]> dmaTmpBuffer;
+    if (context.allocatorType == AllocatorType::DMA_ALLOC && dmaStride_ > tiffSize_.width) {
+        dmaTmpBuffer = std::make_unique<uint32_t[]>(bufferSize / sizeof(uint32_t));
+        raster = dmaTmpBuffer.get();
+    }
     CHECK_ERROR_RETURN_RET_LOG(raster == nullptr, ERR_IMAGE_MALLOC_ABNORMAL, "AllocBuffer failed");
-
     if (!TIFFReadRGBAImageOriented(tifCodec_, tiffSize_.width, tiffSize_.height, raster, ORIENTATION_TOPLEFT, 0)) {
         IMAGE_LOGE("TIFFReadRGBAImageOriented decode failed");
         return ERR_IMAGE_DECODE_FAILED;
+    }
+    if (context.allocatorType == AllocatorType::DMA_ALLOC && dmaStride_ > tiffSize_.width) {
+        for (uint32_t row = 0; row < tiffSize_.height; row++) {
+            uint32_t* src = raster + row * tiffSize_.width;
+            uint8_t* dst = static_cast<uint8_t*>(context.pixelsBuffer.buffer) + row * dmaStride_;
+            auto err = memcpy_s(dst, dmaStride_, src, tiffSize_.width * sizeof(uint32_t));
+            CHECK_ERROR_RETURN_RET_LOG(err != EOK, ERR_IMAGE_DECODE_FAILED, "memcpy is failed");
+        }
     }
 
 #ifdef IMAGE_COLORSPACE_FLAG
@@ -326,6 +347,10 @@ bool TiffDecoder::AllocDmaBuffer(DecodeContext &context, uint64_t byteCount)
     cond = (err != OHOS::GSERROR_OK);
     CHECK_ERROR_RETURN_RET_LOG(cond, false, "NativeBufferReference failed");
 
+    dmaStride_ = sb->GetStride();
+    IMAGE_LOGD("[AllocDmaBuffer] Stride: %{public}d, Height: %{public}d, "
+               "Width: %{public}d, size:%{public}d",
+               sb->GetStride(), sb->GetHeight(), sb->GetWidth(), sb->GetSize());
     context.pixelsBuffer.buffer = sb->GetVirAddr();
     context.pixelsBuffer.context = nativeBuffer;
     context.pixelsBuffer.bufferSize = byteCount;
