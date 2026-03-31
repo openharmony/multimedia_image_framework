@@ -184,9 +184,11 @@ public:
     static const std::set<AuxiliaryPictureType> &GetNapiSupportedAuxiliaryPictureType();
     static bool CheckTypeByName(napi_env env, napi_value root, const char *name);
     static void HicheckerReport();
-    static void CreateErrorObj(napi_env env, napi_value &errorObj,
-        const int32_t errCode, const std::string errMsg);
-    static napi_value ThrowExceptionError(napi_env env, const int32_t errCode, const std::string errMsg);
+    static void CreateErrorObj(napi_env env, napi_value &errorObj, const int32_t errCode, const std::string errMsg,
+        bool codeAsNumber = false);
+    static napi_value ThrowExceptionError(napi_env env, const int32_t errCode, const std::string errMsg,
+        bool codeAsNumber = false);
+    static napi_status Throw(napi_env env, napi_ref &error);
     static void CleanUpConstructorContext(void* data);
     static bool IsSystemApp();
 };

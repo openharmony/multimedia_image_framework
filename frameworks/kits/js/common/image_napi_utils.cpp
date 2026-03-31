@@ -365,13 +365,14 @@ void ImageNapiUtils::HicheckerReport()
 #endif
 }
 
-void ImageNapiUtils::CreateErrorObj(napi_env env, napi_value &errorObj,
-    const int32_t errCode, const std::string errMsg)
+void ImageNapiUtils::CreateErrorObj(napi_env env, napi_value &errorObj, const int32_t errCode, const std::string errMsg,
+    bool codeAsNumber)
 {
     napi_value outErrorCode = nullptr;
     napi_value outErrorMsg = nullptr;
-    napi_status status = napi_create_string_utf8(env, std::to_string(errCode).c_str(),
-        NAPI_AUTO_LENGTH, &outErrorCode);
+    napi_status status = codeAsNumber ?
+        napi_create_int32(env, errCode, &outErrorCode) :
+        napi_create_string_utf8(env, std::to_string(errCode).c_str(), NAPI_AUTO_LENGTH, &outErrorCode);
     if (status != napi_ok) {
         return;
     }
@@ -387,15 +388,29 @@ void ImageNapiUtils::CreateErrorObj(napi_env env, napi_value &errorObj,
     }
 }
 
-napi_value ImageNapiUtils::ThrowExceptionError(napi_env env, const int32_t errCode,
-    const std::string errMsg)
+napi_value ImageNapiUtils::ThrowExceptionError(napi_env env, const int32_t errCode, const std::string errMsg,
+    bool codeAsNumber)
 {
     napi_value result = nullptr;
-    napi_status status = napi_throw_error(env, std::to_string(errCode).c_str(), errMsg.c_str());
+    napi_status status = codeAsNumber ?
+        napi_throw_business_error(env, errCode, errMsg.c_str()) :
+        napi_throw_error(env, std::to_string(errCode).c_str(), errMsg.c_str());
     if (status == napi_ok) {
         napi_get_undefined(env, &result);
     }
     return result;
+}
+
+napi_status ImageNapiUtils::Throw(napi_env env, napi_ref &error)
+{
+    napi_value errorObj = nullptr;
+    napi_status status = napi_get_reference_value(env, error, &errorObj);
+    if (status == napi_ok) {
+        napi_delete_reference(env, error);
+        error = nullptr;
+        napi_throw(env, errorObj);
+    }
+    return status;
 }
 
 void ImageNapiUtils::CleanUpConstructorContext(void* data)
