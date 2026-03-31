@@ -1052,7 +1052,9 @@ static void SetDstPixelMapInfo(PixelMap &source, PixelMap &dstPixelMap, void* ds
     unique_ptr<AbsMemory>& memory)
 {
     // "memory" is used for SHARE_MEM_ALLOC and DMA_ALLOC type, dstPixels is used for others.
-    AllocatorType sourceType = source.GetAllocatorType();
+    // Convert CUSTOM_ALLOC to SHARE_MEM_ALLOC
+    AllocatorType sourceType = source.GetAllocatorType() == AllocatorType::CUSTOM_ALLOC ?
+        AllocatorType::SHARE_MEM_ALLOC : source.GetAllocatorType();
     if (sourceType == AllocatorType::SHARE_MEM_ALLOC || sourceType == AllocatorType::DMA_ALLOC) {
         dstPixelMap.SetPixelsAddr(dstPixels, memory->extend.data, memory->data.size, sourceType, nullptr);
         if (source.GetAllocatorType() == AllocatorType::DMA_ALLOC) {
@@ -1090,13 +1092,14 @@ bool PixelMap::CopyPixelMap(PixelMap &source, PixelMap &dstPixelMap, int32_t &er
     int fd = -1;
     void *dstPixels = nullptr;
     unique_ptr<AbsMemory> memory;
-    AllocatorType sourceType = source.GetAllocatorType();
+    AllocatorType sourceType = source.GetAllocatorType() == AllocatorType::CUSTOM_ALLOC ?
+        AllocatorType::SHARE_MEM_ALLOC : source.GetAllocatorType();
     if (sourceType == AllocatorType::SHARE_MEM_ALLOC || sourceType == AllocatorType::DMA_ALLOC) {
         ImageInfo dstImageInfo;
         dstPixelMap.GetImageInfo(dstImageInfo);
         MemoryData memoryData = {nullptr, uBufferSize, "Copy ImageData", dstImageInfo.size, dstImageInfo.pixelFormat};
         memoryData.usage = source.GetNoPaddingUsage();
-        memory = MemoryManager::CreateMemory(source.GetAllocatorType(), memoryData);
+        memory = MemoryManager::CreateMemory(sourceType, memoryData);
         if (memory == nullptr) {
             return false;
         }
@@ -4213,13 +4216,8 @@ static void GenSrcTransInfo(SkTransInfo &srcInfo, ImageInfo &imageInfo, uint8_t*
     srcInfo.bitmap.installPixels(srcInfo.info, pixels, srcInfo.info.minRowBytes());
 }
 
-struct GenTransInfoData {
-    uint64_t usage = 0;
-    bool fixPixelFormat = false;
-};
-
 static bool GendstTransInfo(SkTransInfo &srcInfo, SkTransInfo &dstInfo, SkMatrix &matrix,
-    TransMemoryInfo &memoryInfo, GenTransInfoData &data)
+    TransMemoryInfo &memoryInfo, uint64_t usage)
 {
     dstInfo.r = matrix.mapRect(srcInfo.r);
     int width = FloatToInt(dstInfo.r.width());
@@ -4229,12 +4227,11 @@ static bool GendstTransInfo(SkTransInfo &srcInfo, SkTransInfo &dstInfo, SkMatrix
         height += dstInfo.r.fTop;
     }
     dstInfo.info = srcInfo.info.makeWH(width, height);
-    PixelFormat format = data.fixPixelFormat ?
-        PixelFormat::BGRA_8888 : ImageTypeConverter::ToPixelFormat(srcInfo.info.colorType());
+    PixelFormat format = ImageTypeConverter::ToPixelFormat(srcInfo.info.colorType());
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     Size desiredSize = {dstInfo.info.width(), dstInfo.info.height()};
     MemoryData memoryData = {nullptr, dstInfo.info.computeMinByteSize(), "Trans ImageData", desiredSize, format};
-    memoryData.usage = data.usage;
+    memoryData.usage = usage;
 #else
     MemoryData memoryData = {nullptr, dstInfo.info.computeMinByteSize(), "Trans ImageData"};
     memoryData.format = format;
@@ -4296,7 +4293,7 @@ void DrawImage(bool rectStaysRect, const AntiAliasingOption &option, SkCanvas &c
     }
 }
 
-bool PixelMap::DoTranslation(TransInfos &infos, const AntiAliasingOption &option, bool fixPixelFormat)
+bool PixelMap::DoTranslation(TransInfos &infos, const AntiAliasingOption &option)
 {
     if (!modifiable_) {
         IMAGE_LOGE("[PixelMap] DoTranslation can't be performed: PixelMap is not modifiable");
@@ -4332,8 +4329,7 @@ bool PixelMap::DoTranslation(TransInfos &infos, const AntiAliasingOption &option
     }
 
     SkTransInfo dst;
-    GenTransInfoData infoData = {GetNoPaddingUsage(), fixPixelFormat};
-    if (!GendstTransInfo(src, dst, infos.matrix, dstMemory, infoData)) {
+    if (!GendstTransInfo(src, dst, infos.matrix, dstMemory, GetNoPaddingUsage())) {
         IMAGE_LOGE("GendstTransInfo dstMemory falied");
         this->errorCode = IMAGE_RESULT_DECODE_FAILED;
         return false;
@@ -4444,15 +4440,8 @@ void PixelMap::scale(float xAxis, float yAxis, const AntiAliasingOption &option)
     } else {
         TransInfos infos;
         infos.matrix.setScale(xAxis, yAxis);
-        bool fixPixelFormat = imageInfo_.pixelFormat == PixelFormat::BGRA_8888 && option == AntiAliasingOption::LOW;
-        if (fixPixelFormat) {  // Workaround to fix a color glitching issue under BGRA with LOW anti-aliasing
-            imageInfo_.pixelFormat = PixelFormat::RGBA_8888;
-        }
-        if (!DoTranslation(infos, option, fixPixelFormat)) {
+        if (!DoTranslation(infos, option)) {
             IMAGE_LOGE("scale falied");
-        }
-        if (fixPixelFormat) {
-            imageInfo_.pixelFormat = PixelFormat::BGRA_8888;
         }
     }
     ImageUtils::DumpPixelMapIfDumpEnabled(*this, __func__);
@@ -4648,14 +4637,19 @@ std::unique_ptr<AbsMemory> PixelMap::CreateSdrMemory(ImageInfo &imageInfo, Pixel
                                                      AllocatorType dstType, uint32_t &errorCode, bool toSRGB)
 {
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
-    SkImageInfo skInfo = ToSkImageInfo(imageInfo, ToSkColorSpace(this));
-    MemoryData sdrData = {nullptr, skInfo.computeMinByteSize(), "Trans ImageData", imageInfo.size};
     PixelFormat outFormat = format;
     if (format != PixelFormat::NV12 && format != PixelFormat::NV21 && format != PixelFormat::RGBA_8888) {
         outFormat = PixelFormat::RGBA_8888;
     }
-    sdrData.format = outFormat;
-    sdrData.usage = GetNoPaddingUsage();
+
+    ImageInfo outImageInfo = {imageInfo.size, outFormat};
+    int32_t dataSize = GetAllocatedByteCount(outImageInfo);
+    if (dataSize <= 0) {
+        IMAGE_LOGI("sdr memory get dataSize failed.");
+        errorCode = IMAGE_RESULT_GET_SURFAC_FAILED;
+        return nullptr;
+    }
+    MemoryData sdrData = {nullptr, static_cast<size_t>(dataSize), "Trans ImageData", imageInfo.size, outFormat};
     auto sdrMemory = MemoryManager::CreateMemory(dstType, sdrData);
     if (sdrMemory == nullptr) {
         IMAGE_LOGI("sdr memory alloc failed.");

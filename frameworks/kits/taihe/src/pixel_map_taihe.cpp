@@ -452,6 +452,16 @@ PixelMap PixelMapImpl::CreatePixelMap(std::shared_ptr<Media::PixelMap> pixelMap)
     return make_holder<PixelMapImpl, PixelMap>(pixelMap);
 }
 
+ImageInfo PixelMapImpl::GetImageInfoAsync()
+{
+    return GetImageInfoSync();
+}
+
+ImageInfo PixelMapImpl::GetImageInfoPromise()
+{
+    return GetImageInfoSync();
+}
+
 ImageInfo PixelMapImpl::GetImageInfoSync()
 {
     if (nativePixelMap_ == nullptr) {
@@ -599,6 +609,16 @@ void PixelMapImpl::WritePixelsFromAreaImpl(weak::PositionArea const& area)
     }
 }
 
+void PixelMapImpl::ReadPixelsToBufferAsync(array_view<uint8_t> dst)
+{
+    ReadPixelsToBufferSync(dst);
+}
+
+void PixelMapImpl::ReadPixelsToBufferPromise(array_view<uint8_t> dst)
+{
+    ReadPixelsToBufferSync(dst);
+}
+
 void PixelMapImpl::ReadPixelsToBufferSync(array_view<uint8_t> dst)
 {
     if (nativePixelMap_ == nullptr) {
@@ -610,6 +630,16 @@ void PixelMapImpl::ReadPixelsToBufferSync(array_view<uint8_t> dst)
     if (status != Media::SUCCESS) {
         IMAGE_LOGE("[%{public}s] Failed to read pixels (%{public}d)", __func__, status);
     }
+}
+
+void PixelMapImpl::ReadPixelsAsync(weak::PositionArea area)
+{
+    ReadPixelsSync(area);
+}
+
+void PixelMapImpl::ReadPixelsPromise(weak::PositionArea area)
+{
+    ReadPixelsSync(area);
 }
 
 void PixelMapImpl::ReadPixelsSync(weak::PositionArea area)
@@ -631,6 +661,16 @@ void PixelMapImpl::ReadPixelsSync(weak::PositionArea area)
     }
 }
 
+void PixelMapImpl::WriteBufferToPixelsAsync(array_view<uint8_t> src)
+{
+    WriteBufferToPixelsSync(src);
+}
+
+void PixelMapImpl::WriteBufferToPixelsPromise(array_view<uint8_t> src)
+{
+    WriteBufferToPixelsSync(src);
+}
+
 void PixelMapImpl::WriteBufferToPixelsSync(array_view<uint8_t> src)
 {
     if (nativePixelMap_ == nullptr) {
@@ -642,6 +682,16 @@ void PixelMapImpl::WriteBufferToPixelsSync(array_view<uint8_t> src)
     if (status != Media::SUCCESS) {
         IMAGE_LOGE("[%{public}s] Failed to write pixels (%{public}d)", __func__, status);
     }
+}
+
+void PixelMapImpl::WritePixelsAsync(weak::PositionArea area)
+{
+    WritePixelsSync(area);
+}
+
+void PixelMapImpl::WritePixelsPromise(weak::PositionArea area)
+{
+    WritePixelsSync(area);
 }
 
 void PixelMapImpl::WritePixelsSync(weak::PositionArea area)
@@ -690,6 +740,16 @@ PixelMap PixelMapImpl::ExtractAlphaPixelMapSync()
     return make_holder<PixelMapImpl, PixelMap>(std::move(alphaPixelMap));
 }
 
+PixelMap PixelMapImpl::CreateAlphaPixelmapAsync()
+{
+    return CreateAlphaPixelmapSync();
+}
+
+PixelMap PixelMapImpl::CreateAlphaPixelmapPromise()
+{
+    return CreateAlphaPixelmapSync();
+}
+
 PixelMap PixelMapImpl::CreateAlphaPixelmapSync()
 {
     if (nativePixelMap_ == nullptr) {
@@ -733,6 +793,16 @@ int32_t PixelMapImpl::GetDensity()
     return nativePixelMap_->GetBaseDensity();
 }
 
+void PixelMapImpl::ScaleAsync(double x, double y)
+{
+    ScaleSync(x, y);
+}
+
+void PixelMapImpl::ScalePromise(double x, double y)
+{
+    ScaleSync(x, y);
+}
+
 void PixelMapImpl::ScaleSync(double x, double y)
 {
     if (nativePixelMap_ == nullptr) {
@@ -743,6 +813,11 @@ void PixelMapImpl::ScaleSync(double x, double y)
     nativePixelMap_->scale(static_cast<float>(x), static_cast<float>(y));
 }
 
+void PixelMapImpl::ScaleWithAntiAliasingPromise(double x, double y, AntiAliasingLevel level)
+{
+    ScaleWithAntiAliasingSync(x, y, level);
+}
+
 void PixelMapImpl::ScaleWithAntiAliasingSync(double x, double y, AntiAliasingLevel level)
 {
     if (nativePixelMap_ == nullptr) {
@@ -751,6 +826,11 @@ void PixelMapImpl::ScaleWithAntiAliasingSync(double x, double y, AntiAliasingLev
     }
 
     nativePixelMap_->scale(static_cast<float>(x), static_cast<float>(y), Media::AntiAliasingOption(level.get_value()));
+}
+
+PixelMap PixelMapImpl::CreateScaledPixelMapPromise(double x, double y, optional_view<AntiAliasingLevel> level)
+{
+    return CreateScaledPixelMapSync(x, y, level);
 }
 
 PixelMap PixelMapImpl::CreateScaledPixelMapSync(double x, double y, optional_view<AntiAliasingLevel> level)
@@ -774,6 +854,11 @@ PixelMap PixelMapImpl::CreateScaledPixelMapSync(double x, double y, optional_vie
         clonedPixelMap->scale(static_cast<float>(x), static_cast<float>(y));
     }
     return make_holder<PixelMapImpl, PixelMap>(std::move(clonedPixelMap));
+}
+
+PixelMap PixelMapImpl::ClonePromise()
+{
+    return CloneSync();
 }
 
 PixelMap PixelMapImpl::CloneSync()
@@ -803,6 +888,16 @@ PixelMap PixelMapImpl::CloneSync()
     return make_holder<PixelMapImpl, PixelMap>(std::move(clonedPixelMap));
 }
 
+void PixelMapImpl::TranslateAsync(double x, double y)
+{
+    TranslateSync(x, y);
+}
+
+void PixelMapImpl::TranslatePromise(double x, double y)
+{
+    TranslateSync(x, y);
+}
+
 void PixelMapImpl::TranslateSync(double x, double y)
 {
     if (nativePixelMap_ == nullptr) {
@@ -811,6 +906,12 @@ void PixelMapImpl::TranslateSync(double x, double y)
     }
 
     nativePixelMap_->translate(static_cast<float>(x), static_cast<float>(y));
+}
+
+PixelMap PixelMapImpl::CreateCroppedAndScaledPixelMapPromise(ohos::multimedia::image::image::Region const& region,
+    double x, double y, optional_view<AntiAliasingLevel> level)
+{
+    return CreateCroppedAndScaledPixelMapSync(region, x, y, level);
 }
 
 PixelMap PixelMapImpl::CreateCroppedAndScaledPixelMapSync(ohos::multimedia::image::image::Region const& region,
@@ -889,6 +990,16 @@ void PixelMapImpl::ApplyCropSync(::ohos::multimedia::image::image::Region const&
     }
 }
 
+void PixelMapImpl::CropAsync(ohos::multimedia::image::image::Region const& region)
+{
+    CropSync(region);
+}
+
+void PixelMapImpl::CropPromise(ohos::multimedia::image::image::Region const& region)
+{
+    CropSync(region);
+}
+
 void PixelMapImpl::CropSync(ohos::multimedia::image::image::Region const& region)
 {
     if (nativePixelMap_ == nullptr) {
@@ -904,6 +1015,16 @@ void PixelMapImpl::CropSync(ohos::multimedia::image::image::Region const& region
     }
 }
 
+void PixelMapImpl::RotateAsync(double angle)
+{
+    RotateSync(angle);
+}
+
+void PixelMapImpl::RotatePromise(double angle)
+{
+    RotateSync(angle);
+}
+
 void PixelMapImpl::RotateSync(double angle)
 {
     if (nativePixelMap_ == nullptr) {
@@ -914,6 +1035,16 @@ void PixelMapImpl::RotateSync(double angle)
     nativePixelMap_->rotate(static_cast<float>(angle));
 }
 
+void PixelMapImpl::FlipAsync(bool horizontal, bool vertical)
+{
+    FlipSync(horizontal, vertical);
+}
+
+void PixelMapImpl::FlipPromise(bool horizontal, bool vertical)
+{
+    FlipSync(horizontal, vertical);
+}
+
 void PixelMapImpl::FlipSync(bool horizontal, bool vertical)
 {
     if (nativePixelMap_ == nullptr) {
@@ -922,6 +1053,16 @@ void PixelMapImpl::FlipSync(bool horizontal, bool vertical)
     }
 
     nativePixelMap_->flip(horizontal, vertical);
+}
+
+void PixelMapImpl::OpacityAsync(double rate)
+{
+    OpacitySync(rate);
+}
+
+void PixelMapImpl::OpacityPromise(double rate)
+{
+    OpacitySync(rate);
 }
 
 void PixelMapImpl::OpacitySync(double rate)
@@ -984,6 +1125,11 @@ static FormatType FormatTypeOf(Media::PixelFormat pixelForamt)
         default:
             return FormatType::UNKNOWN;
     }
+}
+
+void PixelMapImpl::ConvertPixelFormatPromise(PixelMapFormat targetPixelFormat)
+{
+    ConvertPixelFormatSync(targetPixelFormat);
 }
 
 void PixelMapImpl::ConvertPixelFormatSync(PixelMapFormat targetPixelFormat)
@@ -1074,9 +1220,19 @@ void PixelMapImpl::Marshalling(uintptr_t sequence)
     }
 }
 
+PixelMap PixelMapImpl::UnmarshallingPromise(uintptr_t sequence)
+{
+    return UnmarshallingSync(sequence);
+}
+
 PixelMap PixelMapImpl::UnmarshallingSync(uintptr_t sequence)
 {
     return Unmarshalling(sequence, true);
+}
+
+void PixelMapImpl::ToSdrPromise()
+{
+    ToSdrSync();
 }
 
 void PixelMapImpl::ToSdrSync()
@@ -1114,6 +1270,16 @@ static uint32_t ParseColorSpace(std::shared_ptr<OHOS::ColorManager::ColorSpace> 
 #else
     return Media::ERR_IMAGE_DATA_UNSUPPORT;
 #endif
+}
+
+void PixelMapImpl::ApplyColorSpaceAsync(uintptr_t targetColorSpace)
+{
+    ApplyColorSpaceSync(targetColorSpace);
+}
+
+void PixelMapImpl::ApplyColorSpacePromise(uintptr_t targetColorSpace)
+{
+    ApplyColorSpaceSync(targetColorSpace);
 }
 
 void PixelMapImpl::ApplyColorSpaceSync(uintptr_t targetColorSpace)
@@ -1438,6 +1604,11 @@ HdrMetadataValue PixelMapImpl::GetMetadata(HdrMetadataKey key)
     return metadataValue;
 }
 
+void PixelMapImpl::SetMetadataPromise(HdrMetadataKey key, HdrMetadataValue const& value)
+{
+    SetMetadataSync(key, value);
+}
+
 void PixelMapImpl::SetMetadataSync(HdrMetadataKey key, HdrMetadataValue const& value)
 {
     if (nativePixelMap_ == nullptr) {
@@ -1483,6 +1654,16 @@ void PixelMapImpl::SetMetadataSync(HdrMetadataKey key, HdrMetadataValue const& v
     return;
 }
 #endif
+
+void PixelMapImpl::ReleaseAsync()
+{
+    ReleaseSync();
+}
+
+void PixelMapImpl::ReleasePromise()
+{
+    ReleaseSync();
+}
 
 void PixelMapImpl::ReleaseSync()
 {
@@ -1577,15 +1758,26 @@ void PixelMapImpl::Release()
 TH_EXPORT_CPP_API_CreatePixelMapFromPixels(ANI::Image::CreatePixelMapFromPixels);
 TH_EXPORT_CPP_API_CreatePixelMapFromPixelsSync(ANI::Image::CreatePixelMapFromPixels);
 TH_EXPORT_CPP_API_CreateEmptyPixelMap(ANI::Image::CreateEmptyPixelMap);
+TH_EXPORT_CPP_API_CreatePixelMapAsync(ANI::Image::CreatePixelMapSync);
+TH_EXPORT_CPP_API_CreatePixelMapPromise(ANI::Image::CreatePixelMapSync);
 TH_EXPORT_CPP_API_CreatePixelMapSync(ANI::Image::CreatePixelMapSync);
 TH_EXPORT_CPP_API_CreateEmptyPixelMapSync(ANI::Image::CreateEmptyPixelMapSync);
+TH_EXPORT_CPP_API_CreatePixelMapUsingAllocatorPromise(ANI::Image::CreatePixelMapUsingAllocatorSync);
 TH_EXPORT_CPP_API_CreatePixelMapUsingAllocatorSync(ANI::Image::CreatePixelMapUsingAllocatorSync);
 TH_EXPORT_CPP_API_CreateEmptyPixelMapUsingAllocatorSync(ANI::Image::CreateEmptyPixelMapUsingAllocatorSync);
 TH_EXPORT_CPP_API_CreatePixelMapByPtr(ANI::Image::CreatePixelMapByPtr);
+TH_EXPORT_CPP_API_CreatePixelMapFromSurfaceByIdPromise(ANI::Image::CreatePixelMapFromSurfaceByIdSync);
 TH_EXPORT_CPP_API_CreatePixelMapFromSurfaceByIdSync(ANI::Image::CreatePixelMapFromSurfaceByIdSync);
+TH_EXPORT_CPP_API_CreatePixelMapFromSurfaceByIdAndRegionPromise(ANI::Image::CreatePixelMapFromSurfaceByIdAndRegionSync);
 TH_EXPORT_CPP_API_CreatePixelMapFromSurfaceByIdAndRegionSync(ANI::Image::CreatePixelMapFromSurfaceByIdAndRegionSync);
+TH_EXPORT_CPP_API_CreatePixelMapFromSurfaceWithTransformationPromise(
+    ANI::Image::CreatePixelMapFromSurfaceWithTransformationSync);
 TH_EXPORT_CPP_API_CreatePixelMapFromSurfaceWithTransformationSync(
     ANI::Image::CreatePixelMapFromSurfaceWithTransformationSync);
 TH_EXPORT_CPP_API_CreatePixelMapFromParcel(ANI::Image::CreatePixelMapFromParcel);
+TH_EXPORT_CPP_API_CreatePremultipliedPixelMapAsync(ANI::Image::CreatePremultipliedPixelMapSync);
+TH_EXPORT_CPP_API_CreatePremultipliedPixelMapPromise(ANI::Image::CreatePremultipliedPixelMapSync);
 TH_EXPORT_CPP_API_CreatePremultipliedPixelMapSync(ANI::Image::CreatePremultipliedPixelMapSync);
+TH_EXPORT_CPP_API_CreateUnpremultipliedPixelMapAsync(ANI::Image::CreateUnpremultipliedPixelMapSync);
+TH_EXPORT_CPP_API_CreateUnpremultipliedPixelMapPromise(ANI::Image::CreateUnpremultipliedPixelMapSync);
 TH_EXPORT_CPP_API_CreateUnpremultipliedPixelMapSync(ANI::Image::CreateUnpremultipliedPixelMapSync);

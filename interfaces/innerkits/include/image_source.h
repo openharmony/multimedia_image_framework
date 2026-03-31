@@ -306,6 +306,12 @@ public:
     NATIVEEXPORT uint32_t WriteXMPMetadata(std::shared_ptr<XMPMetadata> &xmpMetadata);
     NATIVEEXPORT std::shared_ptr<ImageMetadata> GetMetadata(MetadataType type);
     NATIVEEXPORT uint32_t GetImageRawData(std::vector<uint8_t> &data, uint32_t &bitsPerSample);
+    static int32_t DownSampleThumbnail(std::unique_ptr<PixelMap> &pixelMap, const int32_t maxGenerateSize);
+
+    void SetSystemApi(bool isSystemApi)
+    {
+        isSystemApi_ = isSystemApi;
+    }
 
 private:
     DISALLOW_COPY_AND_MOVE(ImageSource);
@@ -452,6 +458,7 @@ private:
     std::string GetPixelMapName(PixelMap* pixelMap);
     bool IsDngImage();
     bool IsWebPImage();
+    void SetAnimationSize(uint32_t index, const DecodeOptions &opts, ImageInfo &info);
 
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     void SpecialSetComposeBuffer(ImagePlugin::DecodeContext &baseCtx, sptr<SurfaceBuffer>& baseSptr,
@@ -472,7 +479,6 @@ private:
     std::unique_ptr<PixelMap> GenerateThumbnail(const DecodingOptionsForThumbnail &opts, uint32_t &errorCode);
     std::unique_ptr<PixelMap> DecodeExifThumbnail(const DecodingOptionsForThumbnail &opts,
         ImagePlugin::DecodeContext &context, const std::string &format, uint32_t &errorCode);
-    void SetThumbnailForPicture(std::unique_ptr<Picture> &picture, const std::string &mimeType);
     std::unique_ptr<PixelMap> DecodeHeifParserThumbnail(const DecodingOptionsForThumbnail &opts,
         ImagePlugin::DecodeContext &context, const std::string &format, uint32_t &errorCode);
 #endif
@@ -523,6 +529,7 @@ private:
     XmageCoordinateMetadata coordMetadata_;
     bool hasValidXmageCoords_ = false;
     std::shared_ptr<XMPMetadata> xmpMetadata_ = nullptr;
+    bool isSystemApi_ = false;
 };
 } // namespace Media
 } // namespace OHOS

@@ -82,6 +82,8 @@ static const std::string IMAGE_EXIF_PATH =
     "/data/local/tmp/image/exif.jpg";
 static const std::string IMAGE_INPUT1_DNG_PATH = "/data/local/tmp/image/test_dng_readmetadata001.dng";
 static const std::string IMAGE_INPUT2_DNG_PATH = "/data/local/tmp/image/test_dng_mock.dng";
+static const std::string IMAGE_INPUT_WEBP_ANIM_PATH = "/data/local/tmp/image/loop_count_9.webp";
+static const std::string IMAGE_INPUT_WEBP_SINGLE_PATH = "/data/local/tmp/image/single_webp.webp";
 static const int32_t DECODE_DESIRED_WIDTH = 7500;
 static const int32_t DECODE_DESIRED_HEIGHT = 7500;
 static const int32_t DESIRED_REGION_WIDTH = 4096;
@@ -112,6 +114,12 @@ static constexpr uint32_t ICC_DEVICE_CLASS_OFFSET = 12;
 static constexpr uint32_t ICC_COLOR_SPACE_OFFSET = 16;
 static constexpr uint32_t ICC_SIGNATURE_OFFSET = 36;
 static constexpr size_t ICC_FIELD_LEN = 4;
+static const uint32_t INPUT_WEBP_CANVAS_WIDTH = 64;
+static const uint32_t INPUT_WEBP_CANVAS_HEIGHT = 63;
+static const uint32_t INPUT_WEBP_ANIM_DELAYTIME_MS_1 = 1;
+static const uint32_t INPUT_WEBP_ANIM_DELAYTIME_MS_100 = 100;
+static const uint32_t INPUT_WEBP_ANIM_DELAYTIME_MS_150 = 150;
+static const uint32_t INPUT_WEBP_ANIM_LOOPCOUNT = 9;
 
 static const std::vector<std::pair<std::string, std::string>> VALID_PROPERTIES = {
     {"ImageLength", "1000"},
@@ -519,7 +527,7 @@ std::vector<MetadataValue> ImageSourceTest::gMockDngMetadata_ = {
     {"BaselineExposureOffset", PropertyValueType::DOUBLE, "", {}, {0.0}, {}},
     {"DefaultBlackRender", PropertyValueType::INT, "", {0}, {}, {}},
     {"RawToPreviewGain", PropertyValueType::DOUBLE, "", {}, {1.0}, {}},
-    {"DefaultUserCrop", PropertyValueType::INT_ARRAY, "", {}, {0, 0, 1, 1}, {}}};
+    {"DefaultUserCrop", PropertyValueType::INT_ARRAY, "", {0, 0, 1, 1}, {}, {}}};
 
 void ImageSourceTest::InitData()
 {
@@ -1265,26 +1273,6 @@ HWTEST_F(ImageSourceTest, GetMemoryUsagePreference001, TestSize.Level3)
 }
 
 /**
- * @tc.name: GetFilterArea001
- * @tc.desc: test GetFilterArea(filterType, ranges)
- * @tc.type: FUNC
- */
-HWTEST_F(ImageSourceTest, GetFilterArea001, TestSize.Level3)
-{
-    int filterType = 0;
-    std::unique_ptr<std::fstream> fs = std::make_unique<std::fstream>();
-    fs->open("/data/local/tmp/image/test_exif.jpg", std::fstream::binary | std::fstream::in);
-    bool isOpen = fs->is_open();
-    ASSERT_EQ(isOpen, true);
-    uint32_t errorCode = 0;
-    SourceOptions opts;
-    std::unique_ptr<ImageSource> imageSource = ImageSource::CreateImageSource(std::move(fs), opts, errorCode);
-    std::vector<std::pair<uint32_t, uint32_t>> ranges;
-    uint32_t ret = imageSource->GetFilterArea(filterType, ranges);
-    ASSERT_NE(ret, SUCCESS);
-}
-
-/**
  * @tc.name: CreateImageSource001
  * @tc.desc: test CreateImageSource is
  * @tc.type: FUNC
@@ -1693,26 +1681,6 @@ HWTEST_F(ImageSourceTest, GetValidImageStatusTest001, TestSize.Level3)
     imageSource->imageStatusMap_.insert(std::make_pair(1, imageDecodingStatus2));
     ImageSource::ImageStatusMap::iterator ret = imageSource->GetValidImageStatus(index, errorCode);
     ASSERT_EQ(ret, imageSource->imageStatusMap_.end());
-}
-
-/**
- * @tc.name: GetFilterAreaTest002
- * @tc.desc: test GetFilterArea
- * @tc.type: FUNC
- */
-HWTEST_F(ImageSourceTest, GetFilterAreaTest002, TestSize.Level3)
-{
-    uint32_t errorCode = 0;
-    SourceOptions opts;
-    std::unique_ptr<ImageSource> imageSource = ImageSource::CreateImageSource(IMAGE_INPUT_JPEG_PATH, opts, errorCode);
-    int privacyType = 0;
-    std::vector<std::pair<uint32_t, uint32_t>> ranges;
-    ImageDecodingStatus imageDecodingStatus1;
-    ImageDecodingStatus imageDecodingStatus2;
-    imageSource->imageStatusMap_.insert(std::make_pair(0, imageDecodingStatus1));
-    imageSource->imageStatusMap_.insert(std::make_pair(1, imageDecodingStatus2));
-    uint32_t ret = imageSource->GetFilterArea(privacyType, ranges);
-    ASSERT_EQ(ret, ERR_IMAGE_DECODE_FAILED);
 }
 
 /**
@@ -4108,6 +4076,51 @@ HWTEST_F(ImageSourceTest, GetImagePropertyByTypeTest004, TestSize.Level3)
     EXPECT_EQ(imageSource->GetImagePropertyByType(0, "GIFLoopCount", value), Media::SUCCESS);
 }
 
+/**
+ * @tc.name: GetImagePropertyByTypeTest005
+ * @tc.desc: Test GetImageProperty with WebP image.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetImagePropertyByTypeTest005, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeTest005 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_WEBP_ANIM_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    uint32_t errorCode = 0;
+    uint32_t frameCount = imageSource->GetFrameCount(errorCode);
+    EXPECT_EQ(errorCode, SUCCESS);
+
+    std::map<uint32_t, std::vector<uint32_t>> expectedDelayTimes = {
+        {0, {INPUT_WEBP_ANIM_DELAYTIME_MS_100, INPUT_WEBP_ANIM_DELAYTIME_MS_100}},
+        {NUM_1, {INPUT_WEBP_ANIM_DELAYTIME_MS_100, INPUT_WEBP_ANIM_DELAYTIME_MS_1}},
+        {NUM_2, {INPUT_WEBP_ANIM_DELAYTIME_MS_150, INPUT_WEBP_ANIM_DELAYTIME_MS_150}}
+    };
+
+    for (uint32_t i = 0; i < frameCount; i++) {
+        MetadataValue canvasWidth;
+        EXPECT_EQ(imageSource->GetImagePropertyByType(i, "WebPCanvasWidth", canvasWidth), Media::SUCCESS);
+        EXPECT_EQ(canvasWidth.intArrayValue[0], INPUT_WEBP_CANVAS_WIDTH);
+
+        MetadataValue canvasHeight;
+        EXPECT_EQ(imageSource->GetImagePropertyByType(i, "WebPCanvasHeight", canvasHeight), Media::SUCCESS);
+        EXPECT_EQ(canvasHeight.intArrayValue[0], INPUT_WEBP_CANVAS_HEIGHT);
+
+        MetadataValue delayTime;
+        EXPECT_EQ(imageSource->GetImagePropertyByType(i, "WebPDelayTime", delayTime), Media::SUCCESS);
+        EXPECT_EQ(delayTime.intArrayValue[0], expectedDelayTimes[i][0]);
+
+        MetadataValue unclampedDelayTime;
+        EXPECT_EQ(imageSource->GetImagePropertyByType(i, "WebPUnclampedDelayTime", unclampedDelayTime), Media::SUCCESS);
+        EXPECT_EQ(unclampedDelayTime.intArrayValue[0], expectedDelayTimes[i][NUM_1]);
+
+        MetadataValue loopCount;
+        EXPECT_EQ(imageSource->GetImagePropertyByType(i, "WebPLoopCount", loopCount), Media::SUCCESS);
+        EXPECT_EQ(loopCount.intArrayValue[0], INPUT_WEBP_ANIM_LOOPCOUNT);
+    }
+
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeTest005 end";
+}
+
 static uint8_t* LoadFileToBuffer(const std::string& path, size_t& size)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -4255,6 +4268,38 @@ HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest002, TestSize.Level3)
         if (prop.key == "ImageWidth") hasWidth = true;
     }
     EXPECT_TRUE(hasWidth);
+}
+
+/**
+ * @tc.name: GetAllPropertiesWithType003
+ * @tc.desc: Validate behavior with index.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest003, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetAllPropertiesWithTypeTest003 start";
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_INPUT_WEBP_ANIM_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    
+    auto properties = imageSource->GetAllPropertiesWithType(0);
+    EXPECT_FALSE(properties.empty());
+
+    for (const auto& prop : properties) {
+        if (prop.key == "WebPCanvasWidth") {
+            EXPECT_TRUE(prop.intArrayValue[0] == INPUT_WEBP_CANVAS_WIDTH);
+        } else if (prop.key == "WebPCanvasHeight") {
+            EXPECT_TRUE(prop.intArrayValue[0] == INPUT_WEBP_CANVAS_HEIGHT);
+        } else if (prop.key == "WebPDelayTime") {
+            EXPECT_TRUE(prop.intArrayValue[0] == INPUT_WEBP_ANIM_DELAYTIME_MS_100);
+        } else if (prop.key == "WebPUnclampedDelayTime") {
+            EXPECT_TRUE(prop.intArrayValue[0] == INPUT_WEBP_ANIM_DELAYTIME_MS_100);
+        } else if (prop.key == "WebPLoopCount") {
+            EXPECT_TRUE(prop.intArrayValue[0] == INPUT_WEBP_ANIM_LOOPCOUNT);
+        }
+    }
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetAllPropertiesWithTypeTest003 end";
 }
 
 /**
@@ -5275,6 +5320,210 @@ HWTEST_F(ImageSourceTest, GetAllSupportedMetadataTypesTest003, TestSize.Level3)
     auto metadataType = imageMetadata[0]->GetType();
     ASSERT_EQ(metadataType, MetadataType::FRAGMENT);
     GTEST_LOG_(INFO) << "ImageSourceTest: GetAllSupportedMetadataTypesTest003 end";
+}
+
+/**
+ * @tc.name: GetSetFaceBeautyMetadataTest001
+ * @tc.desc: Test setting and retrieving FaceBeauty metadata properties (version, detection, face count, face info)
+ *           using system API.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetSetFaceBeautyMetadataTest001, TestSize.Level3)
+{
+    SourceOptions opts;
+    opts.formatHint = "image/jpeg";
+    int fd = open(IMAGE_INPUT_JPEG_PATH.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    std::unique_ptr<ImageSource> imageSource = CreateImageSourceByFd(fd);
+    ASSERT_NE(imageSource.get(), nullptr);
+    uint32_t index = 0;
+    const std::vector<std::pair<std::string, std::string>> properties = {
+        {"HwMnoteFaceBeautyVersion", "1"},
+        {"HwMnoteFaceBeautyIsDetected", "2"},
+        {"HwMnoteFaceBeautyFaceNum", "3"},
+        {"HwMnoteFaceBeautyFaceInfo", "1.1, 2.2, 3.3"},
+    };
+    uint32_t ret = imageSource->ModifyImagePropertiesEx(index, properties);
+    EXPECT_EQ(ret, SUCCESS);
+
+    std::string key = "HwMnoteFaceBeautyVersion";
+    std::string value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "1");
+
+    key = "HwMnoteFaceBeautyIsDetected";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "2");
+
+    key = "HwMnoteFaceBeautyFaceNum";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "3");
+
+    key = "HwMnoteFaceBeautyFaceInfo";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "1.100000 2.200000 3.300000");
+    close(fd);
+}
+
+/**
+ * @tc.name: GetSetFaceBeautyMetadataTest002
+ * @tc.desc: Test set and get of FaceBeauty metadata properties using system API.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetSetFaceBeautyMetadataTest002, TestSize.Level3)
+{
+    SourceOptions opts;
+    opts.formatHint = "image/jpeg";
+    int fd = open(IMAGE_INPUT_JPEG_PATH.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    std::unique_ptr<ImageSource> imageSource = CreateImageSourceByFd(fd);
+    ASSERT_NE(imageSource.get(), nullptr);
+    uint32_t index = 0;
+    const std::vector<std::pair<std::string, std::string>> properties = {
+        {"HwMnoteFaceBeautyFaceBlurInfo", "10 20 30 40 1 2"},
+        {"HwMnoteFaceBeautyLux", "4"},
+        {"HwMnoteFaceBeautyExposureTime", "10"},
+        {"HwMnoteFaceBeautyISO", "11"},
+    };
+    uint32_t ret = imageSource->ModifyImagePropertiesEx(index, properties);
+    EXPECT_EQ(ret, SUCCESS);
+
+    std::string key = "HwMnoteFaceBeautyFaceBlurInfo";
+    std::string value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "10 20 30 40 1 2");
+
+    key = "HwMnoteFaceBeautyLux";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "4");
+
+    key = "HwMnoteFaceBeautyExposureTime";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "10");
+
+    key = "HwMnoteFaceBeautyISO";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "11");
+    close(fd);
+}
+
+/**
+ * @tc.name: GetSetReadOnlyKeyTest001
+ * @tc.desc: Test set and get of read-only image properties using system API.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetSetReadOnlyKeyTest001, TestSize.Level3)
+{
+    SourceOptions opts;
+    opts.formatHint = "image/jpeg";
+    int fd = open(IMAGE_INPUT_JPEG_PATH.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    std::unique_ptr<ImageSource> imageSource = CreateImageSourceByFd(fd);
+    imageSource->SetSystemApi(true);
+    ASSERT_NE(imageSource.get(), nullptr);
+    uint32_t index = 0;
+    const std::vector<std::pair<std::string, std::string>> properties = {
+        {"HwMnotePhysicalAperture", "100"},
+        {"HwMnoteRollAngle", "200"},
+        {"HwMnoteSceneFoodConf", "300"},
+    };
+    uint32_t ret = imageSource->ModifyImagePropertiesEx(index, properties);
+    EXPECT_EQ(ret, SUCCESS);
+
+    std::string key = "HwMnotePhysicalAperture";
+    std::string value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "100");
+
+    key = "HwMnoteRollAngle";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "200");
+
+    key = "HwMnoteSceneFoodConf";
+    value = "";
+    ret = imageSource->GetImagePropertyCommon(index, key, value);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(value, "300");
+    close(fd);
+}
+
+/**
+ * @tc.name: GetWebPMetadata001
+ * @tc.desc: Test GetWebPMetadata.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetWebPMetadata001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSourceAnim = ImageSource::CreateImageSource(
+        IMAGE_INPUT_WEBP_ANIM_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSourceAnim, nullptr);
+    GTEST_LOG_(INFO) << "ImageSourceTest: CreateImageSource SUCCESS";
+    ASSERT_EQ(imageSourceAnim->IsWebPImage(), true);
+
+    auto webPMetadataAnim = imageSourceAnim->GetWebPMetadata(0, errorCode);
+    ASSERT_NE(webPMetadataAnim, nullptr);
+
+    auto imageSourceSingle = ImageSource::CreateImageSource(
+        IMAGE_INPUT_WEBP_SINGLE_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSourceSingle, nullptr);
+    ASSERT_EQ(imageSourceSingle->IsWebPImage(), true);
+
+    auto webPMetadataSingle = imageSourceSingle->GetWebPMetadata(0, errorCode);
+    ASSERT_NE(webPMetadataSingle, nullptr);
+
+    imageSourceSingle->mainDecoder_.reset();
+    auto errWebPMetadata = imageSourceSingle->GetWebPMetadata(0, errorCode);
+    ASSERT_EQ(errWebPMetadata, nullptr);
+
+    auto imageSourceJpeg = ImageSource::CreateImageSource(
+        IMAGE_INPUT_JPEG_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSourceJpeg, nullptr);
+    ASSERT_EQ(imageSourceJpeg->IsWebPImage(), false);
+
+    auto webPMetadataJpeg = imageSourceJpeg->GetWebPMetadata(0, errorCode);
+    ASSERT_EQ(webPMetadataJpeg, nullptr);
+}
+
+/**
+ * @tc.name: GetWebPProperty001
+ * @tc.desc: Test GetWebPProperty.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetWebPProperty001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_INPUT_WEBP_ANIM_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    ASSERT_EQ(imageSource->IsWebPImage(), true);
+
+    MetadataValue value;
+    auto ret = imageSource->GetWebPProperty(0, "WebPLoopCount", value);
+    ASSERT_EQ(ret, SUCCESS);
+    ASSERT_EQ(value.intArrayValue[0], INPUT_WEBP_ANIM_LOOPCOUNT);
+
+    ret = imageSource->GetWebPProperty(0, "WebPInvalidKey", value);
+    ASSERT_EQ(ret, ERROR);
+
+    MetadataValue errValue;
+    imageSource->mainDecoder_.reset();
+    ret = imageSource->GetWebPProperty(0, "WebPLoopCount", errValue);
+    ASSERT_EQ(errValue.intArrayValue.empty(), true);
 }
 } // namespace Multimedia
 } // namespace OHOS

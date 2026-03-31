@@ -420,6 +420,7 @@ struct DecodeOptions {
     std::shared_ptr<PixelMap> reusePixelmap = nullptr;
     CropAndScaleStrategy cropAndScaleStrategy = CropAndScaleStrategy::DEFAULT;
     bool isCreateWideGamutSdrPixelMap = false;
+    bool isAnimationDecode = false;
 };
 
 enum class ScaleMode : int32_t {
@@ -451,7 +452,7 @@ enum class AuxiliaryPictureType {
     UNREFOCUS_MAP = 3,
     LINEAR_MAP = 4,
     FRAGMENT_MAP = 5,
-    THUMBNAIL = 10,
+    THUMBNAIL = 101,
 };
 
 struct DownSamplingScaleFactor {
@@ -486,6 +487,7 @@ enum class MetadataType {
     HEIFS = 15,
     DNG = 16,
     WEBP = 17,
+    HW_MAKER_NOTE = 18,
 };
 
 static const std::map<MetadataType, std::string> BLOB_METADATA_TAG_MAP = {
@@ -505,8 +507,8 @@ struct DecodingOptionsForPicture {
 };
 
 struct DecodingOptionsForThumbnail {
-    Size desiredSize;
-    bool needGenerate = false;
+    int32_t maxGenerateSize = 512;
+    bool generateThumbnailIfAbsent = true;
     PixelFormat desiredPixelFormat = PixelFormat::RGBA_8888;
     AllocatorType allocatorType = AllocatorType::DMA_ALLOC;
 };

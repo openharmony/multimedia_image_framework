@@ -93,7 +93,6 @@ namespace {
     constexpr static int32_t OFFSET = 1;
     constexpr static size_t SIZE_ZERO = 0;
     constexpr static uint32_t DEFAULT_SAMPLE_SIZE = 1;
-    constexpr static uint32_t NO_EXIF_TAG = 1;
     constexpr static uint32_t OFFSET_0 = 0;
     constexpr static uint32_t OFFSET_1 = 1;
     constexpr static uint32_t OFFSET_2 = 2;
@@ -785,7 +784,7 @@ uint32_t ExtDecoder::ExtractHeifRegion(const PixelDecodeOptions &opts)
             gridInfo.tileHeight != static_cast<uint32_t>(info_.height())) {
             heifGridRegionInfo_.isGridType = true;
             heifGridRegionInfo_.tileWidth = static_cast<int32_t>(gridInfo.tileWidth);
-            heifGridRegionInfo_.tileHeight = static_cast<uint32_t>(gridInfo.tileHeight);
+            heifGridRegionInfo_.tileHeight = static_cast<int32_t>(gridInfo.tileHeight);
         }
         PixelDecodeOptions heifOpts = opts;
         if (!IsHeifValidCrop(heifOpts.CropRect, info_, static_cast<int32_t>(gridInfo.cols),
@@ -1459,10 +1458,8 @@ bool ExtDecoder::IsSupportHeifHardwareDecode(const PixelDecodeOptions &opts)
 {
 #ifdef HEIF_HW_DECODE_ENABLE
     auto decoder = reinterpret_cast<HeifDecoderImpl*>(codec_->getHeifContext());
-    if (decoder == nullptr) {
-        IMAGE_LOGE("Decode HeifDecoder is nullptr");
-        return false;
-    }
+    bool cond = decoder == nullptr;
+    CHECK_ERROR_RETURN_RET_LOG(cond, false, "Decode Heifdecoder is nullptr");
     GridInfo gridInfo = decoder->GetGridInfo();
     if (!ImageSystemProperties::GetHeifHardwareDecodeEnabled()) {
         return false;
@@ -1552,7 +1549,11 @@ void ExtDecoder::SetHeifSampleSize(const PixelDecodeOptions &opts, int &dstWidth
 {
 #ifdef HEIF_HW_DECODE_ENABLE
     float scale = ZERO;
-    if (IsSupportHeifHardwareDecode(opts) && IsLowDownScale(opts.desiredSize, info_) &&
+    if (opts.isAnimationDecode) {
+        sampleSize_ = DEFAULT_SAMPLE_SIZE;
+        dstInfo_ = SkImageInfo::Make(animationSize_.width, animationSize_.height,
+            desireColor, desireAlpha, getDesiredColorSpace(info_, opts));
+    } else if (IsSupportHeifHardwareDecode(opts) && IsLowDownScale(opts.desiredSize, info_) &&
         GetHardwareScaledSize(dstWidth, dstHeight, scale) && IsDivisibleBySampleSize()) {
             dstInfo_ = SkImageInfo::Make(dstWidth, dstHeight,
                 desireColor, desireAlpha, getDesiredColorSpace(info_, opts));
@@ -1706,6 +1707,9 @@ uint32_t ExtDecoder::Decode(uint32_t index, DecodeContext &context)
     }
 #endif
     if (skEncodeFormat == SkEncodedImageFormat::kHEIF) {
+        if (!context.isAnimationDecode && index > 0) {
+            context.isAnimationDecode = true;
+        }
         context.index = index;
         return DoHeifDecode(context);
     }
@@ -2321,6 +2325,7 @@ bool ExtDecoder::DecodeHeader()
         uint32_t frameCount = 0;
         if (decoder && decoder->GetHeifsFrameCount(frameCount)) {
             frameCount_ = static_cast<int32_t>(frameCount);
+            decoder->GetAnimationSize(animationSize_);
         }
     }
 #endif
@@ -2646,20 +2651,6 @@ static uint32_t ProcessWithStreamData(InputDataStream *input,
     return process(tmpBuffer.get(), copySize);
 }
 
-static bool ParseExifData(InputDataStream *input, EXIFInfo &info)
-{
-    if (info.IsExifDataParsed()) {
-        return true;
-    }
-    IMAGE_LOGD("ParseExifData enter");
-    auto code = ProcessWithStreamData(input, [&info](uint8_t* buffer, size_t size) {
-        return info.ParseExifData(buffer, size);
-    });
-    bool cond = code != SUCCESS;
-    CHECK_ERROR_PRINT_LOG(cond, "Error parsing EXIF: code %{public}d", code);
-    return code == SUCCESS;
-}
-
 bool ExtDecoder::GetPropertyCheck(uint32_t index, const std::string &key, uint32_t &res)
 {
     if (IsSameTextStr(key, ACTUAL_IMAGE_ENCODED_FORMAT)) {
@@ -2679,11 +2670,7 @@ bool ExtDecoder::GetPropertyCheck(uint32_t index, const std::string &key, uint32
         res = Media::ERR_MEDIA_VALUE_INVALID;
         return true;
     }
-    auto result = ParseExifData(stream_, exifInfo_);
-    if (!result) {
-        res = Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
-    }
-    return result;
+    return true;
 }
 
 #ifdef HEIF_HW_DECODE_ENABLE
@@ -2774,16 +2761,7 @@ uint32_t ExtDecoder::GetImagePropertyInt(uint32_t index, const std::string &key,
     if (res == Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT) {
         return res;
     }
-    // Need exif property following
-    if (IsSameTextStr(key, TAG_ORIENTATION_STRING)) {
-        std::string strValue;
-        res = exifInfo_.GetExifData(TAG_ORIENTATION_INT, strValue);
-        if (res != SUCCESS) {
-            return res;
-        }
-        value = atoi(strValue.c_str());
-        return res;
-    }
+
     IMAGE_LOGE("[GetImagePropertyInt] The key:%{public}s is not supported int32_t", key.c_str());
     return Media::ERR_MEDIA_VALUE_INVALID;
 }
@@ -2903,75 +2881,8 @@ uint32_t ExtDecoder::GetImagePropertyString(uint32_t index, const std::string &k
     if (res == Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT) {
         return res;
     }
-    // Need exif property following
-    if (key.find(HW_MNOTE_TAG_HEADER) != std::string::npos) {
-        res = GetMakerImagePropertyString(key, value);
-        if (value.length() == 0) {
-            value = DEFAULT_EXIF_VALUE;
-            IMAGE_LOGE("[GetImagePropertyString]The image does not contain the %{public}s  tag ", key.c_str());
-        }
-        return res;
-    }
-    res = exifInfo_.GetExifData(key, value);
-    IMAGE_LOGD("[GetImagePropertyString] enter jpeg plugin, value:%{public}s", value.c_str());
+
     return res;
-}
-
-uint32_t ExtDecoder::GetMakerImagePropertyString(const std::string &key, std::string &value)
-{
-    if (exifInfo_.makerInfoTagValueMap.find(key) != exifInfo_.makerInfoTagValueMap.end()) {
-        value = exifInfo_.makerInfoTagValueMap[key];
-        return SUCCESS;
-    }
-    return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
-}
-
-uint32_t ExtDecoder::ModifyImageProperty(uint32_t index, const std::string &key,
-    const std::string &value, const std::string &path)
-{
-    IMAGE_LOGD("[ModifyImageProperty] with key:%{public}s", key.c_str());
-    return exifInfo_.ModifyExifData(key, value, path);
-}
-
-uint32_t ExtDecoder::ModifyImageProperty(uint32_t index, const std::string &key,
-    const std::string &value, const int fd)
-{
-    IMAGE_LOGD("[ModifyImageProperty] with fd:%{public}d, key:%{public}s, value:%{public}s",
-        fd, key.c_str(), value.c_str());
-    return exifInfo_.ModifyExifData(key, value, fd);
-}
-
-uint32_t ExtDecoder::ModifyImageProperty(uint32_t index, const std::string &key,
-    const std::string &value, uint8_t *data, uint32_t size)
-{
-    IMAGE_LOGD("[ModifyImageProperty] with key:%{public}s, value:%{public}s",
-        key.c_str(), value.c_str());
-    return exifInfo_.ModifyExifData(key, value, data, size);
-}
-
-uint32_t ExtDecoder::GetFilterArea(const int &privacyType, std::vector<std::pair<uint32_t, uint32_t>> &ranges)
-{
-    IMAGE_LOGD("[GetFilterArea] with privacyType:%{public}d ", privacyType);
-    if (!CheckCodec()) {
-        IMAGE_LOGD("[GetFilterArea] Check codec failed");
-        return NO_EXIF_TAG;
-    }
-    SkEncodedImageFormat format = codec_->getEncodedFormat();
-    if (format != SkEncodedImageFormat::kJPEG) {
-        return NO_EXIF_TAG;
-    }
-    constexpr size_t APP1_SIZE_H_OFF = 4;
-    constexpr size_t APP1_SIZE_L_OFF = 5;
-    constexpr size_t U8_SHIFT = 8;
-    return ProcessWithStreamData(stream_, [this, &privacyType, &ranges](uint8_t* buffer, size_t size) {
-        size_t appSize = (static_cast<size_t>(buffer[APP1_SIZE_H_OFF]) << U8_SHIFT) | buffer[APP1_SIZE_L_OFF];
-        IMAGE_LOGD("[GetFilterArea]: get app1 area size");
-        appSize += APP1_SIZE_H_OFF;
-        auto ret = exifInfo_.GetFilterArea(buffer, (appSize < size) ? appSize : size, privacyType, ranges);
-        bool cond = (ret != SUCCESS);
-        CHECK_ERROR_PRINT_LOG(cond, "[GetFilterArea]: failed to get area %{public}d", ret);
-        return ret;
-    });
 }
 
 uint32_t ExtDecoder::GetTopLevelImageNum(uint32_t &num)
@@ -3500,9 +3411,6 @@ bool ExtDecoder::DecodeHeifAuxiliaryMap(DecodeContext& context, AuxiliaryPicture
     uint64_t byteCount = tempByteCount;
     context.info.size.width = static_cast<int32_t>(width);
     context.info.size.height = static_cast<int32_t>(height);
-    if (!SetOutPutFormat(context.info.pixelFormat, decoder)) {
-        return ERR_IMAGE_DATA_UNSUPPORT;
-    }
     cond = DmaMemAlloc(context, byteCount, dstInfo) != SUCCESS;
     CHECK_INFO_RETURN_RET_LOG(cond, false, "DmaMemAlloc execution failed.");
     auto* dstBuffer = static_cast<uint8_t*>(context.pixelsBuffer.buffer);
@@ -3534,7 +3442,7 @@ bool ExtDecoder::IsHeifsDecode(DecodeContext& context)
     uint32_t frameCount = 0;
     cond = decoder->GetHeifsFrameCount(frameCount) && (context.index < frameCount);
     CHECK_ERROR_RETURN_RET_LOG(!cond, false, "IsHeifsDecode failed, frame count error.");
-    return decoder->IsHeifsImage();
+    return decoder->IsHeifsImage() && (context.isAnimationDecode || decoder->IsWithoutPrimaryImageHeifs());
 #endif
     return false;
 }
@@ -3549,10 +3457,12 @@ uint32_t ExtDecoder::DoHeifsDecode(DecodeContext &context)
     UpdateDstInfoAndOutInfo(context);
     rowStride = dstInfo_.minRowBytes64();
     byteCount = dstInfo_.computeMinByteSize();
+    uint64_t byteCountPrimaryImage = info_.computeMinByteSize();
     GridInfo gridInfo = decoder->GetGridInfo();
     if (IsYuv420Format(context.info.pixelFormat)) {
         rowStride = static_cast<uint32_t>(dstInfo_.width());
         byteCount = JpegDecoderYuv::GetYuvOutSize(dstInfo_.width(), dstInfo_.height());
+        byteCountPrimaryImage = JpegDecoderYuv::GetYuvOutSize(info_.width(), info_.height());
     }
     CHECK_ERROR_RETURN_RET_LOG(SkImageInfo::ByteSizeOverflowed(byteCount), ERR_IMAGE_TOO_LARGE,
         "%{public}s too large byteCount: %{public}llu", __func__, static_cast<unsigned long long>(byteCount));
@@ -3573,8 +3483,9 @@ uint32_t ExtDecoder::DoHeifsDecode(DecodeContext &context)
     CHECK_ERROR_RETURN_RET(res != SUCCESS, res);
     decoder->setDstBuffer(reinterpret_cast<uint8_t *>(context.pixelsBuffer.buffer), rowStride, nullptr);
     decoder->SetDstBufferSize(byteCount);
+    decoder->SetDstPrimaryImageBufferSize(byteCountPrimaryImage);
     decoder->SetDstImageInfo(dstInfo_.width(), dstInfo_.height());
-    bool decodeRet = decoder->SwDecode(false, context.index);
+    bool decodeRet = decoder->SwDecode(false, context.index, context.isAnimationDecode);
     if (!decodeRet) {
         decoder->getErrMsg(context.hardDecodeError);
     } else if (IsYuv420Format(context.info.pixelFormat)) {
@@ -3584,6 +3495,11 @@ uint32_t ExtDecoder::DoHeifsDecode(DecodeContext &context)
 #else
     return ERR_IMAGE_DATA_UNSUPPORT;
 #endif
+}
+
+OHOS::Media::Size ExtDecoder::GetAnimationImageSize()
+{
+    return animationSize_;
 }
 } // namespace ImagePlugin
 } // namespace OHOS

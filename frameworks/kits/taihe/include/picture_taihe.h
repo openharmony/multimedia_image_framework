@@ -36,10 +36,10 @@ public:
     static Picture CreatePicture(std::shared_ptr<OHOS::Media::Picture> picture);
 
     optional<PixelMap> GetMainPixelmap();
+    optional<PixelMap> GetHdrComposedPixelmapTaiHe(bool withOptions, optional_view<HdrComposeOptions> options);
     optional<PixelMap> GetHdrComposedPixelmapSync();
+    optional<PixelMap> GetHdrComposedPixelmapWithOptionsSync(optional_view<HdrComposeOptions> options);
     NullablePixelMap GetGainmapPixelmap();
-    NullablePixelMap GetThumbnailPixelmap();
-    void SetThumbnailPixelmap(PixelMap thumbnailPixelmap);
     void SetAuxiliaryPicture(AuxiliaryPictureType type, weak::AuxiliaryPicture auxiliaryPicture);
     AuxPicture GetAuxiliaryPicture(AuxiliaryPictureType type);
     void DropAuxiliaryPicture(AuxiliaryPictureType type);
