@@ -93,6 +93,18 @@ bool SLRCheck(const SLRMat &src, const SLRMat &dst, const SLRWeightMat &x, const
     CHECK_ERROR_RETURN_RET(x == nullptr || y == nullptr, false);
     CHECK_ERROR_RETURN_RET(src.size_.width == 0 || src.size_.height == 0, false);
     CHECK_ERROR_RETURN_RET(dst.size_.width == 0 || dst.size_.height == 0, false);
+    CHECK_ERROR_RETURN_RET((*x).empty() || (*y).empty(), false);
+    CHECK_ERROR_RETURN_RET(static_cast<int>((*x).size()) != dst.size_.width, false);
+    CHECK_ERROR_RETURN_RET(static_cast<int>((*y).size()) != dst.size_.height, false);
+
+    float coeffX = static_cast<float>(dst.size_.height) / src.size_.height;
+    float coeffY = static_cast<float>(dst.size_.width) / src.size_.width;
+    float taoX = 1 / coeffX;
+    float taoY = 1 / coeffY;
+    int aX = std::max(2, static_cast<int>(std::floor(taoX)));
+    int aY = std::max(2, static_cast<int>(std::floor(taoY)));
+    CHECK_ERROR_RETURN_RET((*x)[0].size() < static_cast<size_t>(2 * aY), false);
+    CHECK_ERROR_RETURN_RET((*y)[0].size() < static_cast<size_t>(2 * aX), false);
     return true;
 }
 
@@ -131,11 +143,11 @@ bool SLRBoxCheck(const SLRSliceKey &key, const SLRMat &src, const SLRMat &dst, c
     float taoY = 1 / coeffY;
     int aX = std::max(2, static_cast<int>(std::floor(taoX)));
     int aY = std::max(2, static_cast<int>(std::floor(taoY))); // 2 default size
-    if (static_cast<int>((*x).size()) < key.y || static_cast<int>((*x)[0].size()) < 2 * aY) { // 2 max slr box size
+    if (key.y >= static_cast<int>((*x).size()) || static_cast<int>((*x)[0].size()) < 2 * aY) { // 2 max slr box size
         IMAGE_LOGE("SLRBoxCheck h_y error:%{public}zu, %{public}d", (*x).size(), aY);
         return false;
     }
-    if (static_cast<int>((*y).size()) < key.x || static_cast<int>((*y)[0].size()) < 2 * aX) { // 2 max slr box size
+    if (key.x >= static_cast<int>((*y).size()) || static_cast<int>((*y)[0].size()) < 2 * aX) { // 2 max slr box size
         IMAGE_LOGE("SLRBoxCheck h_x error:%{public}zu, %{public}d", (*y).size(), aX);
         return false;
     }

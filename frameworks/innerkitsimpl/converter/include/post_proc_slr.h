@@ -78,6 +78,13 @@ public:
             return SkFloat2Bits(a);
         }
     }
+
+    bool Match(Size src, Size dst) const
+    {
+        return src_.width == src.width && src_.height == src.height &&
+            dst_.width == dst.width && dst_.height == dst.height;
+    }
+
     Size src_;
     Size dst_;
     uint32_t fKey;
