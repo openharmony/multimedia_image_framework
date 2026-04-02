@@ -501,7 +501,7 @@ void PixelMapImpl::ReadAllPixelsToBufferImpl(array_view<uint8_t> const& dst)
     } else if (status == Media::ERR_IMAGE_READ_PIXELMAP_FAILED) {
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
     } else if (status != Media::SUCCESS) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_GET_IMAGE_DATA_FAILED,
             "Failed to read the pixel data. (" + std::to_string(status) + ")");
     }
 }
@@ -535,7 +535,7 @@ void PixelMapImpl::ReadPixelsToAreaHelperImpl(weak::PositionArea const& area, ar
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED,
             "Failed to copy the area pixel data.");
     } else if (status != Media::SUCCESS) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_GET_IMAGE_DATA_FAILED,
             "Failed to read the area pixel data. (" + std::to_string(status) + ")");
     }
 }
@@ -567,7 +567,7 @@ void PixelMapImpl::WriteAllPixelsFromBufferImpl(array_view<uint8_t> const& src)
     } else if (status == Media::ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
     } else if (status != Media::SUCCESS) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_GET_IMAGE_DATA_FAILED,
             "Failed to write the pixel data. (" + std::to_string(status) + ")");
     }
 }
@@ -604,7 +604,7 @@ void PixelMapImpl::WritePixelsFromAreaImpl(weak::PositionArea const& area)
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_COPY_FAILED,
             "Failed to copy the area pixel data.");
     } else if (status != Media::SUCCESS) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_GET_IMAGE_DATA_FAILED,
             "Failed to write the area pixel data. (" + std::to_string(status) + ")");
     }
 }
@@ -985,7 +985,7 @@ void PixelMapImpl::ApplyCropSync(::ohos::multimedia::image::image::Region const&
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_ALLOC_FAILED,
             "Failed to allocate memory or process pixel data for crop.");
     } else if (status != Media::SUCCESS) {
-        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_UNKNOWN_ERROR,
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_GET_IMAGE_DATA_FAILED,
             "Failed to crop the PixelMap. (" + std::to_string(status) + ")");
     }
 }
