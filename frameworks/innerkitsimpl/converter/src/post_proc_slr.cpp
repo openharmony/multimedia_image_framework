@@ -34,6 +34,8 @@ using namespace std;
 constexpr float PI = 3.14159265;
 constexpr float EPSILON = 1e-6;
 constexpr int FFRT_THREAD_LIMIT = 8;
+constexpr int SLR_MIN_RADIUS = 2;
+constexpr int SLR_WEIGHT_SPAN_FACTOR = 2;
 
 float GetSLRFactor(float x, int a)
 {
@@ -55,8 +57,8 @@ SLRWeightMat SLRProc::GetWeights(float coeff, int n)
 {
     CHECK_ERROR_RETURN_RET(std::fabs(coeff) < EPSILON || coeff < .0f || n <= 0, nullptr);
     float tao = 1.0f / coeff;
-    int a = std::max(2, static_cast<int>(std::floor(tao))); // 2 max SLR box size
-    SLRWeightMat weights = std::make_shared<SLRWeightVec>(n, std::vector<float>(2 * a, 0));
+    int a = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(tao)));
+    SLRWeightMat weights = std::make_shared<SLRWeightVec>(n, std::vector<float>(SLR_WEIGHT_SPAN_FACTOR * a, 0));
     float beta = 1.0f;
     if (coeff > 0.8999f && coeff < 1.0f) { // 0.8999f adjust low pass filter
         beta = 1.2f; // 1.2f adjust low pass filter
@@ -75,13 +77,13 @@ SLRWeightMat SLRProc::GetWeights(float coeff, int n)
     }
     std::vector<float> rowSum(n, 0);
     for (int i = 0; i < n; i++) {
-        for (int j = 0; j < 2 * a; j++) { // 2 max SLR box size
+        for (int j = 0; j < SLR_WEIGHT_SPAN_FACTOR * a; j++) {
             rowSum[i] += (*weights)[i][j];
         }
         if (std::fabs(rowSum[i]) < EPSILON) {
             rowSum[i] = 1.0f; // 1.0f default weight
         }
-        for (int j = 0; j < 2 * a; j++) { // 2 max SLR box size
+        for (int j = 0; j < SLR_WEIGHT_SPAN_FACTOR * a; j++) {
             (*weights)[i][j] /= rowSum[i];
         }
     }
@@ -101,10 +103,10 @@ bool SLRCheck(const SLRMat &src, const SLRMat &dst, const SLRWeightMat &x, const
     float coeffY = static_cast<float>(dst.size_.width) / src.size_.width;
     float taoX = 1 / coeffX;
     float taoY = 1 / coeffY;
-    int aX = std::max(2, static_cast<int>(std::floor(taoX)));
-    int aY = std::max(2, static_cast<int>(std::floor(taoY)));
-    CHECK_ERROR_RETURN_RET((*x)[0].size() < static_cast<size_t>(2 * aY), false);
-    CHECK_ERROR_RETURN_RET((*y)[0].size() < static_cast<size_t>(2 * aX), false);
+    int aX = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(taoX)));
+    int aY = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(taoY)));
+    CHECK_ERROR_RETURN_RET((*x)[0].size() < static_cast<size_t>(SLR_WEIGHT_SPAN_FACTOR * aY), false);
+    CHECK_ERROR_RETURN_RET((*y)[0].size() < static_cast<size_t>(SLR_WEIGHT_SPAN_FACTOR * aX), false);
     return true;
 }
 
@@ -141,13 +143,15 @@ bool SLRBoxCheck(const SLRSliceKey &key, const SLRMat &src, const SLRMat &dst, c
     float coeffY = static_cast<float>(dstN) / srcN;
     float taoX = 1 / coeffX;
     float taoY = 1 / coeffY;
-    int aX = std::max(2, static_cast<int>(std::floor(taoX)));
-    int aY = std::max(2, static_cast<int>(std::floor(taoY))); // 2 default size
-    if (key.y >= static_cast<int>((*x).size()) || static_cast<int>((*x)[0].size()) < 2 * aY) { // 2 max slr box size
+    int aX = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(taoX)));
+    int aY = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(taoY)));
+    if (key.y >= static_cast<int>((*x).size()) ||
+        static_cast<int>((*x)[0].size()) < SLR_WEIGHT_SPAN_FACTOR * aY) {
         IMAGE_LOGE("SLRBoxCheck h_y error:%{public}zu, %{public}d", (*x).size(), aY);
         return false;
     }
-    if (key.x >= static_cast<int>((*y).size()) || static_cast<int>((*y)[0].size()) < 2 * aX) { // 2 max slr box size
+    if (key.x >= static_cast<int>((*y).size()) ||
+        static_cast<int>((*y)[0].size()) < SLR_WEIGHT_SPAN_FACTOR * aX) {
         IMAGE_LOGE("SLRBoxCheck h_x error:%{public}zu, %{public}d", (*y).size(), aX);
         return false;
     }
@@ -171,8 +175,8 @@ void SLRBox(const SLRSliceKey &key, const SLRMat &src, SLRMat &dst, const SLRWei
     float coeffY = static_cast<float>(dstN) / srcN;
     float taoX = 1 / coeffX;
     float taoY = 1 / coeffY;
-    int aX = std::max(2, static_cast<int>(std::floor(taoX)));
-    int aY = std::max(2, static_cast<int>(std::floor(taoY))); // 2 default size
+    int aX = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(taoX)));
+    int aY = std::max(SLR_MIN_RADIUS, static_cast<int>(std::floor(taoY)));
     int etaI = static_cast<int>((key.x + 0.5) * taoX - 0.5); // 0.5 middle index
     int etaJ = static_cast<int>((key.y + 0.5) * taoY - 0.5); // 0.5 middle index
     int rStart = etaI - aX + 1;
