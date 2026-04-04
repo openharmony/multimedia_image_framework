@@ -914,6 +914,228 @@ HWTEST_F(PixelMapTest, PixelMapTestT003, TestSize.Level3)
 }
 
 /**
+ * @tc.name: CreateFromPixelsTest001
+ * @tc.desc: Verify CreateFromPixels succeeds with default BGRA source format. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest001 start";
+
+    uint8_t pixels[] = {
+        0x00, 0x11, 0x22, 0xFF, 0x33, 0x44, 0x55, 0xFF,
+        0x66, 0x77, 0x88, 0xFF, 0x99, 0xAA, 0xBB, 0xFF
+    };
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.pixelFormat = PixelFormat::BGRA_8888;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
+
+    ASSERT_EQ(result.second, IMAGE_RESULT_SUCCESS);
+    ASSERT_NE(result.first, nullptr);
+    EXPECT_EQ(result.first->GetWidth(), 2);
+    EXPECT_EQ(result.first->GetHeight(), 2);
+    EXPECT_EQ(result.first->GetPixelFormat(), PixelFormat::BGRA_8888);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest001 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest002
+ * @tc.desc: Verify CreateFromPixels succeeds with a custom RGB row stride. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest002, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest002 start";
+
+    uint8_t pixels[] = {
+        0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0xEE, 0xEE,
+        0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0
+    };
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.srcPixelFormat = PixelFormat::RGB_888;
+    opts.pixelFormat = PixelFormat::RGB_888;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+    opts.srcRowStride = 8;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
+
+    ASSERT_EQ(result.second, IMAGE_RESULT_SUCCESS);
+    ASSERT_NE(result.first, nullptr);
+    EXPECT_EQ(result.first->GetWidth(), 2);
+    EXPECT_EQ(result.first->GetHeight(), 2);
+    EXPECT_EQ(result.first->GetPixelFormat(), PixelFormat::RGB_888);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest002 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest003
+ * @tc.desc: Verify CreateFromPixels rejects a null buffer. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest003, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest003 start";
+
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.pixelFormat = PixelFormat::BGRA_8888;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+
+    auto result = PixelMap::CreateFromPixels(nullptr, 16, opts);
+
+    EXPECT_EQ(result.first, nullptr);
+    EXPECT_EQ(result.second, IMAGE_RESULT_BAD_PARAMETER);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest003 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest004
+ * @tc.desc: Verify CreateFromPixels rejects an undersized source row stride. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest004, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest004 start";
+
+    uint8_t pixels[] = {
+        0x10, 0x20, 0x30, 0x40, 0x50, 0x60,
+        0x70, 0x80, 0x90, 0xA0, 0xB0, 0xC0
+    };
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.srcPixelFormat = PixelFormat::RGB_888;
+    opts.pixelFormat = PixelFormat::RGB_888;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+    opts.srcRowStride = 5;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
+
+    EXPECT_EQ(result.first, nullptr);
+    EXPECT_EQ(result.second, IMAGE_RESULT_BAD_PARAMETER);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest004 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest005
+ * @tc.desc: Verify CreateFromPixels rejects invalid size options. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest005, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest005 start";
+
+    uint8_t pixels[] = { 0x00, 0x11, 0x22, 0xFF };
+    InitializationOptions opts;
+    opts.size.width = 0;
+    opts.size.height = 1;
+    opts.pixelFormat = PixelFormat::BGRA_8888;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
+
+    EXPECT_EQ(result.first, nullptr);
+    EXPECT_EQ(result.second, IMAGE_RESULT_BAD_PARAMETER);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest005 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest006
+ * @tc.desc: Verify CreateFromPixels rejects unsupported destination formats. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest006, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest006 start";
+
+    uint8_t pixels[] = {
+        0x00, 0x11, 0x22, 0xFF, 0x33, 0x44, 0x55, 0xFF,
+        0x66, 0x77, 0x88, 0xFF, 0x99, 0xAA, 0xBB, 0xFF
+    };
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.srcPixelFormat = PixelFormat::BGRA_8888;
+    opts.pixelFormat = PixelFormat::ASTC_4x4;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
+
+    EXPECT_EQ(result.first, nullptr);
+    EXPECT_EQ(result.second, IMAGE_RESULT_BAD_PARAMETER);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest006 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest007
+ * @tc.desc: Verify CreateFromPixels applies default destination format and alpha type. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest007, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest007 start";
+
+    uint8_t pixels[] = {
+        0x00, 0x11, 0x22, 0x80, 0x33, 0x44, 0x55, 0x80,
+        0x66, 0x77, 0x88, 0x80, 0x99, 0xAA, 0xBB, 0x80
+    };
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.pixelFormat = PixelFormat::UNKNOWN;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNKNOWN;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
+
+    ASSERT_EQ(result.second, IMAGE_RESULT_SUCCESS);
+    ASSERT_NE(result.first, nullptr);
+    EXPECT_EQ(result.first->GetPixelFormat(), PixelFormat::RGBA_8888);
+    EXPECT_EQ(result.first->GetAlphaType(), AlphaType::IMAGE_ALPHA_TYPE_PREMUL);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest007 end";
+}
+
+/**
+ * @tc.name: CreateFromPixelsTest008
+ * @tc.desc: Verify CreateFromPixels rejects an undersized pixel buffer. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateFromPixelsTest008, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest008 start";
+
+    uint8_t pixels[] = {
+        0x00, 0x11, 0x22, 0xFF, 0x33, 0x44, 0x55, 0xFF,
+        0x66, 0x77, 0x88, 0xFF, 0x99, 0xAA, 0xBB, 0xFF
+    };
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+    opts.pixelFormat = PixelFormat::BGRA_8888;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_OPAQUE;
+
+    auto result = PixelMap::CreateFromPixels(pixels, sizeof(pixels) - 1, opts);
+
+    EXPECT_EQ(result.first, nullptr);
+    EXPECT_EQ(result.second, IMAGE_RESULT_BAD_PARAMETER);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest008 end";
+}
+
+/**
  * @tc.name: PixelMapTest004
  * @tc.desc: Create PixelMap
  * @tc.type: FUNC
