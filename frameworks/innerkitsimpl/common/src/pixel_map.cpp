@@ -1399,7 +1399,8 @@ bool PixelMap::GetPixelFormatDetail(const PixelFormat format)
             colorProc_ = ARGB8888ToARGB;
             break;
         }
-        case PixelFormat::ALPHA_8: {
+        case PixelFormat::ALPHA_8:
+        case PixelFormat::ALPHA_U8: {
             pixelBytes_ = ALPHA_8_BYTES;
             colorProc_ = ALPHA8ToARGB;
             break;
@@ -3919,6 +3920,8 @@ static const string GetNamedPixelFormat(const PixelFormat pixelFormat)
             return "Pixel Format ARGB_8888";
         case PixelFormat::ALPHA_8:
             return "Pixel Format ALPHA_8";
+        case PixelFormat::ALPHA_U8:
+            return "Pixel Format ALPHA_U8";
         case PixelFormat::RGBA_8888:
             return "Pixel Format RGBA_8888";
         case PixelFormat::BGRA_8888:
@@ -4080,6 +4083,7 @@ static int8_t GetAlphaIndex(const PixelFormat& pixelFormat)
     switch (pixelFormat) {
         case PixelFormat::ARGB_8888:
         case PixelFormat::ALPHA_8:
+        case PixelFormat::ALPHA_U8:
             return ARGB_ALPHA_INDEX;
         case PixelFormat::RGBA_8888:
         case PixelFormat::BGRA_8888:
@@ -4155,8 +4159,8 @@ uint32_t PixelMap::CheckAlphaFormatInput(PixelMap &wPixelMap, const bool isPremu
         return ERR_IMAGE_DATA_UNSUPPORT;
     }
 
-    if ((srcPixelFormat == PixelFormat::ALPHA_8 && pixelBytes_ != ALPHA_BYTES) ||
-        (dstPixelFormat == PixelFormat::ALPHA_8 && dstPixelBytes != ALPHA_BYTES)) {
+    if ((ImageUtils::IsAlpha(srcPixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
+        (ImageUtils::IsAlpha(dstPixelFormat) && dstPixelBytes != ALPHA_BYTES)) {
         IMAGE_LOGE("Pixel format %{public}s and %{public}s mismatch pixelByte %{public}d and %{public}d",
             GetNamedPixelFormat(srcPixelFormat).c_str(), GetNamedPixelFormat(dstPixelFormat).c_str(), pixelBytes_,
             dstPixelBytes);
@@ -4257,7 +4261,7 @@ uint32_t PixelMap::SetAlpha(const float percent)
         return ERR_IMAGE_DATA_UNSUPPORT;
     }
 
-    if ((pixelFormat == PixelFormat::ALPHA_8 && pixelBytes_ != ALPHA_BYTES) ||
+    if ((ImageUtils::IsAlpha(pixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
         (pixelFormat == PixelFormat::RGBA_F16 && pixelBytes_ != RGBA_F16_BYTES)) {
         IMAGE_LOGE("Pixel format %{public}s mismatch pixelByte %{public}d",
             GetNamedPixelFormat(pixelFormat).c_str(), pixelBytes_);

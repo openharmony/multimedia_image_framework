@@ -291,6 +291,7 @@ int32_t ImageUtils::GetPixelBytes(const PixelFormat &pixelFormat)
             pixelBytes = ARGB8888_BYTES;
             break;
         case PixelFormat::ALPHA_8:
+        case PixelFormat::ALPHA_U8:
             pixelBytes = ALPHA8_BYTES;
             break;
         case PixelFormat::RGB_888:
@@ -473,7 +474,8 @@ AlphaType ImageUtils::GetValidAlphaTypeByFormat(const AlphaType &dstType, const 
         case PixelFormat::RGBA_F16: {
             break;
         }
-        case PixelFormat::ALPHA_8: {
+        case PixelFormat::ALPHA_8:
+        case PixelFormat::ALPHA_U8: {
             if (dstType != AlphaType::IMAGE_ALPHA_TYPE_PREMUL) {
                 return AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
             }
@@ -576,8 +578,14 @@ bool ImageUtils::IsRGBX(PixelFormat format)
     return format == PixelFormat::ARGB_8888 || format == PixelFormat::RGB_565 ||
         format == PixelFormat::RGBA_8888 || format == PixelFormat::BGRA_8888 ||
         format == PixelFormat::RGB_888 || format == PixelFormat::ALPHA_8 ||
+        format == PixelFormat::ALPHA_U8 ||
         format == PixelFormat::RGBA_F16 || format == PixelFormat::RGBA_1010102 ||
         format == PixelFormat::RGBA_U16 || format == PixelFormat::UNKNOWN;
+}
+
+bool ImageUtils::IsAlpha(PixelFormat format)
+{
+    return format == PixelFormat::ALPHA_8 || format == PixelFormat::ALPHA_U8;
 }
 
 bool ImageUtils::PixelMapCreateCheckFormat(PixelFormat format)
