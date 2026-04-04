@@ -170,7 +170,7 @@ enum class PixelFormat : int32_t {
     RGBA_8888 = 3,
     BGRA_8888 = 4,
     RGB_888 = 5,
-    ALPHA_8 = 6, 
+    ALPHA_8 = 6,
     RGBA_F16 = 7,
     NV21 = 8,  // Each pixel is stored on 3/2 bytes.
     NV12 = 9,
