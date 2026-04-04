@@ -305,7 +305,7 @@ int32_t ImageUtils::GetPixelBytes(const PixelFormat &pixelFormat)
             break;
         case PixelFormat::NV21:
         case PixelFormat::NV12:
-            pixelBytes = NV21_BYTES;  // perl pixel 1.5 Bytes but return int so return 2
+            pixelBytes = NV21_BYTES; // 1.5 bytes per pixel but return int so return 2
             break;
         case PixelFormat::ASTC_4x4:
         case PixelFormat::ASTC_6x6:
@@ -1237,7 +1237,7 @@ bool ImageUtils::SetInitializationOptionDmaMem(InitializationOptions &option)
             option.useDMA = true;
             return true;
         default:
-            IMAGE_LOGE("pixelformat:%{public}d is not surport DMA.", option.pixelFormat);
+            IMAGE_LOGE("pixelFormat (%{public}d) does not support DMA", option.pixelFormat);
             return false;
     }
     return false;
@@ -1246,7 +1246,7 @@ bool ImageUtils::SetInitializationOptionDmaMem(InitializationOptions &option)
 bool ImageUtils::SetInitializationOptionAllocatorType(InitializationOptions &option, int32_t allocatorType)
 {
     if (allocatorType > NUM_2 || allocatorType < 0) {
-        IMAGE_LOGE("allocatorType is invalided.");
+        IMAGE_LOGE("allocatorType is invalid");
         return false;
     }
     switch (allocatorType) {
@@ -1256,7 +1256,7 @@ bool ImageUtils::SetInitializationOptionAllocatorType(InitializationOptions &opt
             if (option.pixelFormat == PixelFormat::RGBA_1010102 ||
                 option.pixelFormat == PixelFormat::YCBCR_P010 ||
                 option.pixelFormat == PixelFormat::YCRCB_P010) {
-                IMAGE_LOGE("pixelFormat is unsupport:%{public}d.", option.pixelFormat);
+                IMAGE_LOGE("pixelFormat is unsupported: %{public}d", option.pixelFormat);
                 return false;
             }
             option.allocatorType = AllocatorType::SHARE_MEM_ALLOC;

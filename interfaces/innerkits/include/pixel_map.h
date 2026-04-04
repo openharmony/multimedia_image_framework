@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <utility>
 #ifdef IMAGE_COLORSPACE_FLAG
 #include "color_space.h"
 #endif
@@ -69,7 +70,7 @@ struct InitializationOptions {
     AlphaType alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNKNOWN;
     ScaleMode scaleMode = ScaleMode::FIT_TARGET_SIZE;
     YUVConvertColorSpaceDetails convertColorSpace;
-    int32_t srcRowStride = 0;
+    int32_t srcRowStride = 0; // 0 means no padding, row stride equals to row bytes
     AllocatorType allocatorType = AllocatorType::DEFAULT;
     bool editable = false;
     bool useSourceIfMatch = false;
@@ -185,6 +186,20 @@ public:
      */
     NATIVEEXPORT static std::unique_ptr<PixelMap> Create(const uint32_t *colors, uint32_t colorLength,
         BUILD_PARAM &info, const InitializationOptions &opts, int &errorCode);
+
+    /**
+     * Creates a PixelMap from a raw pixel data buffer.
+     *
+     * @param pixels Pointer to the source pixel data buffer.
+     * @param byteSize Size of the source pixel data buffer in bytes.
+     * @param options Initialization options that describe the source buffer and destination PixelMap.
+     *                If InitializationOptions.pixelFormat is UNKNOWN, it will default to RGBA_8888.
+     *                If InitializationOptions.srcPixelFormat is UNKNOWN, it will default to BGRA_8888.
+     *                If InitializationOptions.alphaType is UNKNOWN, it will default to IMAGE_ALPHA_TYPE_PREMUL.
+     * @return A pair whose first value is the created PixelMap and whose second value is the result code.
+     */
+    NATIVEEXPORT static std::pair<std::unique_ptr<PixelMap>, int32_t> CreateFromPixels(
+        const uint8_t *pixels, uint32_t byteSize, const InitializationOptions &options);
 
     /**
      * Create a PixelMap through InitializationOptions.
