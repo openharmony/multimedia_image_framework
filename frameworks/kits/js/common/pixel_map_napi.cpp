@@ -519,16 +519,16 @@ void PixelMapNapi::ExtraAddNapiFunction(std::vector<napi_property_descriptor> &p
         DECLARE_NAPI_FUNCTION("getUniqueId", GetNativeUniqueId),
         DECLARE_NAPI_FUNCTION("createCroppedAndScaledPixelMapSync", CreateCroppedAndScaledPixelMapSync),
         DECLARE_NAPI_FUNCTION("createCroppedAndScaledPixelMap", CreateCroppedAndScaledPixelMap),
-        // DECLARE_NAPI_FUNCTION("readAllPixelsToBuffer", ReadAllPixelsToBuffer),
-        // DECLARE_NAPI_FUNCTION("readAllPixelsToBufferSync", ReadAllPixelsToBufferSync),
-        // DECLARE_NAPI_FUNCTION("readPixelsToArea", ReadPixelsToArea),
-        // DECLARE_NAPI_FUNCTION("readPixelsToAreaSync", ReadPixelsToAreaSync),
-        // DECLARE_NAPI_FUNCTION("writeAllPixelsFromBuffer", WriteAllPixelsFromBuffer),
-        // DECLARE_NAPI_FUNCTION("writeAllPixelsFromBufferSync", WriteAllPixelsFromBufferSync),
-        // DECLARE_NAPI_FUNCTION("writePixelsFromArea", WritePixelsFromArea),
-        // DECLARE_NAPI_FUNCTION("writePixelsFromAreaSync", WritePixelsFromAreaSync),
-        // DECLARE_NAPI_FUNCTION("extractAlphaPixelMap", ExtractAlphaPixelMap),
-        // DECLARE_NAPI_FUNCTION("extractAlphaPixelMapSync", ExtractAlphaPixelMapSync),
+        DECLARE_NAPI_FUNCTION("readAllPixelsToBuffer", ReadAllPixelsToBuffer),
+        DECLARE_NAPI_FUNCTION("readAllPixelsToBufferSync", ReadAllPixelsToBufferSync),
+        DECLARE_NAPI_FUNCTION("readPixelsToArea", ReadPixelsToArea),
+        DECLARE_NAPI_FUNCTION("readPixelsToAreaSync", ReadPixelsToAreaSync),
+        DECLARE_NAPI_FUNCTION("writeAllPixelsFromBuffer", WriteAllPixelsFromBuffer),
+        DECLARE_NAPI_FUNCTION("writeAllPixelsFromBufferSync", WriteAllPixelsFromBufferSync),
+        DECLARE_NAPI_FUNCTION("writePixelsFromArea", WritePixelsFromArea),
+        DECLARE_NAPI_FUNCTION("writePixelsFromAreaSync", WritePixelsFromAreaSync),
+        DECLARE_NAPI_FUNCTION("extractAlphaPixelMap", ExtractAlphaPixelMap),
+        DECLARE_NAPI_FUNCTION("extractAlphaPixelMapSync", ExtractAlphaPixelMapSync),
         DECLARE_NAPI_FUNCTION("applyCrop", ApplyCrop),
         DECLARE_NAPI_FUNCTION("applyCropSync", ApplyCropSync),
         });
@@ -1069,19 +1069,12 @@ void PixelMapNapi::CreatePixelMapFromPixelsComplete(napi_env env, napi_status st
             "Internal error: The data is null.");
     }
 
-    napi_value constructor = nullptr;
-    napi_value result = nullptr;
-    napi_get_undefined(env, &result);
-
-    status = napi_get_reference_value(env, sConstructor_, &constructor);
-
-    if (IMG_IS_OK(status)) {
-        status = NewPixelNapiInstance(env, constructor, context->rPixelMap, result);
-    }
-    if (!IMG_IS_OK(status)) {
+    napi_value result = PixelMapNapi::CreatePixelMap(env, context->rPixelMap);
+    if (result == nullptr || ImageNapiUtils::getType(result) == napi_undefined) {
         BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Internal error: Failed to create NAPI instance.");
     }
+
     if (context->error != nullptr) {
         context->status = ERROR;
     }
@@ -1097,7 +1090,7 @@ static void CreatePixelMapFromPixelsExec(napi_env env, void* data)
     }
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
-    auto pixels = static_cast<uint32_t*>(context->colorsBuffer);
+    auto pixels = static_cast<uint8_t*>(context->colorsBuffer);
 
     if (ImageUtils::Is10Bit(context->opts.pixelFormat)) {
         BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_UNSUPPORTED_DATA_FORMAT,
@@ -1105,9 +1098,18 @@ static void CreatePixelMapFromPixelsExec(napi_env env, void* data)
         return;
     }
 
-    context->rPixelMap = PixelMap::Create(pixels, context->colorsBufferSize, context->opts); // TODO: 更新 Create 接口，抛出 7600206 / 7600301 / 7600305
-    
-    if (context->rPixelMap == nullptr) {
+    auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, context->colorsBufferSize, context->opts);
+    context->rPixelMap = std::move(pixelMap);
+
+    if (errCode == IMAGE_RESULT_BAD_PARAMETER) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Invalid input values or buffer size not matching.");
+    } else if (errCode == IMAGE_RESULT_DATA_ABNORMAL) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Input values are invalid or out of range causing internal configuration error.");
+    } else if (errCode == IMAGE_RESULT_MALLOC_ABNORMAL) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_ALLOC_FAILED, "Failed to allocate memory.");
+    } else if (errCode != SUCCESS || context->rPixelMap == nullptr) {
         BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Failed to create PixelMap from pixels data.");
     }
@@ -1206,15 +1208,12 @@ napi_value PixelMapNapi::CreatePixelMapFromPixelsSync(napi_env env, napi_callbac
 
     CreatePixelMapFromPixelsExec(env, static_cast<void*>(context.get()));
 
-    napi_value constructor = nullptr;
-    status = napi_get_reference_value(env, sConstructor_, &constructor);
-    if (IMG_IS_OK(status)) {
-        status = NewPixelNapiInstance(env, constructor, context->rPixelMap, result);
-    }
-    if (!IMG_IS_OK(status)) {
+    result = PixelMapNapi::CreatePixelMap(env, context->rPixelMap);
+    if (result == nullptr || ImageNapiUtils::getType(result) == napi_undefined) {
         BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Internal error: Failed to create NAPI instance.");
     }
+
     if (context->error != nullptr) {
         ImageNapiUtils::Throw(env, context->error);
     }
@@ -1279,15 +1278,12 @@ napi_value PixelMapNapi::CreateEmptyPixelMap(napi_env env, napi_callback_info in
 
     CreateEmptyPixelMapExec(env, static_cast<void*>(context.get()));
 
-    napi_value constructor = nullptr;
-    status = napi_get_reference_value(env, sConstructor_, &constructor);
-    if (IMG_IS_OK(status)) {
-        status = NewPixelNapiInstance(env, constructor, context->rPixelMap, result);
-    }
-    if (!IMG_IS_OK(status)) {
+    result = PixelMapNapi::CreatePixelMap(env, context->rPixelMap);
+    if (result == nullptr || ImageNapiUtils::getType(result) == napi_undefined) {
         BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Internal error: Failed to create NAPI instance.");
     }
+
     if (context->error != nullptr) {
         ImageNapiUtils::Throw(env, context->error);
     }
@@ -1295,117 +1291,598 @@ napi_value PixelMapNapi::CreateEmptyPixelMap(napi_env env, napi_callback_info in
     return result;
 }
 
-/////
+static void ReadAllPixelsToBufferExec(napi_env env, void* data)
+{
+    if (data == nullptr) {
+        IMAGE_LOGE("The data is null");
+        return;
+    }
 
-// static void ReadAllPixelsToBufferComplete(napi_env env, napi_status status, void* data)
-// {
+    auto context = static_cast<PixelMapAsyncContext*>(data);
+    if (context->rPixelMap == nullptr) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: The PixelMap instance is null.");
+        return;
+    }
 
-// }
+    context->status =
+        context->rPixelMap->ReadPixels(context->colorsBufferSize, static_cast<uint8_t*>(context->colorsBuffer));
+    
+    if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Buffer size is too small.");
+    } else if (context->status == ERR_IMAGE_READ_PIXELMAP_FAILED) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
+    } else if (context->status != SUCCESS) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Failed to read the pixel data. (" + std::to_string(status) + ")");
+    }
+}
 
-// static void ReadAllPixelsToBufferExec(napi_env env, void* data)
-// {
+napi_value PixelMapNapi::ReadAllPixelsToBuffer(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("ReadAllPixelsToBuffer START");
+    napi_value result = nullptr;
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
 
-// }
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")");
+    }
 
-// napi_value PixelMapNapi::ReadAllPixelsToBuffer(napi_env env, napi_callback_info info)
-// {
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        context->rPixelMap = context->nConstructor->nativePixelMap_;
+    }
+    
+    status = napi_get_arraybuffer_info(env, argv[NUM_0], &(context->colorsBuffer), &(context->colorsBufferSize));
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
+            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")");
+    }
 
-// }
+    napi_create_promise(env, &(context->deferred), &result);
 
-// napi_value PixelMapNapi::ReadAllPixelsToBufferSync(napi_env env, napi_callback_info info)
-// {
+    if (context->error == nullptr) {
+        IMG_CREATE_CREATE_ASYNC_WORK(env, status, "ReadAllPixelsToBuffer",
+            ReadAllPixelsToBufferExec, EmptyResultEnhancedComplete, context, context->work);
+        if (!IMG_IS_OK(status)) {
+            BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+                "Internal error: Failed to create async work. (" + std::to_string(status) + ")");
+        }
+    }
 
-// }
+    if (context != nullptr && context->error != nullptr) {
+        // Reject deferred if any error occurred
+        context->status = ERROR;
+        PixelMapAsyncContext* rawContext = context.release();
+        CommonCallbackRoutine(env, rawContext, result);
+    }
 
-/////
+    return result;
+}
 
-// static void ReadPixelsToAreaComplete(napi_env env, napi_status status, void* data)
-// {
+napi_value PixelMapNapi::ReadAllPixelsToBufferSync(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("ReadAllPixelsToBufferSync START");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
 
-// }
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")", true);
+        return result;
+    }
 
-// static void ReadPixelsToAreaExec(napi_env env, void* data)
-// {
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (!IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        ImageNapiUtils::Throw(env, context->error);
+        return result;
+    }
+    context->rPixelMap = context->nConstructor->nativePixelMap_;
 
-// }
+    status = napi_get_arraybuffer_info(env, argv[NUM_0], &(context->colorsBuffer), &(context->colorsBufferSize));
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
+            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")");
+        return result;
+    }
+    
+    ReadAllPixelsToBufferExec(env, static_cast<void*>(context.get()));
 
-// napi_value PixelMapNapi::ReadPixelsToArea(napi_env env, napi_callback_info info)
-// {
+    if (context->error != nullptr) {
+        ImageNapiUtils::Throw(env, context->error);
+    }
+    
+    return result;
+}
 
-// }
+static void ReadPixelsToAreaExec(napi_env env, void* data)
+{
+    if (data == nullptr) {
+        IMAGE_LOGE("The data is null");
+        return;
+    }
 
-// napi_value PixelMapNapi::ReadPixelsToAreaSync(napi_env env, napi_callback_info info)
-// {
+    auto context = static_cast<PixelMapAsyncContext*>(data);
+    if (context->rPixelMap == nullptr) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: The PixelMap instance is null.");
+        return;
+    }
+    PositionArea area = context->area;
 
-// }
+    context->status = context->rPixelMap->ReadPixels(
+        area.size, area.offset, area.stride, area.region, static_cast<uint8_t*>(area.pixels));
+    
+    if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+    } else if (context->status == ERR_IMAGE_READ_PIXELMAP_FAILED) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED,
+            "Failed to copy the area pixel data.");
+    } else if (context->status != SUCCESS) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Failed to read the area pixel data. (" + std::to_string(status) + ")");
+    }
+}
 
-/////
+napi_value PixelMapNapi::ReadPixelsToArea(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("ReadPixelsToArea START");
+    napi_value result = nullptr;
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
 
-// static void WriteAllPixelsFromBufferComplete(napi_env env, napi_status status, void* data)
-// {
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")");
+    }
 
-// }
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        context->rPixelMap = context->nConstructor->nativePixelMap_;
+    }
+    
+    if (!parsePositionArea(env, argc[NUM_0], &(context->area))) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.");
+    }
 
-// static void WriteAllPixelsFromBufferExec(napi_env env, void* data)
-// {
+    napi_create_promise(env, &(context->deferred), &result);
 
-// }
+    if (context->error == nullptr) {
+        IMG_CREATE_CREATE_ASYNC_WORK(env, status, "ReadPixelsToArea",
+            ReadPixelsToAreaExec, EmptyResultEnhancedComplete, context, context->work);
+        if (!IMG_IS_OK(status)) {
+            BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+                "Internal error: Failed to create async work. (" + std::to_string(status) + ")");
+        }
+    }
 
-// napi_value PixelMapNapi::WriteAllPixelsFromBuffer(napi_env env, napi_callback_info info)
-// {
+    if (context != nullptr && context->error != nullptr) {
+        // Reject deferred if any error occurred
+        context->status = ERROR;
+        PixelMapAsyncContext* rawContext = context.release();
+        CommonCallbackRoutine(env, rawContext, result);
+    }
 
-// }
+    return result;
+}
 
-// napi_value PixelMapNapi::WriteAllPixelsFromBufferSync(napi_env env, napi_callback_info info)
-// {
+napi_value PixelMapNapi::ReadPixelsToAreaSync(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("ReadPixelsToAreaSync START");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
 
-// }
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")", true);
+        return result;
+    }
 
-/////
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (!IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        ImageNapiUtils::Throw(env, context->error);
+        return result;
+    }
+    context->rPixelMap = context->nConstructor->nativePixelMap_;
 
-// static void WritePixelsFromAreaComplete(napi_env env, napi_status status, void* data)
-// {
+    if (!parsePositionArea(env, argc[NUM_0], &(context->area))) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.");
+        return result;
+    }
+    
+    ReadPixelsToAreaExec(env, static_cast<void*>(context.get()));
 
-// }
+    if (context->error != nullptr) {
+        ImageNapiUtils::Throw(env, context->error);
+    }
+    
+    return result;
+}
 
-// static void WritePixelsFromAreaExec(napi_env env, void* data)
-// {
+static void WriteAllPixelsFromBufferExec(napi_env env, void* data)
+{
+    if (data == nullptr) {
+        IMAGE_LOGE("The data is null");
+        return;
+    }
 
-// }
+    auto context = static_cast<PixelMapAsyncContext*>(data);
+    if (context->wPixelMap == nullptr) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: The PixelMap instance is null.");
+        return;
+    }
 
-// napi_value PixelMapNapi::WritePixelsFromArea(napi_env env, napi_callback_info info)
-// {
+    context->status =
+        context->wPixelMap->WritePixels(static_cast<uint8_t*>(context->colorsBuffer), context->colorsBufferSize);
+    
+    if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION,
+            "The PixelMap is not editable or is locked.");
+    } else if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Buffer size is too small.");
+    } else if (context->status == ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
+    } else if (context->status != SUCCESS) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Failed to write the pixel data. (" + std::to_string(status) + ")");
+    }
+}
 
-// }
+napi_value PixelMapNapi::WriteAllPixelsFromBuffer(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("WriteAllPixelsFromBuffer START");
+    napi_value result = nullptr;
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
 
-// napi_value PixelMapNapi::WritePixelsFromAreaSync(napi_env env, napi_callback_info info)
-// {
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")");
+    }
 
-// }
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        context->wPixelMap = context->nConstructor->nativePixelMap_;
+    }
+    
+    status = napi_get_arraybuffer_info(env, argv[NUM_0], &(context->colorsBuffer), &(context->colorsBufferSize));
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
+            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")");
+    }
 
-/////
+    napi_create_promise(env, &(context->deferred), &result);
 
-// static void ExtractAlphaPixelMapComplete(napi_env env, napi_status status, void* data)
-// {
+    if (context->error == nullptr) {
+        IMG_CREATE_CREATE_ASYNC_WORK(env, status, "WriteAllPixelsFromBuffer",
+            WriteAllPixelsFromBufferExec, EmptyResultEnhancedComplete, context, context->work);
+        if (!IMG_IS_OK(status)) {
+            BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+                "Internal error: Failed to create async work. (" + std::to_string(status) + ")");
+        }
+    }
 
-// }
+    if (context != nullptr && context->error != nullptr) {
+        // Reject deferred if any error occurred
+        context->status = ERROR;
+        PixelMapAsyncContext* rawContext = context.release();
+        CommonCallbackRoutine(env, rawContext, result);
+    }
 
-// static void ExtractAlphaPixelMapExec(napi_env env, void* data)
-// {
+    return result;
+}
 
-// }
+napi_value PixelMapNapi::WriteAllPixelsFromBufferSync(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("WriteAllPixelsFromBufferSync START");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
 
-// napi_value PixelMapNapi::ExtractAlphaPixelMap(napi_env env, napi_callback_info info)
-// {
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")", true);
+        return result;
+    }
 
-// }
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (!IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        ImageNapiUtils::Throw(env, context->error);
+        return result;
+    }
+    context->wPixelMap = context->nConstructor->nativePixelMap_;
 
-// napi_value PixelMapNapi::ExtractAlphaPixelMapSync(napi_env env, napi_callback_info info)
-// {
+    status = napi_get_arraybuffer_info(env, argv[NUM_0], &(context->colorsBuffer), &(context->colorsBufferSize));
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
+            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")");
+        return result;
+    }
+    
+    WriteAllPixelsFromBufferExec(env, static_cast<void*>(context.get()));
 
-// }
+    if (context->error != nullptr) {
+        ImageNapiUtils::Throw(env, context->error);
+    }
+    
+    return result;
+}
 
-/////
+static void WritePixelsFromAreaExec(napi_env env, void* data)
+{
+    if (data == nullptr) {
+        IMAGE_LOGE("The data is null");
+        return;
+    }
+
+    auto context = static_cast<PixelMapAsyncContext*>(data);
+    if (context->wPixelMap == nullptr) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: The PixelMap instance is null.");
+        return;
+    }
+
+    context->status = context->wPixelMap->WritePixels(
+        static_cast<uint8_t*>(area.pixels), area.size, area.offset, area.stride, area.region);
+
+    if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION,
+            "The PixelMap is not editable or is locked.");
+    } else if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+    } else if (context->status == ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED,
+            "Failed to copy the area pixel data.");
+    } else if (context->status != SUCCESS) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Failed to write the area pixel data. (" + std::to_string(status) + ")");
+    }
+}
+
+napi_value PixelMapNapi::WritePixelsFromArea(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("WritePixelsFromArea START");
+    napi_value result = nullptr;
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
+
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")");
+    }
+
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        context->wPixelMap = context->nConstructor->nativePixelMap_;
+    }
+    
+    if (!parsePositionArea(env, argc[NUM_0], &(context->area))) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.");
+    }
+
+    napi_create_promise(env, &(context->deferred), &result);
+
+    if (context->error == nullptr) {
+        IMG_CREATE_CREATE_ASYNC_WORK(env, status, "WritePixelsFromArea",
+            WritePixelsFromAreaExec, EmptyResultEnhancedComplete, context, context->work);
+        if (!IMG_IS_OK(status)) {
+            BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+                "Internal error: Failed to create async work. (" + std::to_string(status) + ")");
+        }
+    }
+
+    if (context != nullptr && context->error != nullptr) {
+        // Reject deferred if any error occurred
+        context->status = ERROR;
+        PixelMapAsyncContext* rawContext = context.release();
+        CommonCallbackRoutine(env, rawContext, result);
+    }
+
+    return result;
+}
+
+napi_value PixelMapNapi::WritePixelsFromAreaSync(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("WritePixelsFromAreaSync START");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+    napi_value thisVar = nullptr;
+    napi_status status;
+    napi_value argv[NUM_1] = {nullptr};
+    size_t argc = NUM_1;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
+
+    IMG_JS_ARGS(env, info, status, argc, argv, thisVar);
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")", true);
+        return result;
+    }
+
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (!IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        ImageNapiUtils::Throw(env, context->error);
+        return result;
+    }
+    context->wPixelMap = context->nConstructor->nativePixelMap_;
+
+    if (!parsePositionArea(env, argc[NUM_0], &(context->area))) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.");
+        return result;
+    }
+    
+    WritePixelsFromAreaExec(env, static_cast<void*>(context.get()));
+
+    if (context->error != nullptr) {
+        ImageNapiUtils::Throw(env, context->error);
+    }
+    
+    return result;
+}
+
+static void ExtractAlphaPixelMapComplete(napi_env env, napi_status status, void* data)
+{
+    auto context = static_cast<PixelMapAsyncContext*>(data);
+    if (context == nullptr) {
+        context = new PixelMapAsyncContext(); // Will be deleted in CommonCallbackRoutine
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Internal error: The data is null.");
+    }
+
+    napi_value result = PixelMapNapi::CreatePixelMap(env, context->alphaMap);
+    if (result == nullptr || ImageNapiUtils::getType(result) == napi_undefined) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Internal error: Failed to create NAPI instance.");
+    }
+
+    if (context->error != nullptr) {
+        context->status = ERROR;
+    }
+
+    CommonCallbackRoutine(env, context, result);
+}
+
+static void ExtractAlphaPixelMapExec(napi_env env, void* data)
+{
+    if (data == nullptr) {
+        IMAGE_LOGE("The data is null");
+        return;
+    }
+
+    auto context = static_cast<PixelMapAsyncContext*>(data);
+    InitializationOptions options;
+    options.pixelFormat = PixelFormat::ALPHA_U8;
+    Rect region;
+    int32_t errCode = SUCCESS;
+
+    context->alphaMap = PixelMap::Create(*(context->rPixelMap), region, options, errCode);
+    
+    if (errCode == IMAGE_RESULT_FORMAT_CONVERT_FAILED) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_MEDIA_DATA_CONVERSION_FAILED,
+            "Failed to convert the pixels.");
+    } else if (errCode != SUCCESS || context->alphaMap == nullptr) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Failed to extract the alpha channel. (" + std::to_string(errCode) + ")");
+    }
+}
+
+napi_value PixelMapNapi::ExtractAlphaPixelMap(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("ExtractAlphaPixelMap START");
+    napi_value result = nullptr;
+    napi_value thisVar = nullptr;
+    napi_status status;
+    size_t argc = NUM_0;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
+
+    IMG_JS_ARGS(env, info, status, argc, nullptr, thisVar);
+    if (!IMG_IS_OK(status)) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")");
+    }
+
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        context->rPixelMap = context->nConstructor->nativePixelMap_;
+    }
+
+    napi_create_promise(env, &(context->deferred), &result);
+
+    if (context->error == nullptr) {
+        IMG_CREATE_CREATE_ASYNC_WORK(env, status, "ExtractAlphaPixelMap",
+            ExtractAlphaPixelMapExec, ExtractAlphaPixelMapComplete, context, context->work);
+        if (!IMG_IS_OK(status)) {
+            BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+                "Internal error: Failed to create async work. (" + std::to_string(status) + ")");
+        }
+    }
+
+    if (context != nullptr && context->error != nullptr) {
+        // Reject deferred if any error occurred
+        context->status = ERROR;
+        PixelMapAsyncContext* rawContext = context.release();
+        CommonCallbackRoutine(env, rawContext, result);
+    }
+
+    return result;
+}
+
+napi_value PixelMapNapi::ExtractAlphaPixelMapSync(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("ExtractAlphaPixelMapSync START");
+    napi_value result = nullptr;
+    napi_get_undefined(env, &result);
+    napi_value thisVar = nullptr;
+    napi_status status;
+    size_t argc = NUM_0;
+    std::unique_ptr<PixelMapAsyncContext> context = std::make_unique<PixelMapAsyncContext>();
+
+    IMG_JS_ARGS(env, info, status, argc, nullptr, thisVar);
+    if (!IMG_IS_OK(status)) {
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
+            "Internal error: Failed to get callback info. (" + std::to_string(status) + ")", true);
+        return result;
+    }
+
+    status = napi_unwrap(env, thisVar, reinterpret_cast<void**>(&(context->nConstructor)));
+    if (!IsValidUnwrapResult(env, status, context->nConstructor, context->error)) {
+        ImageNapiUtils::Throw(env, context->error);
+        return result;
+    }
+    context->rPixelMap = context->nConstructor->nativePixelMap_;
+
+    ExtractAlphaPixelMapExec(env, static_cast<void*>(context.get()));
+
+    result = PixelMapNapi::CreatePixelMap(env, context->alphaMap);
+    if (result == nullptr || ImageNapiUtils::getType(result) == napi_undefined) {
+        BuildContextErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Internal error: Failed to create NAPI instance.");
+    }
+
+    if (context->error != nullptr) {
+        ImageNapiUtils::Throw(env, context->error);
+    }
+    
+    return result;
+}
 
 static void ApplyCropExec(napi_env env, void* data)
 {

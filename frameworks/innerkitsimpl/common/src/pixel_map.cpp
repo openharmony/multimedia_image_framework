@@ -414,7 +414,7 @@ static bool ValidateCreateFromPixelsInput(const uint8_t *pixels, uint32_t byteSi
         return false;
     }
     int64_t requiredSize = GetCreateFromPixelsRequiredByteSize(options, srcPixelFormat);
-    if (requiredSize <= 0 || requiredSize > byteSize) {
+    if (requiredSize <= 0 || requiredSize > static_cast<int64_t>(byteSize)) {
         IMAGE_LOGE("[CreateFromPixels] Invalid pixels size: %{public}u", byteSize);
         return false;
     }

@@ -30,10 +30,10 @@ class PixelMapImpl {
 public:
     PixelMapImpl();
     explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
-        bool useLegacyErrCode = false);
+        bool useLegacyImpl = false);
     explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
         AllocatorType const& allocatorType);
-    explicit PixelMapImpl(InitializationOptions const& etsOptions, bool useLegacyErrCode = false);
+    explicit PixelMapImpl(InitializationOptions const& etsOptions, bool useLegacyImpl = false);
     explicit PixelMapImpl(InitializationOptions const& etsOptions, AllocatorType const& allocatorType);
     explicit PixelMapImpl(std::shared_ptr<OHOS::Media::PixelMap> pixelMap);
     explicit PixelMapImpl(int64_t aniPtr);

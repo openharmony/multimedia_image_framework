@@ -317,19 +317,38 @@ void CreateUnpremultipliedPixelMapSync(weak::PixelMap src, weak::PixelMap dst)
 PixelMapImpl::PixelMapImpl() {}
 
 PixelMapImpl::PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
-    bool useLegacyErrCode)
+    bool useLegacyImpl)
 {
     Media::InitializationOptions options;
     ParseInitializationOptions(etsOptions, options);
     if (Is10BitFormat(options.pixelFormat)) {
-        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_IMAGE_UNSUPPORTED_DATA_FORMAT,
+        ImageTaiheUtils::ThrowExceptionError(useLegacyImpl ? Media::ERROR : Media::ERR_IMAGE_UNSUPPORTED_DATA_FORMAT,
             "10-bit formats are not supported.");
         return;
     }
 
-    nativePixelMap_ = Media::PixelMap::Create(reinterpret_cast<uint32_t*>(colors.data()), colors.size(), options); // TODO: 更新 Create 接口，抛出 7600206 / 7600301 / 7600305
-    if (nativePixelMap_ == nullptr) {
-        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+    if (useLegacyImpl) {
+        nativePixelMap_ = Media::PixelMap::Create(reinterpret_cast<uint32_t*>(colors.data()), colors.size(), options);
+        if (nativePixelMap_ == nullptr) {
+            ImageTaiheUtils::ThrowExceptionError(Media::ERROR, "Failed to create PixelMap from pixels data.");
+        }
+        return;
+    }
+
+    auto [pixelMap, errCode] =
+        Media::PixelMap::CreateFromPixels(static_cast<uint8_t*>(colors.data()), colors.size(), options);
+    nativePixelMap_ = std::move(pixelMap);
+
+    if (errCode == Media::IMAGE_RESULT_BAD_PARAMETER) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Invalid input values or buffer size not matching.");
+    } else if (errCode == Media::IMAGE_RESULT_DATA_ABNORMAL) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_INVALID_PARAM,
+            "Invalid parameter: Input values are invalid or out of range causing internal configuration error.");
+    } else if (errCode == Media::IMAGE_RESULT_MALLOC_ABNORMAL) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_MEMORY_ALLOC_FAILED, "Failed to allocate memory.");
+    } else if (errCode != Media::SUCCESS || nativePixelMap_ == nullptr) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Failed to create PixelMap from pixels data.");
     }
 }
@@ -367,12 +386,12 @@ PixelMapImpl::PixelMapImpl(array_view<uint8_t> const& colors, InitializationOpti
     }
 }
 
-PixelMapImpl::PixelMapImpl(InitializationOptions const& etsOptions, bool useLegacyErrCode)
+PixelMapImpl::PixelMapImpl(InitializationOptions const& etsOptions, bool useLegacyImpl)
 {
     Media::InitializationOptions options;
     ParseInitializationOptions(etsOptions, options);
     if (options.size.width <= 0 || options.size.height <= 0) {
-        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_IMAGE_INVALID_PARAM,
+        ImageTaiheUtils::ThrowExceptionError(useLegacyImpl ? Media::ERROR : Media::ERR_IMAGE_INVALID_PARAM,
             "Invalid image size.");
         return;
     }
@@ -382,7 +401,7 @@ PixelMapImpl::PixelMapImpl(InitializationOptions const& etsOptions, bool useLega
     }
     nativePixelMap_ = Media::PixelMap::Create(options);
     if (nativePixelMap_ == nullptr) {
-        ImageTaiheUtils::ThrowExceptionError(useLegacyErrCode ? Media::ERROR : Media::ERR_MEDIA_MEMORY_ALLOC_FAILED,
+        ImageTaiheUtils::ThrowExceptionError(useLegacyImpl ? Media::ERROR : Media::ERR_MEDIA_MEMORY_ALLOC_FAILED,
             "Failed to allocate memory for the empty PixelMap.");
     }
 }
@@ -724,7 +743,7 @@ PixelMap PixelMapImpl::ExtractAlphaPixelMapSync()
     }
 
     Media::InitializationOptions options;
-    options.pixelFormat = Media::PixelFormat::ALPHA_8; // TODO: 改成 ALPHA_U8
+    options.pixelFormat = Media::PixelFormat::ALPHA_U8;
     Media::Rect region;
     int32_t errCode = Media::SUCCESS;
     auto alphaPixelMap = Media::PixelMap::Create(*nativePixelMap_, region, options, errCode);
