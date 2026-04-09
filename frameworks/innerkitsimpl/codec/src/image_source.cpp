@@ -5891,8 +5891,9 @@ static uint32_t SetThumbnailDecodeOptions(std::unique_ptr<AbsImageDecoder> &thum
     CHECK_ERROR_RETURN_RET_LOG(thumbDecoder == nullptr, ERR_IMAGE_INVALID_PARAMETER,
         "%{public}s: thumbDecoder is nullptr!", __func__);
 
-    if (opts.maxGenerateSize <= 0) {
-        IMAGE_LOGE("%{public}s: invalid opts.maxGenerateSize: %{public}d", __func__, opts.maxGenerateSize);
+    if (opts.maxGeneratedPixelDimension <= 0) {
+        IMAGE_LOGE("%{public}s: invalid opts.maxGeneratedPixelDimension: %{public}d",
+            __func__, opts.maxGeneratedPixelDimension);
         return ERR_IMAGE_INVALID_PARAMETER;
     }
     Size imageSize{};
@@ -5947,7 +5948,7 @@ std::unique_ptr<PixelMap> ImageSource::GenerateThumbnail(const DecodingOptionsFo
         return nullptr;
     }
 
-    errorCode = ImageUtils::ScaleThumbnailWithAspectRatio(pixelMap, opts.maxGenerateSize);
+    errorCode = ImageUtils::ScaleThumbnailWithAspectRatio(pixelMap, opts.maxGeneratedPixelDimension);
     CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, nullptr, "%{public}s: Scale thumbnail failed!", __func__);
     return pixelMap;
 }

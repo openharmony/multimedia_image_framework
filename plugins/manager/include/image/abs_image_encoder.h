@@ -37,7 +37,7 @@ struct PlEncodeOptions {
     uint16_t loop = 0;
     std::vector<uint16_t> delayTimes;
     std::vector<uint8_t> disposalTypes;
-    int32_t embedThumbnailMaxSize = 0;
+    int32_t maxEmbedThumbnailDimension = 0;
 };
 
 class AbsImageEncoder {
