@@ -1589,8 +1589,8 @@ static void ParseDecodeOptionsForThumbnail(optional_view<DecodingOptionsForThumb
     if (options.value().generateThumbnailIfAbsent.has_value()) {
         dOpts.generateThumbnailIfAbsent = options.value().generateThumbnailIfAbsent.value();
     }
-    if (options.value().maxGenerateSize.has_value()) {
-        dOpts.maxGenerateSize = options.value().maxGenerateSize.value();
+    if (options.value().maxGeneratedPixelDimension.has_value()) {
+        dOpts.maxGeneratedPixelDimension = options.value().maxGeneratedPixelDimension.value();
     }
 }
 

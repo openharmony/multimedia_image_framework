@@ -425,7 +425,7 @@ static std::shared_ptr<PixelMap> CreateThumbnailTest(const uint8_t *data, size_t
     }
     DecodingOptionsForThumbnail opts;
     opts.generateThumbnailIfAbsent = FDP->ConsumeBool();
-    opts.maxGenerateSize = FDP->ConsumeIntegralInRange<uint32_t>(0, 0xfff);
+    opts.maxGeneratedPixelDimension = FDP->ConsumeIntegralInRange<uint32_t>(0, 0xfff);
     uint32_t errorCode { NUM_0 };
     return imageSource->CreateThumbnail(opts, errorCode);
 }
@@ -467,7 +467,7 @@ void PackThumbnailFuzzTest(const uint8_t *data, size_t size)
     packOption.delayTimes = delaytimes;
     uint8_t disposalsize = FDP->ConsumeIntegral<uint8_t>();
     packOption.disposalTypes = FDP->ConsumeBytes<uint8_t>(disposalsize);
-    packOption.embedThumbnailMaxSize = FDP->ConsumeIntegral<int32_t>();
+    packOption.maxEmbedThumbnailDimension = FDP->ConsumeIntegral<int32_t>();
     
     if (pack.StartPacking(IMAGE_DEST, packOption) != SUCCESS) {
         IMAGE_LOGE("%{public}s StartPacking failed.", __func__);
