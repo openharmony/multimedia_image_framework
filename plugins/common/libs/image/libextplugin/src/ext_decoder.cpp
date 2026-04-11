@@ -910,9 +910,11 @@ uint32_t ExtDecoder::SetDecodeOptions(uint32_t index, const PixelDecodeOptions &
         if (skEncodeFormat == SkEncodedImageFormat::kAVIF) {
             auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec_->getHeifContext());
             CHECK_ERROR_RETURN_RET_LOG(decoder == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "Avif Decoder is nullptr.");
+#ifndef CROSS_PLATFORM
             CHECK_ERROR_RETURN_RET_LOG(!decoder->IsSupportedPixelFormat(opts.isAnimationDecode,
                 opts.desiredPixelFormat), ERR_IMAGE_DATA_UNSUPPORT,
                 "%{public}s current AVIF desiredFormat is not support", __func__);
+#endif
         }
     }
     regionDesiredSize_.width = opts.desiredSize.width;
@@ -2381,9 +2383,11 @@ static uint32_t GetFormatName(SkEncodedImageFormat format, std::string &name, Sk
             CHECK_ERROR_RETURN_RET_LOG(!codec, ERR_IMAGE_DATA_UNSUPPORT, "codec is nullptr");
             auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec->getHeifContext());
             CHECK_ERROR_RETURN_RET_LOG(!decoder, ERR_IMAGE_DATA_UNSUPPORT, "HeifDecoder is nullptr");
+#ifndef CROSS_PLATFORM
             if (decoder->IsAvisImage()) {
                 name = IMAGE_AVIS_FORMAT;
             }
+#endif
         }
         if (format == SkEncodedImageFormat::kWBMP && ImageUtils::GetAPIVersion() >= APIVERSION_20) {
             name = IMAGE_WBMP_FORMAT;
@@ -2714,12 +2718,16 @@ static uint32_t GetHeifsDelayTime(SkCodec *codec, uint32_t index, int32_t &value
 
 static uint32_t GetAvisDelayTime(SkCodec *codec, uint32_t index, int32_t &value)
 {
+#ifndef CROSS_PLATFORM
     CHECK_ERROR_RETURN_RET(!codec, ERR_MEDIA_INVALID_PARAM);
     auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec->getHeifContext());
     CHECK_ERROR_RETURN_RET(!decoder, ERR_MEDIA_INVALID_PARAM);
     auto ret = decoder->GetAvisDelayTime(index, value);
     IMAGE_LOGD("GetAvisDelayTime : %{public}d", value);
     return ret;
+#else
+    return ERR_MEDIA_INVALID_PARAM;
+#endif
 }
 
 static uint32_t GetDelayTime(SkCodec * codec, uint32_t index, int32_t &value)
@@ -3545,6 +3553,7 @@ OHOS::Media::Size ExtDecoder::GetAnimationImageSize()
 
 uint32_t ExtDecoder::AvifDecode(uint32_t index, DecodeContext &context, uint64_t rowStride, uint64_t byteCount)
 {
+#ifndef CROSS_PLATFORM
     CHECK_ERROR_RETURN_RET_LOG(codec_ == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "AssignAVIFDecode falied, codec error.");
     auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec_->getHeifContext());
     CHECK_ERROR_RETURN_RET_LOG(decoder == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "Avif Decoder is nullptr.");
@@ -3565,6 +3574,9 @@ uint32_t ExtDecoder::AvifDecode(uint32_t index, DecodeContext &context, uint64_t
         decodeRet = decoder->decode();
     }
     return decodeRet ? SUCCESS : ERR_IMAGE_DECODE_FAILED;
+#else
+    return ERR_IMAGE_DECODE_FAILED;
+#endif
 }
 } // namespace ImagePlugin
 } // namespace OHOS
