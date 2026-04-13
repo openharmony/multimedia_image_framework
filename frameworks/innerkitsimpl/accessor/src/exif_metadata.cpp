@@ -264,6 +264,9 @@ const std::map<std::string, PropertyValueType>& ExifMetadata::GetHeifsMetadataMa
 {
     static const std::map<std::string, PropertyValueType> heifsMetadataMap = {
         {"HeifsDelayTime", PropertyValueType::INT},
+        {"HeifsUnclampedDelayTime", PropertyValueType::INT},
+        {"HeifsCanvasHeight", PropertyValueType::INT},
+        {"HeifsCanvasWidth", PropertyValueType::INT},
     };
     return heifsMetadataMap;
 }
@@ -284,6 +287,11 @@ const std::map<std::string, PropertyValueType>& ExifMetadata::GetGifMetadataMap(
     static const std::map<std::string, PropertyValueType> gifMetadataMap = {
         {"GifDelayTime", PropertyValueType::INT},
         {"GifDisposalType", PropertyValueType::INT},
+        {"GifCanvasWidth", PropertyValueType::INT},
+        {"GifCanvasHeight", PropertyValueType::INT},
+        {"GifHasGlobalColorMap", PropertyValueType::INT},
+        {"GifUnclampedDelayTime", PropertyValueType::INT},
+        {"GifLoopCount", PropertyValueType::INT},
     };
     return gifMetadataMap;
 }
@@ -352,6 +360,68 @@ const std::map<std::string, PropertyValueType>& ExifMetadata::GetWebPMetadataMap
     return webpMetadataMap;
 }
 
+const std::map<std::string, PropertyValueType>& ExifMetadata::GetTiffMetadataMap()
+{
+    static const std::map<std::string, PropertyValueType> tiffMetadataMap = {
+        {"TiffCompression", PropertyValueType::INT},
+        {"TiffPhotometricInterpretation", PropertyValueType::INT},
+        {"TiffImageDescription", PropertyValueType::STRING},
+        {"TiffMake", PropertyValueType::STRING},
+        {"TiffModel", PropertyValueType::STRING},
+        {"TiffOrientation", PropertyValueType::INT},
+        {"TiffXResolution", PropertyValueType::DOUBLE},
+        {"TiffYResolution", PropertyValueType::DOUBLE},
+        {"TiffResolutionUnit", PropertyValueType::INT},
+        {"TiffTransferFunction", PropertyValueType::STRING},
+        {"TiffSoftware", PropertyValueType::STRING},
+        {"TiffDateTime", PropertyValueType::STRING},
+        {"TiffArtist", PropertyValueType::STRING},
+        {"TiffWhitePoint", PropertyValueType::DOUBLE_ARRAY},
+        {"TiffPrimaryChromaticities", PropertyValueType::DOUBLE_ARRAY},
+        {"TiffCopyright", PropertyValueType::STRING},
+        {"TiffTileLength", PropertyValueType::INT},
+        {"TiffTileWidth", PropertyValueType::INT},
+        {"TiffDocumentName", PropertyValueType::STRING},
+        {"TiffHostComputer", PropertyValueType::STRING},
+    };
+    return tiffMetadataMap;
+}
+
+const std::map<std::string, PropertyValueType>& ExifMetadata::GetJfifMetadataMap()
+{
+    static const std::map<std::string, PropertyValueType> jfifMetadataMap = {
+        {"JfifXDensity", PropertyValueType::INT},
+        {"JfifYDensity", PropertyValueType::INT},
+        {"JfifDensityUnit", PropertyValueType::INT},
+        {"JfifVersion", PropertyValueType::INT_ARRAY},
+        {"JfifIsProgressive", PropertyValueType::INT},
+    };
+    return jfifMetadataMap;
+}
+
+const std::map<std::string, PropertyValueType>& ExifMetadata::GetPngMetadataMap()
+{
+    static const std::map<std::string, PropertyValueType> pngMetadataMap = {
+        {"PngXPixelsPerMeter", PropertyValueType::INT},
+        {"PngYPixelsPerMeter", PropertyValueType::INT},
+        {"PngGamma", PropertyValueType::DOUBLE},
+        {"PngInterlaceType", PropertyValueType::INT},
+        {"PngSRGBIntent", PropertyValueType::INT},
+        {"PngChromaticities", PropertyValueType::DOUBLE_ARRAY},
+        {"PngTitle", PropertyValueType::STRING},
+        {"PngDescription", PropertyValueType::STRING},
+        {"PngComment", PropertyValueType::STRING},
+        {"PngDisclaimer", PropertyValueType::STRING},
+        {"PngWarning", PropertyValueType::STRING},
+        {"PngAuthor", PropertyValueType::STRING},
+        {"PngCopyright", PropertyValueType::STRING},
+        {"PngCreationTime", PropertyValueType::STRING},
+        {"PngModificationTime", PropertyValueType::STRING},
+        {"PngSoftware", PropertyValueType::STRING},
+    };
+    return pngMetadataMap;
+}
+
 const std::map<NapiMetadataType, std::map<std::string, PropertyValueType>>& ExifMetadata::GetPropertyTypeMapping()
 {
     static const std::map<NapiMetadataType, std::map<std::string, PropertyValueType>> propertyTypeMap = {
@@ -362,6 +432,9 @@ const std::map<NapiMetadataType, std::map<std::string, PropertyValueType>>& Exif
         {NapiMetadataType::GIF_METADATA, GetGifMetadataMap()},
         {NapiMetadataType::DNG_METADATA, GetDngMetadataMap()},
         {NapiMetadataType::WEBP_METADATA, GetWebPMetadataMap()},
+        {NapiMetadataType::TIFF_METADATA, GetTiffMetadataMap()},
+        {NapiMetadataType::JFIF_METADATA, GetJfifMetadataMap()},
+        {NapiMetadataType::PNG_METADATA, GetPngMetadataMap()},
     };
     return propertyTypeMap;
 }
@@ -544,18 +617,12 @@ const std::unordered_map<std::string, std::string>& ExifMetadata::GetPropertyKey
         {"xtStyleVignetting", "HwMnoteXtStyleVignetting"},
         {"xtStyleNoise", "HwMnoteXtStyleNoise"},
 
-        // ============ HeifsMetadata ============
-        {"heifsDelayTime", "HeifsDelayTime"},
-
         // ============ FragmentMetadata ============
         {"xInOriginal", "XInOriginal"},
         {"yInOriginal", "YInOriginal"},
         {"fragmentImageWidth", "FragmentImageWidth"},
         {"fragmentImageHeight", "FragmentImageHeight"},
 
-        // ============ GifMetadata ============
-        {"gifDelayTime", "GifDelayTime"},
-        {"gifDisposalType", "GifDisposalType"},
         // ============ DngMetadata ==============
         {"dngVersion", "DNGVersion"},
         {"dngBackwardVersion", "DNGBackwardVersion"},
@@ -655,6 +722,93 @@ const std::unordered_map<std::string, std::string>& ExifMetadata::GetPropertyKey
         {"loopCount", "WebPLoopCount"},
     };
     return propertyKeyMap;
+}
+
+const std::unordered_map<std::string, std::string>& ExifMetadata::GetTiffPropertyKeyMap()
+{
+    static const std::unordered_map<std::string, std::string> tiffPropertyKeyMap = {
+        {"compression", "TiffCompression"},
+        {"photometricInterpretation", "TiffPhotometricInterpretation"},
+        {"imageDescription", "TiffImageDescription"},
+        {"make", "TiffMake"},
+        {"model", "TiffModel"},
+        {"orientation", "TiffOrientation"},
+        {"xResolution", "TiffXResolution"},
+        {"yResolution", "TiffYResolution"},
+        {"resolutionUnit", "TiffResolutionUnit"},
+        {"transferFunction", "TiffTransferFunction"},
+        {"software", "TiffSoftware"},
+        {"dateTime", "TiffDateTime"},
+        {"artist", "TiffArtist"},
+        {"whitePoint", "TiffWhitePoint"},
+        {"primaryChromaticities", "TiffPrimaryChromaticities"},
+        {"copyright", "TiffCopyright"},
+        {"tileLength", "TiffTileLength"},
+        {"tileWidth", "TiffTileWidth"},
+        {"documentName", "TiffDocumentName"},
+        {"hostComputer", "TiffHostComputer"},
+    };
+    return tiffPropertyKeyMap;
+}
+
+const std::unordered_map<std::string, std::string>& ExifMetadata::GetGifPropertyKeyMap()
+{
+    static const std::unordered_map<std::string, std::string> gifPropertyKeyMap = {
+        {"delayTime", "GifDelayTime"},
+        {"disposalType", "GifDisposalType"},
+        {"canvasWidth", "GifCanvasWidth"},
+        {"canvasHeight", "GifCanvasHeight"},
+        {"hasGlobalColorMap", "GifHasGlobalColorMap"},
+        {"unclampedDelayTime", "GifUnclampedDelayTime"},
+        {"loopCount", "GifLoopCount"},
+    };
+    return gifPropertyKeyMap;
+}
+
+const std::unordered_map<std::string, std::string>& ExifMetadata::GetJfifPropertyKeyMap()
+{
+    static const std::unordered_map<std::string, std::string> jfifPropertyKeyMap = {
+        {"xDensity", "JfifXDensity"},
+        {"yDensity", "JfifYDensity"},
+        {"densityUnit", "JfifDensityUnit"},
+        {"version", "JfifVersion"},
+        {"isProgressive", "JfifIsProgressive"},
+    };
+    return jfifPropertyKeyMap;
+}
+
+const std::unordered_map<std::string, std::string>& ExifMetadata::GetPngPropertyKeyMap()
+{
+    static const std::unordered_map<std::string, std::string> pngPropertyKeyMap = {
+        {"xPixelsPerMeter", "PngXPixelsPerMeter"},
+        {"yPixelsPerMeter", "PngYPixelsPerMeter"},
+        {"gamma", "PngGamma"},
+        {"interlaceType", "PngInterlaceType"},
+        {"sRGBIntent", "PngSRGBIntent"},
+        {"chromaticities", "PngChromaticities"},
+        {"title", "PngTitle"},
+        {"description", "PngDescription"},
+        {"comment", "PngComment"},
+        {"disclaimer", "PngDisclaimer"},
+        {"warning", "PngWarning"},
+        {"author", "PngAuthor"},
+        {"copyright", "PngCopyright"},
+        {"creationTime", "PngCreationTime"},
+        {"modificationTime", "PngModificationTime"},
+        {"software", "PngSoftware"},
+    };
+    return pngPropertyKeyMap;
+}
+
+const std::unordered_map<std::string, std::string>& ExifMetadata::GetHeifsPropertyKeyMap()
+{
+    static const std::unordered_map<std::string, std::string> heifsPropertyKeyMap = {
+        {"heifsDelayTime", "HeifsDelayTime"},
+        {"heifsUnclampedDelayTime", "HeifsUnclampedDelayTime"},
+        {"heifsCanvasHeight", "HeifsCanvasHeight"},
+        {"heifsCanvasWidth", "HeifsCanvasWidth"},
+    };
+    return heifsPropertyKeyMap;
 }
 
 template <typename T, typename U> std::istream &OutputRational(std::istream &is, T &r)

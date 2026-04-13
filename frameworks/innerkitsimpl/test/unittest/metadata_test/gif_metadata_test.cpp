@@ -26,6 +26,7 @@ using namespace testing::ext;
 
 namespace OHOS {
 namespace Multimedia {
+const static uint64_t MAX_KV_META_COUNT = 20;
 const static uint64_t MAX_GIF_META_COUNT = 10;
 const static uint64_t MAX_GIF_META_LENGTH = 128;
 
@@ -377,13 +378,14 @@ HWTEST_F(GifMetadataTest, SetValueTest004, TestSize.Level2)
     GifMetadata gifMetadata;
     gifMetadata.properties_ = std::make_shared<ImageMetadata::PropertyMap>();
     ASSERT_NE(gifMetadata.properties_, nullptr);
-    *gifMetadata.properties_ = {
-        {"key0", "value0"}, {"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}, {"key4", "value4"},
-        {"key5", "value5"}, {"key6", "value6"}, {"key7", "value7"}, {"key8", "value8"}, {"key9", "value9"}
-    };
+
+    for (uint32_t i = 0; i < MAX_KV_META_COUNT; ++i) {
+        gifMetadata.properties_->emplace(
+            std::string("key") + std::to_string(i), std::string("value") + std::to_string(i));
+    }
     std::string key = GIF_METADATA_KEY_DELAY_TIME;
     std::string value = "value";
-    ASSERT_EQ(gifMetadata.properties_->size(), MAX_GIF_META_COUNT);
+    ASSERT_EQ(gifMetadata.properties_->size(), MAX_KV_META_COUNT);
 
     bool res = gifMetadata.SetValue(key, value);
     EXPECT_FALSE(res);
@@ -434,12 +436,11 @@ HWTEST_F(GifMetadataTest, CloneMetadataTest002, TestSize.Level2)
     GifMetadata gifMetadata;
     gifMetadata.properties_ = std::make_shared<ImageMetadata::PropertyMap>();
     ASSERT_NE(gifMetadata.properties_, nullptr);
-    *gifMetadata.properties_ = {
-        {"key0", "value0"}, {"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}, {"key4", "value4"},
-        {"key5", "value5"}, {"key6", "value6"}, {"key7", "value7"}, {"key8", "value8"}, {"key9", "value9"},
-        {"over_size", "over_size"}
-    };
-    ASSERT_EQ(gifMetadata.properties_->size(), MAX_GIF_META_COUNT + 1);
+    for (uint32_t i = 0; i < MAX_KV_META_COUNT + 1; ++i) {
+        gifMetadata.properties_->emplace(
+            std::string("key") + std::to_string(i), std::string("value") + std::to_string(i));
+    }
+    ASSERT_EQ(gifMetadata.properties_->size(), MAX_KV_META_COUNT + 1);
 
     auto res = gifMetadata.CloneMetadata();
     ASSERT_EQ(res, nullptr);

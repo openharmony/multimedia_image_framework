@@ -26,8 +26,10 @@
 
 #include "decode_listener.h"
 #include "fragment_metadata.h"
+#include "gif_metadata.h"
 #include "image_type.h"
 #include "incremental_pixel_map.h"
+#include "jfif_metadata.h"
 #include "peer_listener.h"
 #include "pixel_map.h"
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -50,6 +52,7 @@ struct DataStreamBuffer;
 struct PixelDecodeOptions;
 struct PlImageInfo;
 struct DecodeContext;
+class PngMetadataParser;
 } // namespace ImagePlugin
 } // namespace OHOS
 
@@ -163,6 +166,7 @@ struct StreamInfo;
 struct SingleJpegImage;
 struct MainPictureInfo;
 class XMPMetadata;
+class PngMetadata;
 
 class ImageSource {
 public:
@@ -288,6 +292,7 @@ public:
     ImageHdrType CheckHdrType();
     NATIVEEXPORT uint32_t GetiTxtLength();
     NATIVEEXPORT uint32_t GetDngImagePropertyByDngSdk(const std::string &key, MetadataValue &value);
+    NATIVEEXPORT uint32_t GetTiffImagePropertyByType(const std::string &key, MetadataValue &value);
     NATIVEEXPORT bool IsHeifWithoutAlpha();
     NATIVEEXPORT std::shared_ptr<ImageMetadata> GetMetadataWithIndex(
         MetadataType type, uint32_t index, uint32_t &errorCode);
@@ -297,7 +302,9 @@ public:
     NATIVEEXPORT std::shared_ptr<GifMetadata> GetGifMetadata(uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<HeifsMetadata> GetHeifsMetadata(uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<WebPMetadata> GetWebPMetadata(uint32_t index, uint32_t &errorCode);
+    NATIVEEXPORT uint32_t GetPngMetadata(std::shared_ptr<PngMetadata> &pngMetadata);
     NATIVEEXPORT std::shared_ptr<BlobMetadata> GetBlobMetadata(MetadataType type, uint32_t &errorCode);
+    NATIVEEXPORT uint32_t GetJfifMetadata(std::shared_ptr<JfifMetadata> &jfifMetadata);
 #endif
     NATIVEEXPORT std::vector<std::shared_ptr<ImageMetadata>> GetAllSupportedMetadataTypes(uint32_t index,
         uint32_t &errorCode);
@@ -354,8 +361,20 @@ private:
     uint32_t GetGifProperty(uint32_t index, const std::string &key, MetadataValue &value);
     uint32_t GetWebPProperty(uint32_t index, const std::string &key, MetadataValue &value);
     uint32_t GetFragmentProperty(const std::string &key, MetadataValue &value);
+    uint32_t GetJfifProperty(const std::string &key, MetadataValue &value);
+    uint32_t GetHeifsProperty(uint32_t index, const std::string &key, MetadataValue &value);
+    uint32_t GetPngProperty(const std::string &key, MetadataValue &value);
+    uint32_t FillPngMetadataValue(const std::string &key, const ImageMetadata::PropertyMapPtr &propertiesPtr,
+        MetadataValue &value);
     void GetFragmentPropertiesWithType(std::vector<MetadataValue> &result);
+    void GetJfifMetadataPropertiesWithType(std::vector<MetadataValue> &result);
+    void GetHeifsPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
     void GetWebpPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
+    void GetPngPropertiesWithType(std::vector<MetadataValue> &result);
+    void AppendGifPropertiesWithType(std::vector<MetadataValue> &result, uint32_t &index);
+    bool TryGetAllGifPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
+    bool TryGetAllDngPropertiesWithType(std::vector<MetadataValue> &result);
+    void AppendTiffPropertiesForGetAll(std::vector<MetadataValue> &result);
     FinalOutputStep GetFinalOutputStep(const DecodeOptions &opts, PixelMap &pixelMap, bool hasNinePatch);
     bool HasDensityChange(const DecodeOptions &opts, ImageInfo &srcImageInfo, bool hasNinePatch);
     bool ImageSizeChange(int32_t width, int32_t height, int32_t desiredWidth, int32_t desiredHeight);
@@ -458,6 +477,7 @@ private:
     std::string GetPixelMapName(PixelMap* pixelMap);
     bool IsDngImage();
     bool IsWebPImage();
+    bool IsEncodedFormat(const std::string& encodedFormat);
     void SetAnimationSize(uint32_t index, const DecodeOptions &opts, ImageInfo &info);
 
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -474,6 +494,7 @@ private:
     uint32_t SetGifMetadataForPicture(std::unique_ptr<Picture> &picture, uint32_t index);
     uint32_t SetHeifsMetadataForPicture(std::unique_ptr<Picture> &picture, uint32_t index);
     uint32_t SetAvisMetadataForPicture(std::unique_ptr<Picture> &picture, uint32_t index);
+    uint32_t SetJfifMetadataForPicture(std::unique_ptr<Picture> &picture);
     void DecodeBlobMetaData(std::unique_ptr<Picture> &picture, const std::set<MetadataType> &metadataTypes,
         ImageInfo &info, uint32_t &errorCode);
     std::shared_ptr<ImageMetadata> FindMetadataFromMap(MetadataType type);

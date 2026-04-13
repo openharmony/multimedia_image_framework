@@ -29,6 +29,7 @@ namespace OHOS {
 namespace Multimedia {
 constexpr int32_t TEST_INVALID_METADATA_TYPE = 999;
 constexpr uint64_t TEST_PARCEL_SIZE_ONE = 1;
+const static uint64_t MAX_KV_META_COUNT = 20;
 const static uint64_t MAX_FRAGMENT_MAP_META_COUNT = 10;
 const static uint64_t MAX_FRAGMENT_MAP_META_LENGTH = 128;
 
@@ -367,13 +368,13 @@ HWTEST_F(FragmentMetadataTest, SetValueTest004, TestSize.Level2)
     FragmentMetadata fragmentMetadata;
     fragmentMetadata.properties_ = std::make_shared<ImageMetadata::PropertyMap>();
     ASSERT_NE(fragmentMetadata.properties_, nullptr);
-    *fragmentMetadata.properties_ = {
-        {"key0", "value0"}, {"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}, {"key4", "value4"},
-        {"key5", "value5"}, {"key6", "value6"}, {"key7", "value7"}, {"key8", "value8"}, {"key9", "value9"}
-    };
+    for (uint32_t i = 0; i < MAX_KV_META_COUNT; ++i) {
+        fragmentMetadata.properties_->emplace(
+            std::string("key") + std::to_string(i), std::string("value") + std::to_string(i));
+    }
     std::string key = FRAGMENT_METADATA_KEY_X;
     std::string value = "value";
-    ASSERT_EQ(fragmentMetadata.properties_->size(), MAX_FRAGMENT_MAP_META_COUNT);
+    ASSERT_EQ(fragmentMetadata.properties_->size(), MAX_KV_META_COUNT);
 
     bool res = fragmentMetadata.SetValue(key, value);
     EXPECT_FALSE(res);
@@ -410,12 +411,11 @@ HWTEST_F(FragmentMetadataTest, CloneMetadataTest002, TestSize.Level2)
     FragmentMetadata fragmentMetadata;
     fragmentMetadata.properties_ = std::make_shared<ImageMetadata::PropertyMap>();
     ASSERT_NE(fragmentMetadata.properties_, nullptr);
-    *fragmentMetadata.properties_ = {
-        {"key0", "value0"}, {"key1", "value1"}, {"key2", "value2"}, {"key3", "value3"}, {"key4", "value4"},
-        {"key5", "value5"}, {"key6", "value6"}, {"key7", "value7"}, {"key8", "value8"}, {"key9", "value9"},
-        {"over_size", "over_size"}
-    };
-    ASSERT_EQ(fragmentMetadata.properties_->size(), MAX_FRAGMENT_MAP_META_COUNT + 1);
+    for (uint32_t i = 0; i < MAX_KV_META_COUNT + 1; ++i) {
+        fragmentMetadata.properties_->emplace(
+            std::string("key") + std::to_string(i), std::string("value") + std::to_string(i));
+    }
+    ASSERT_EQ(fragmentMetadata.properties_->size(), MAX_KV_META_COUNT + 1);
 
     auto res = fragmentMetadata.CloneMetadata();
     ASSERT_EQ(res, nullptr);
