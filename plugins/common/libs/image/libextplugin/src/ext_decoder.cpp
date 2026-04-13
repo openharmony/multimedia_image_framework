@@ -56,6 +56,7 @@
 #include "buffer_source_stream.h"
 #include "color_utils.h"
 #include "cr3_format_agent.h"
+#include "gif_format_agent.h"
 #include "cr3_parser.h"
 #include "heif_parser.h"
 #include "heif_format_agent.h"
@@ -67,6 +68,7 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImage.h"
+#include "kv_metadata.h"
 #ifdef USE_M133_SKIA
 #include "include/codec/SkCodecAnimation.h"
 #include "modules/skcms/src/skcms_public.h"
@@ -129,6 +131,7 @@ namespace {
     constexpr static int JPEG_MARKER_LENGTH = 2;
     static constexpr uint8_t JPEG_SOI_HEADER[] = { 0xFF, 0xD8 };
     constexpr static uint64_t BIT_10_MULTIPLIER = 2;
+    constexpr static uint32_t GIF_HEADER_AND_SCREEN_SIZE = 13;
 }
 
 namespace OHOS {
@@ -154,7 +157,12 @@ const static string IMAGE_DELAY_TIME = "DelayTime";
 const static string IMAGE_DISPOSAL_TYPE = "DisposalType";
 const static string IMAGE_LOOP_COUNT = "GIFLoopCount";
 const static string WEBP_LOOP_COUNT = "WebPLoopCount";
+const static string GIF_CANVAS_PIXEL_WIDTH = "GifCanvasWidth";
+const static string GIF_CANVAS_PIXEL_HEIGHT = "GifCanvasHeight";
+const static string GIF_HAS_GLOBAL_COLOR_MAP = "GifHasGlobalColorMap";
+const static string GIF_UNCLAMPED_DELAY_TIME = "GifUnclampedDelayTime";
 const static std::string HW_MNOTE_TAG_HEADER = "HwMnote";
+constexpr static uint32_t GIF_HEADER_SIZE = 6;
 const static std::string HW_MNOTE_CAPTURE_MODE = "HwMnoteCaptureMode";
 const static std::string HW_MNOTE_PHYSICAL_APERTURE = "HwMnotePhysicalAperture";
 const static std::string HW_MNOTE_TAG_ROLL_ANGLE = "HwMnoteRollAngle";
@@ -171,6 +179,18 @@ const static std::string HW_MNOTE_TAG_SCENE_NIGHT_CONF = "HwMnoteSceneNightConf"
 const static std::string HW_MNOTE_TAG_SCENE_TEXT_CONF = "HwMnoteSceneTextConf";
 const static std::string HW_MNOTE_TAG_FACE_COUNT = "HwMnoteFaceCount";
 const static std::string HW_MNOTE_TAG_FOCUS_MODE = "HwMnoteFocusMode";
+const static std::string JFIF_METADATA_DENSITY_UNIT = "JfifDensityUnit";
+const static std::string JFIF_METADATA_IS_PROGRESSIVE = "JfifIsProgressive";
+const static std::string JFIF_METADATA_VERSION  = "JfifVersion";
+const static std::string JFIF_METADATA_X_DENSITY = "JfifXDensity";
+const static std::string JFIF_METADATA_Y_DENSITY = "JfifYDensity";
+const static std::string JFIF_METADATA_MAJOR_VERSION = "JFIF_major_version";
+const static std::string JFIF_METADATA_MINOR_VERSION = "JFIF_minor_version";
+const static std::string HEIFS_METADATA_DELAYTIME = "HeifsDelayTime";
+const static std::string HEIFS_METADATA_UNCLAMPED_DELAY_TIME = "HeifsUnclampedDelayTime";
+const static std::string HEIFS_METADATA_CANVAS_PIXEL_HEIGHT = "HeifsCanvasHeight";
+const static std::string HEIFS_METADATA_CANVAS_PIXEL_WIDTH = "HeifsCanvasWidth";
+
 // SUCCESS is existed in both OHOS::HiviewDFX and OHOS::Media
 #define SUCCESS OHOS::Media::SUCCESS
 const static std::string DEFAULT_PACKAGE_NAME = "entry";
@@ -524,6 +544,8 @@ void ExtDecoder::Reset()
     dstSubset_ = SkIRect::MakeEmpty();
     info_.reset();
     rawEncodedFormat_.clear();
+    gifMetadataParsed_ = false;
+    gifHasGlobalColorMap_ = false;
 }
 
 static inline float Max(float a, float b)
@@ -2790,6 +2812,135 @@ static uint32_t GetLoopCount(SkCodec *codec, int32_t &value)
     return SUCCESS;
 }
 
+static uint32_t ReadGifHeaderAndPalette(InputDataStream *stream, std::vector<uint8_t> &gifData)
+{
+    uint32_t savedPosition = stream->Tell();
+    CHECK_ERROR_RETURN_RET_LOG(!stream->Seek(0), ERR_IMAGE_GET_DATA_ABNORMAL,
+        "[ReadGifHeaderAndPalette] Seek to 0 failed");
+
+    const uint32_t want = static_cast<uint32_t>(gifData.size());
+    uint32_t readSize = 0;
+    if (!stream->Read(want, gifData.data(), want, readSize) || readSize < GIF_HEADER_AND_SCREEN_SIZE) {
+        (void)stream->Seek(savedPosition);
+        IMAGE_LOGE("[ParseGifMetadata] Read GIF data failed");
+        return ERR_IMAGE_GET_DATA_ABNORMAL;
+    }
+    (void)stream->Seek(savedPosition);
+    return SUCCESS;
+}
+
+uint32_t ExtDecoder::ParseGifMetadata()
+{
+    CHECK_ERROR_RETURN_RET(stream_ == nullptr || codec_ == nullptr ||
+        codec_->getEncodedFormat() != SkEncodedImageFormat::kGIF, ERR_MEDIA_INVALID_PARAM);
+
+    CHECK_INFO_RETURN_RET_LOG(gifMetadataParsed_, SUCCESS, "[ParseGifMetadata] GIF metadata already parsed");
+    std::vector<uint8_t> gifData(GIF_HEADER_AND_SCREEN_SIZE);
+    uint32_t ret = ReadGifHeaderAndPalette(stream_, gifData);
+    if (ret != SUCCESS) {
+        return ret;
+    }
+    const uint8_t *data = gifData.data();
+
+    GifFormatAgent agent;
+    CHECK_ERROR_RETURN_RET_LOG(!agent.CheckFormat(data, gifData.size()), ERR_IMAGE_DATA_ABNORMAL,
+        "[ParseGifMetadata] Invalid GIF signature");
+    // LSD packed-fields byte: signature(6) + screen width(2) + screen height(2)
+    constexpr uint32_t lsdPackedFieldsOffset = 10;
+    uint8_t packed = data[lsdPackedFieldsOffset];
+    gifHasGlobalColorMap_ = (packed & 0x80) != 0;
+    gifMetadataParsed_ = true;
+    IMAGE_LOGD("[ParseGifMetadata] hasGlobalColorMap=%{public}d", gifHasGlobalColorMap_);
+    return SUCCESS;
+}
+
+static uint32_t GetGifCanvasDimensions(SkCodec *codec, const std::string &key, int32_t &value)
+{
+    CHECK_ERROR_RETURN_RET_LOG(codec == nullptr || codec->getEncodedFormat() != SkEncodedImageFormat::kGIF,
+        ERR_MEDIA_INVALID_PARAM, "[GetGifCanvasDimensions] Not GIF format");
+    SkISize size = codec->dimensions();
+    if (key == GIF_CANVAS_PIXEL_WIDTH) {
+        value = size.width();
+    } else {
+        value = size.height();
+    }
+    return SUCCESS;
+}
+
+static uint32_t GetGifUnclampedDelayTime(SkCodec *codec, uint32_t index, int32_t &value)
+{
+    CHECK_ERROR_RETURN_RET_LOG(codec == nullptr || codec->getEncodedFormat() != SkEncodedImageFormat::kGIF,
+        ERR_MEDIA_INVALID_PARAM, "[GetGifUnclampedDelayTime] Not GIF format");
+    auto frameInfos = codec->getFrameInfo();
+    CHECK_ERROR_RETURN_RET_LOG(index >= frameInfos.size(), ERR_MEDIA_INVALID_PARAM,
+        "[GetGifUnclampedDelayTime] frame size %{public}zu, index:%{public}u", frameInfos.size(), index);
+    value = frameInfos[index].fDuration;
+    return SUCCESS;
+}
+
+uint32_t ExtDecoder::GetJfifProperty(SkCodec *codec, const std::string &key, int32_t &value)
+{
+    if (codec->getEncodedFormat() != SkEncodedImageFormat::kJPEG) {
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    
+    SkJpegCodec* jpegCodec = static_cast<SkJpegCodec*>(codec);
+    auto cond = (jpegCodec == nullptr || jpegCodec->decoderMgr() == nullptr ||
+        jpegCodec->decoderMgr()->dinfo() == nullptr);
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_MEDIA_INVALID_PARAM, "%{public}s invalid SkJpegCodec", __func__);
+
+    struct jpeg_decompress_struct* dInfo = jpegCodec->decoderMgr()->dinfo();
+    if (JFIF_METADATA_X_DENSITY.compare(key) == ZERO) {
+        value = dInfo->X_density;
+    } else if (JFIF_METADATA_Y_DENSITY.compare(key) == ZERO) {
+        value = dInfo->Y_density;
+    } else if (JFIF_METADATA_DENSITY_UNIT.compare(key) == ZERO) {
+        value = dInfo->density_unit;
+    } else if (JFIF_METADATA_MAJOR_VERSION.compare(key) == ZERO) {
+        value = dInfo->JFIF_major_version;
+    } else if (JFIF_METADATA_MINOR_VERSION.compare(key) == ZERO) {
+        value = dInfo->JFIF_minor_version;
+    } else if (JFIF_METADATA_IS_PROGRESSIVE.compare(key) == ZERO) {
+        value = static_cast<int32_t>(IsProgressiveJpeg());
+    } else {
+        return ERR_MEDIA_INVALID_PARAM;
+    }
+    return SUCCESS;
+}
+
+#ifdef HEIF_HW_DECODE_ENABLE
+uint32_t ExtDecoder::GetHeifsProperty(SkCodec *codec, uint32_t index, const std::string &key, int32_t &value)
+{
+    auto decoder = reinterpret_cast<HeifDecoderImpl*>(codec->getHeifContext());
+    CHECK_ERROR_RETURN_RET(!decoder, ERR_MEDIA_INVALID_PARAM);
+    if (HEIFS_METADATA_DELAYTIME.compare(key) == ZERO) {
+        return decoder->GetHeifsDelayTime(index, value);
+    } else if (HEIFS_METADATA_UNCLAMPED_DELAY_TIME.compare(key) == ZERO) {
+        return decoder->GetHeifsDelayTime(index, value);
+    } else if (HEIFS_METADATA_CANVAS_PIXEL_HEIGHT.compare(key) == ZERO) {
+        return decoder->GetHeifsCanvasPixelSize(index, value, false);
+    } else if (HEIFS_METADATA_CANVAS_PIXEL_WIDTH.compare(key) == ZERO) {
+        return decoder->GetHeifsCanvasPixelSize(index, value, true);
+    } else {
+        return ERR_MEDIA_INVALID_PARAM;
+    }
+    return SUCCESS;
+}
+#endif
+
+uint32_t ExtDecoder::GetGifHasGlobalColorMapInt(int32_t &value)
+{
+    if (codec_.get() == nullptr || codec_.get()->getEncodedFormat() != SkEncodedImageFormat::kGIF) {
+        return ERR_MEDIA_INVALID_PARAM;
+    }
+    uint32_t parseRet = ParseGifMetadata();
+    if (parseRet != SUCCESS) {
+        return parseRet;
+    }
+    value = gifHasGlobalColorMap_ ? 1 : 0;
+    return SUCCESS;
+}
+
 uint32_t ExtDecoder::GetImagePropertyInt(uint32_t index, const std::string &key, int32_t &value)
 {
     IMAGE_LOGD("[GetImagePropertyInt] enter ExtDecoder plugin, key:%{public}s", key.c_str());
@@ -2805,6 +2956,26 @@ uint32_t ExtDecoder::GetImagePropertyInt(uint32_t index, const std::string &key,
     }
     if (IMAGE_LOOP_COUNT.compare(key) == ZERO || WEBP_LOOP_COUNT.compare(key) == ZERO) {
         return GetLoopCount(codec_.get(), value);
+    }
+    if (ImageKvMetadata::IsJfifMetadataKey(key)) {
+        return GetJfifProperty(codec_.get(), key, value);
+    }
+#ifdef HEIF_HW_DECODE_ENABLE
+    if (ImageKvMetadata::IsHeifsMetadataKey(key)) {
+        return GetHeifsProperty(codec_.get(), index, key, value);
+    }
+#endif
+    if (GIF_CANVAS_PIXEL_WIDTH.compare(key) == ZERO) {
+        return GetGifCanvasDimensions(codec_.get(), GIF_CANVAS_PIXEL_WIDTH, value);
+    }
+    if (GIF_CANVAS_PIXEL_HEIGHT.compare(key) == ZERO) {
+        return GetGifCanvasDimensions(codec_.get(), GIF_CANVAS_PIXEL_HEIGHT, value);
+    }
+    if (GIF_HAS_GLOBAL_COLOR_MAP.compare(key) == ZERO) {
+        return GetGifHasGlobalColorMapInt(value);
+    }
+    if (GIF_UNCLAMPED_DELAY_TIME.compare(key) == ZERO) {
+        return GetGifUnclampedDelayTime(codec_.get(), index, value);
     }
     // There can add some not need exif property
     if (res == Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT) {

@@ -118,6 +118,8 @@ public:
     heif_error GetAvisFrameData(uint32_t index, std::vector<uint8_t> &dest);
 
     heif_error GetAvisFrameCount(uint32_t &sampleCount) const;
+
+    uint32_t GetHeifsCanvasPixelWidthHeight(uint32_t index, uint32_t &width, uint32_t &height);
 private:
     // stream
     std::shared_ptr<HeifInputStream> inputStream_;

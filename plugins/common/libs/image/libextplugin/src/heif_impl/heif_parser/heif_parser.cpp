@@ -1482,5 +1482,14 @@ heif_error HeifParser::GetAvisFrameCount(uint32_t &sampleCount) const
     sampleCount = stszBox_->GetSampleCount();
     return heif_error_ok;
 }
+
+uint32_t HeifParser::GetHeifsCanvasPixelWidthHeight(uint32_t index, uint32_t &width, uint32_t &height)
+{
+    if (!stsdBox_) {
+        return heif_error_no_stsd;
+    }
+    return stsdBox_->GetSampleEntryWidthHeight(index, width, height);
+}
+
 } // namespace ImagePlugin
 } // namespace OHOS

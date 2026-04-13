@@ -17,6 +17,8 @@
     *BufferMetadataStream*;
     *MetadataAccessorFactory*;
     *TiffParser*;
+    *TiffExifMetadata*;
+    *TiffExifMetadataAccessor*;
     *DataBuf*;
     *DngExifMetadata*;
     *DngSdkInfo*;
