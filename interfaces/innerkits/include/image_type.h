@@ -534,7 +534,7 @@ struct DecodingOptionsForPicture {
 };
 
 struct DecodingOptionsForThumbnail {
-    int32_t maxGenerateSize = 512;
+    int32_t maxGeneratedPixelDimension = 512;
     bool generateThumbnailIfAbsent = true;
     PixelFormat desiredPixelFormat = PixelFormat::RGBA_8888;
     AllocatorType allocatorType = AllocatorType::DMA_ALLOC;

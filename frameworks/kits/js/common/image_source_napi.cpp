@@ -1939,13 +1939,14 @@ static bool ParseDecodeOptionsForThumbnail(napi_env env, napi_value root, Decodi
     }
 
     napi_value tmpValue = nullptr;
-    if (!GET_NODE_BY_NAME(root, "maxGenerateSize", tmpValue)) {
-        opts->maxGenerateSize = DEFAULT_MAX_GENERATE_SIZE;
-        IMAGE_LOGD("no maxGenerateSize, use default value: 512");
+    if (!GET_NODE_BY_NAME(root, "maxGeneratedPixelDimension", tmpValue)) {
+        opts->maxGeneratedPixelDimension = DEFAULT_MAX_GENERATE_SIZE;
+        IMAGE_LOGD("no maxGeneratedPixelDimension, use default value: 512");
     } else {
-        if (!ImageNapiUtils::GetInt32ByName(env, root, "maxGenerateSize", &opts->maxGenerateSize)) {
-            opts->maxGenerateSize = DEFAULT_MAX_GENERATE_SIZE;
-            IMAGE_LOGD("maxGenerateSize get failed, use default value: 512");
+        if (!ImageNapiUtils::GetInt32ByName(env, root, "maxGeneratedPixelDimension",
+            &opts->maxGeneratedPixelDimension)) {
+            opts->maxGeneratedPixelDimension = DEFAULT_MAX_GENERATE_SIZE;
+            IMAGE_LOGD("maxGeneratedPixelDimension get failed, use default value: 512");
         }
     }
     return true;

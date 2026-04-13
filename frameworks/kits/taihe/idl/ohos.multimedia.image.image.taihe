@@ -317,7 +317,7 @@ struct PackingOption {
   bufferSize: Optional<i32>;
   desiredDynamicRange: Optional<PackingDynamicRange>;
   needsPackProperties: Optional<bool>;
-  embedThumbnailMaxSize: Optional<i32>;
+  maxEmbedThumbnailDimension: Optional<i32>;
 }
 
 struct PackingOptionsForSequence {
@@ -612,7 +612,7 @@ struct DecodingOptionsForPicture {
 }
 
 struct DecodingOptionsForThumbnail {
-  maxGenerateSize: Optional<i32>;
+  maxGeneratedPixelDimension: Optional<i32>;
   generateThumbnailIfAbsent: Optional<bool>;
 }
 
