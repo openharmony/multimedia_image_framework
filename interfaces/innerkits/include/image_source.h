@@ -163,8 +163,6 @@ class MetadataAccessor;
 class ExifMetadata;
 class DngExifMetadata;
 struct StreamInfo;
-struct SingleJpegImage;
-struct MainPictureInfo;
 class XMPMetadata;
 class PngMetadata;
 
@@ -313,7 +311,6 @@ public:
     NATIVEEXPORT uint32_t WriteXMPMetadata(std::shared_ptr<XMPMetadata> &xmpMetadata);
     NATIVEEXPORT std::shared_ptr<ImageMetadata> GetMetadata(MetadataType type);
     NATIVEEXPORT uint32_t GetImageRawData(std::vector<uint8_t> &data, uint32_t &bitsPerSample);
-    static int32_t DownSampleThumbnail(std::unique_ptr<PixelMap> &pixelMap, const int32_t maxGenerateSize);
 
     void SetSystemApi(bool isSystemApi)
     {

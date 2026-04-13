@@ -351,7 +351,7 @@ void ImagePacker::CopyOptionsToPlugin(const PackOption &opts, PlEncodeOptions &p
     plOpts.needsPackProperties = opts.needsPackProperties;
     plOpts.desiredDynamicRange = opts.desiredDynamicRange;
     plOpts.isEditScene = opts.isEditScene;
-    plOpts.embedThumbnailMaxSize = opts.embedThumbnailMaxSize;
+    plOpts.maxEmbedThumbnailDimension = opts.maxEmbedThumbnailDimension;
 }
 
 void ImagePacker::FreeOldPackerStream()
