@@ -6799,11 +6799,12 @@ uint32_t ImageSource::GetJfifMetadata (std::shared_ptr<JfifMetadata> &jfifMetada
 
 std::shared_ptr<WebPMetadata> ImageSource::GetWebPMetadata(uint32_t index, uint32_t &errorCode)
 {
+    ImageInfo info;
+    GetImageInfo(info);
+
     CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, nullptr,
         "[%{public}s] mainDecoder_ is nullptr", __func__);
 
-    ImageInfo info;
-    GetImageInfo(info);
     if (info.encodedFormat != IMAGE_WEBP_FORMAT) {
         IMAGE_LOGE("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
         return nullptr;
