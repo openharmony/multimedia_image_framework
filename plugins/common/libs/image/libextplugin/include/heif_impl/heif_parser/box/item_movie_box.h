@@ -66,7 +66,7 @@ protected:
 class HeifTkhdBox : public HeifFullBox {
 public:
     HeifTkhdBox() : HeifFullBox(BOX_TYPE_TKHD) {}
-
+    uint64_t GetDuration() const { return duration_; }
     heif_error Write(HeifStreamWriter &writer) const override;
 protected:
     heif_error ParseContent(HeifStreamReader &reader) override;
