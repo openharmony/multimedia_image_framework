@@ -3582,8 +3582,8 @@ static void ReadImageMetadataExecute(napi_env env, void *data)
     context->rImageHeifsMetadata = CreateNullHeifsMetadata();
     context->rWebPMetadata = CreateNullWebPMetadata();
     context->rJfifMetadata = CreateNullJfifMetadata();
-    errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
     context->rFragmentMetadata = context->rImageSource->GetFragmentMetadata(errorCode);
     context->rGifMetadata = context->rImageSource->GetGifMetadata(context->index, errorCode);
     context->rRfDataBMetadata = std::static_pointer_cast<RfDataBMetadata>(
@@ -4104,8 +4104,8 @@ static void ReadImageMetadataByTypeExecute(napi_env env, void *data)
     context->rImageHeifsMetadata = CreateNullHeifsMetadata();
     context->rWebPMetadata = CreateNullWebPMetadata();
     context->rJfifMetadata = CreateNullJfifMetadata();
-    errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
     context->rFragmentMetadata = context->rImageSource->GetFragmentMetadata(errorCode);
     context->rGifMetadata = context->rImageSource->GetGifMetadata(context->index, errorCode);
     context->rRfDataBMetadata = std::static_pointer_cast<RfDataBMetadata>(
