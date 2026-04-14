@@ -179,8 +179,10 @@ std::shared_ptr<MetadataAccessor> MetadataAccessorFactory::Create(std::shared_pt
             return std::make_shared<HeifExifMetadataAccessor>(stream);
         case EncodedFormat::DNG:
             return std::make_shared<DngExifMetadataAccessor>(stream);
+#if !defined(CROSS_PLATFORM)
         case EncodedFormat::TIFF:
             return std::make_shared<TiffExifMetadataAccessor>(stream);
+#endif
         default:
             return nullptr;
     }
