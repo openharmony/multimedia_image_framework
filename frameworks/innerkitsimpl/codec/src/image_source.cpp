@@ -2717,10 +2717,10 @@ uint32_t ImageSource::GetImagePropertyByType(uint32_t index, const std::string &
     if (IsDngImage()) {
         return GetDngImagePropertyByDngSdk(key, value);
     }
-#endif
     if (IsEncodedFormat(IMAGE_TIFF_FORMAT)) {
         return GetTiffImagePropertyByType(key, value);
     }
+#endif
 
     std::unique_lock<std::recursive_mutex> guard(decodingMutex_);
     std::unique_lock<std::mutex> guardFile(fileMutex_);
