@@ -30,6 +30,7 @@
 #include "xtstyle_metadata.h"
 #include "webp_metadata.h"
 #include "png_metadata.h"
+#include "avis_metadata.h"
 
 #undef LOG_DOMAIN
 #define LOG_DOMAIN LOG_TAG_DOMAIN_ID_IMAGE
@@ -56,6 +57,7 @@ namespace Media {
     static const std::string JFIF_CLASS = "JfifMetadata";
     static const std::string WEBP_CLASS = "WebPMetadata";
     static const std::string PNG_CLASS = "PngMetadata";
+    static const std::string AVIS_CLASS = "AvisMetadata";
     thread_local napi_ref MetadataNapi::sConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sExifConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sMakerNoteConstructor_ = nullptr;
@@ -67,6 +69,7 @@ namespace Media {
     thread_local napi_ref MetadataNapi::sJfifMetadataConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sWebpConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sPngConstructor_ = nullptr;
+    thread_local napi_ref MetadataNapi::sAvisMetadataConstructor_ = nullptr;
     thread_local std::shared_ptr<ImageMetadata> MetadataNapi::sMetadata_ = nullptr;
 
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -2672,6 +2675,65 @@ napi_value MetadataNapi::CreatePngMetadataInstance(napi_env env, napi_callback_i
     }
     metadataNapi->nativeMetadata_ = metadata;
     IMAGE_LOGD("MetadataNapi::CreatePngMetadataInstance OUT");
+    return result;
+}
+
+napi_value MetadataNapi::InitAvisMetadata(napi_env env, napi_value exports)
+{
+    IMAGE_LOGD("InitAvisMetadata ENTER");
+
+    napi_property_descriptor instanceProps[] = {};
+    napi_property_descriptor staticProps[] = {};
+    napi_value constructor = nullptr;
+    napi_status status = napi_define_class(env, AVIS_CLASS.c_str(), NAPI_AUTO_LENGTH, Constructor, nullptr,
+        sizeof(instanceProps) / sizeof(instanceProps[0]), instanceProps, &constructor);
+    if (status != napi_ok || constructor == nullptr) {
+        IMAGE_LOGE("Failed to define AvisMetadata class: %{public}d", status);
+        return exports;
+    }
+    status = napi_define_properties(env, constructor, sizeof(staticProps) / sizeof(staticProps[0]), staticProps);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to define static methods for AvisMetadata: %{public}d", status);
+    }
+
+    status = napi_create_reference(env, constructor, 1, &sAvisMetadataConstructor_);
+    if (status != napi_ok || sAvisMetadataConstructor_ == nullptr) {
+        IMAGE_LOGE("Failed to create Avis ref: %{public}d", status);
+        return exports;
+    }
+
+    status = napi_set_named_property(env, exports, AVIS_CLASS.c_str(), constructor);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to export %{public}s class: %{public}d", AVIS_CLASS.c_str(), status);
+    }
+
+    auto context = new NapiConstructorContext();
+    context->env_ = env;
+    context->ref_ = sAvisMetadataConstructor_;
+    napi_add_env_cleanup_hook(env, ImageNapiUtils::CleanUpConstructorContext, context);
+
+    IMAGE_LOGD("InitAvisMetadata EXIT");
+    return exports;
+}
+
+napi_value MetadataNapi::CreateAvisMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata)
+{
+    if (sAvisMetadataConstructor_ == nullptr) {
+        napi_value exports = nullptr;
+        napi_create_object(env, &exports);
+        MetadataNapi::InitAvisMetadata(env, exports);
+    }
+    napi_value constructor = nullptr;
+    napi_value result = nullptr;
+    napi_status status = napi_get_reference_value(env, sAvisMetadataConstructor_, &constructor);
+    if (status == napi_ok) {
+        sMetadata_ = metadata;
+        status = napi_new_instance(env, constructor, 0, nullptr, &result);
+    }
+    if (status != napi_ok) {
+        IMAGE_LOGE("CreateAvisMetadata | Failed to create instance");
+        napi_get_undefined(env, &result);
+    }
     return result;
 }
 } // namespace Media

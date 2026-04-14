@@ -97,6 +97,7 @@ struct ImageSourceTaiheContext {
     std::shared_ptr<OHOS::Media::ExifMetadata> rExifMetadata;
     std::shared_ptr<OHOS::Media::HeifsMetadata> rHeifsMetadata;
     std::shared_ptr<OHOS::Media::WebPMetadata> rWebPMetadata;
+    std::shared_ptr<OHOS::Media::AvisMetadata> rAvisMetadata;
     OHOS::Media::DecodingOptionsForThumbnail decodingOptsForThumbnail;
 };
 
@@ -189,11 +190,47 @@ static std::string MetadataToPropertyKey(const std::string &metadataKey)
     return "";
 }
 
-static std::string PropertyKeyToMetadata(const std::string &propertyKey)
+using PropertyKeyMap = std::unordered_map<std::string, std::string>;
+using MetadataMap = std::pair<PropertyKeyMap, PropertyKeyMap>;
+using MetadataMaps = std::unordered_map<OHOS::Media::MetadataType, MetadataMap>;
+
+static MetadataMaps InitMetadataMap()
 {
-    auto it = PROPERTY_KEY_MAP_REVERSE.find(propertyKey);
-    if (it != PROPERTY_KEY_MAP_REVERSE.end()) {
-        return it->second;
+    MetadataMaps metadataMaps;
+    std::unordered_map<std::string, std::string> exifPropertyKeyMap = OHOS::Media::ExifMetadata::GetPropertyKeyMap();
+    metadataMaps[OHOS::Media::MetadataType::EXIF] = {exifPropertyKeyMap, CreateReverseMap(exifPropertyKeyMap)};
+    metadataMaps[OHOS::Media::MetadataType::HW_MAKER_NOTE] = {exifPropertyKeyMap,
+        CreateReverseMap(exifPropertyKeyMap)};
+    metadataMaps[OHOS::Media::MetadataType::HEIFS] = {OHOS::Media::ExifMetadata::GetHeifsPropertyKeyMap(),
+        CreateReverseMap(OHOS::Media::ExifMetadata::GetHeifsPropertyKeyMap())};
+    metadataMaps[OHOS::Media::MetadataType::FRAGMENT] = {exifPropertyKeyMap,
+        CreateReverseMap(exifPropertyKeyMap)};
+    metadataMaps[OHOS::Media::MetadataType::GIF] = {OHOS::Media::ExifMetadata::GetGifPropertyKeyMap(),
+        CreateReverseMap(OHOS::Media::ExifMetadata::GetGifPropertyKeyMap())};
+    metadataMaps[OHOS::Media::MetadataType::DNG] = {exifPropertyKeyMap, CreateReverseMap(exifPropertyKeyMap)};
+    metadataMaps[OHOS::Media::MetadataType::WEBP] = {exifPropertyKeyMap, CreateReverseMap(exifPropertyKeyMap)};
+    metadataMaps[OHOS::Media::MetadataType::TIFF] = {OHOS::Media::ExifMetadata::GetTiffPropertyKeyMap(),
+        CreateReverseMap(OHOS::Media::ExifMetadata::GetTiffPropertyKeyMap())};
+    metadataMaps[OHOS::Media::MetadataType::JFIF] = {OHOS::Media::ExifMetadata::GetJfifPropertyKeyMap(),
+        CreateReverseMap(OHOS::Media::ExifMetadata::GetJfifPropertyKeyMap())};
+    metadataMaps[OHOS::Media::MetadataType::PNG] = {OHOS::Media::ExifMetadata::GetPngPropertyKeyMap(),
+        CreateReverseMap(OHOS::Media::ExifMetadata::GetPngPropertyKeyMap())};
+    metadataMaps[OHOS::Media::MetadataType::AVIS] = {OHOS::Media::ExifMetadata::GetAvisPropertyKeyMap(),
+        CreateReverseMap(OHOS::Media::ExifMetadata::GetAvisPropertyKeyMap())};
+
+    return metadataMaps;
+}
+
+std::string PropertyKeyToMetadata(const std::string &propertyKey, const OHOS::Media::MetadataType &type)
+{
+    static MetadataMaps metadataMaps = InitMetadataMap();
+    auto it = metadataMaps.find(type);
+    if (it != metadataMaps.end()) {
+        auto reverseMap = it->second.second;
+        auto reverseIt = reverseMap.find(propertyKey);
+        if (reverseIt != reverseMap.end()) {
+            return reverseIt->second;
+        }
     }
     return "";
 }
@@ -1724,6 +1761,9 @@ OHOS::Media::MetadataType GetMetadataTypeByKey(const std::string &key)
         for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetWebPMetadataMap()) {
             mapping[type] = OHOS::Media::MetadataType::WEBP;
         }
+        for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetAvisMetadataMap()) {
+            mapping[type] = OHOS::Media::MetadataType::AVIS;
+        }
         return mapping;
     }();
     auto it = KEY_TYPE_MAP.find(key);
@@ -1758,6 +1798,9 @@ static void ReadImageMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> &c
     }
     if (shouldReadType(OHOS::Media::MetadataType::WEBP)) {
         context->rWebPMetadata = context->rImageSource->GetWebPMetadata(context->index, errorCode);
+    }
+    if (shouldReadType(OHOS::Media::MetadataType::AVIS)) {
+        context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
     }
 }
 
@@ -1819,6 +1862,9 @@ static void InitMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> &contex
     }
     if (context->rWebPMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::WEBP)) {
         imageMetadata.webPMetadata.emplace(make_holder<WebPMetadataImpl, WebPMetadata>(context->rWebPMetadata));
+    }
+    if (context->rAvisMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::AVIS)) {
+        imageMetadata.avisMetadata.emplace(make_holder<AvisMetadataImpl, AvisMetadata>(context->rAvisMetadata));
     }
 }
 
@@ -1898,6 +1944,8 @@ static MetadataType ToTaiheMetadataType(OHOS::Media::MetadataType type)
             return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::WEBP));
         case OHOS::Media::MetadataType::HW_MAKER_NOTE:
             return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::HW_MAKER_NOTE));
+        case OHOS::Media::MetadataType::AVIS:
+            return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::AVIS));
         default:
             return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::UNKNOWN));
     }
@@ -1931,8 +1979,9 @@ static void AppendMetadataValue(std::vector<MetadataValue> &result, const OHOS::
     if (!IsValidMetadataValue(metadataValue)) {
         return;
     }
-    const auto metadataType = ToTaiheMetadataType(GetMetadataTypeByKey(metadataValue.key));
-    const std::string fieldName = PropertyKeyToMetadata(metadataValue.key);
+    const OHOS::Media::MetadataType nativeMetadataType = GetMetadataTypeByKey(metadataValue.key);
+    const MetadataType metadataType = ToTaiheMetadataType(nativeMetadataType);
+    const std::string fieldName = PropertyKeyToMetadata(metadataValue.key, nativeMetadataType);
 
     MetadataValueType propValue = MetadataValueType::make_type_undefined();
     switch (metadataValue.type) {
@@ -2084,6 +2133,8 @@ static const std::map<std::string, OHOS::Media::PropertyValueType> &GetMetadataK
             return OHOS::Media::ExifMetadata::GetDngMetadataMap();
         case OHOS::Media::MetadataType::WEBP:
             return OHOS::Media::ExifMetadata::GetWebPMetadataMap();
+        case OHOS::Media::MetadataType::AVIS:
+            return OHOS::Media::ExifMetadata::GetAvisMetadataMap();
         default:
             return emptyMap;
     }

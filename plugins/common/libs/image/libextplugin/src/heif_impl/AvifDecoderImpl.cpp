@@ -174,7 +174,11 @@ bool Dav1dDecoder::ConvertWithFFmpeg(uint32_t index, ConvertInfo &info)
         pic->p.w, pic->p.h, dstFormat, SWS_POINT, nullptr, nullptr, nullptr);
     CHECK_ERROR_RETURN_RET_LOG(!ctx, false, "SwsContext is nullptr.");
 
-    CHECK_ERROR_RETURN_RET_LOG(!SetColorConfig(ctx, *pic), false, "SetColorConfig failed.");
+    if (!SetColorConfig(ctx, *pic)) {
+        sws_freeContext(ctx);
+        IMAGE_LOGE("SetColorConfig failed.");
+        return false;
+    }
     bool ret = ConvertToRGB(ctx, *pic, info);
     sws_freeContext(ctx);
     return ret;
