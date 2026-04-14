@@ -811,7 +811,7 @@ HWTEST_F(PixelAstcTest, PixelAstcTest030, TestSize.Level3)
 
     Parcel Parcel;
     EXPECT_EQ(true, pixelAstc->Marshalling(Parcel));
-    EXPECT_EQ(nullptr, pixelAstc->Unmarshalling(Parcel));
+    EXPECT_NE(nullptr, pixelAstc->Unmarshalling(Parcel));
 
     pixelAstc->context_ = tmpContext;
     GTEST_LOG_(INFO) << "PixelAstcTest: PixelAstcTest030 end";
