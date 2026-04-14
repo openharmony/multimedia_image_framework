@@ -83,6 +83,7 @@ public:
     static const std::map<std::string, PropertyValueType>& GetJfifMetadataMap();
     static const std::map<std::string, PropertyValueType>& GetTiffMetadataMap();
     static const std::map<std::string, PropertyValueType>& GetPngMetadataMap();
+    static const std::map<std::string, PropertyValueType>& GetAvisMetadataMap();
     static const std::map<NapiMetadataType, std::map<std::string, PropertyValueType>>& GetPropertyTypeMapping();
     static const std::unordered_map<std::string, std::string>& GetPropertyKeyMap();
     static const std::unordered_map<std::string, std::string>& GetTiffPropertyKeyMap();
@@ -90,6 +91,7 @@ public:
     static const std::unordered_map<std::string, std::string>& GetJfifPropertyKeyMap();
     static const std::unordered_map<std::string, std::string>& GetPngPropertyKeyMap();
     static const std::unordered_map<std::string, std::string>& GetHeifsPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetAvisPropertyKeyMap();
 
     void SetSystemApi(bool isSystemApi)
     {
