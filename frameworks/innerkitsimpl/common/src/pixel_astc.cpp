@@ -85,6 +85,12 @@ void PixelAstc::scale(float xAxis, float yAxis)
     }
 }
 
+uint32_t PixelAstc::Scale(float xAxis, float yAxis, AntiAliasingOption option)
+{
+    scale(xAxis, yAxis);
+    return SUCCESS;
+}
+
 bool PixelAstc::resize(float xAxis, float yAxis)
 {
     IMAGE_LOGE("resize is not support on pixelastc");
@@ -92,6 +98,11 @@ bool PixelAstc::resize(float xAxis, float yAxis)
 }
 
 void PixelAstc::translate(float xAxis, float yAxis)
+{
+    Translate(xAxis, yAxis);
+}
+
+uint32_t PixelAstc::Translate(float xAxis, float yAxis)
 {
     TransformData transformData;
     GetTransformData(transformData);
@@ -103,10 +114,11 @@ void PixelAstc::translate(float xAxis, float yAxis)
     imageInfo.size.height += static_cast<int32_t>(yAxis);
     if (imageInfo.size.width <= 0 || imageInfo.size.height <= 0) {
         IMAGE_LOGE("PixelAstc translate failed");
-        return;
+        return ERR_IMAGE_INVALID_PARAMETER;
     }
     SetTransformData(transformData);
     SetImageInfo(imageInfo, true);
+    return SUCCESS;
 }
 
 std::pair<float, float> calculateRotatedDimensions(float width, float height, float rotationDegrees)
@@ -123,6 +135,11 @@ std::pair<float, float> calculateRotatedDimensions(float width, float height, fl
 
 void PixelAstc::rotate(float degrees)
 {
+    Rotate(degrees);
+}
+
+uint32_t PixelAstc::Rotate(float degrees)
+{
     TransformData transformData;
     GetTransformData(transformData);
     transformData.rotateD += degrees;
@@ -134,15 +151,22 @@ void PixelAstc::rotate(float degrees)
     imageInfo.size.width = static_cast<int32_t>(newDimensions.first);
     imageInfo.size.height = static_cast<int32_t>(newDimensions.second);
     SetImageInfo(imageInfo, true);
+    return SUCCESS;
 }
 
 void PixelAstc::flip(bool xAxis, bool yAxis)
+{
+    Flip(xAxis, yAxis);
+}
+
+uint32_t PixelAstc::Flip(bool xAxis, bool yAxis)
 {
     TransformData transformData;
     GetTransformData(transformData);
     transformData.flipX = xAxis;
     transformData.flipY = yAxis;
     SetTransformData(transformData);
+    return SUCCESS;
 }
 
 uint32_t PixelAstc::crop(const Rect &rect)

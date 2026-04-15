@@ -147,17 +147,26 @@ private:
     static napi_value GetDensity(napi_env env, napi_callback_info info);
     static napi_value SetDensity(napi_env env, napi_callback_info info);
     static napi_value Release(napi_env env, napi_callback_info info);
+    static napi_value SetOpacity(napi_env env, napi_callback_info info);
+    static napi_value SetOpacitySync(napi_env env, napi_callback_info info);
     static napi_value SetAlpha(napi_env env, napi_callback_info info);
     static napi_value SetAlphaSync(napi_env env, napi_callback_info info);
-
+    static napi_value ApplyScale(napi_env env, napi_callback_info info);
+    static napi_value ApplyScaleSync(napi_env env, napi_callback_info info);
     static napi_value Scale(napi_env env, napi_callback_info info);
     static napi_value ScaleSync(napi_env env, napi_callback_info info);
     static napi_value CreateScaledPixelMap(napi_env env, napi_callback_info info);
     static napi_value CreateScaledPixelMapSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyTranslate(napi_env env, napi_callback_info info);
+    static napi_value ApplyTranslateSync(napi_env env, napi_callback_info info);
     static napi_value Translate(napi_env env, napi_callback_info info);
     static napi_value TranslateSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyRotate(napi_env env, napi_callback_info info);
+    static napi_value ApplyRotateSync(napi_env env, napi_callback_info info);
     static napi_value Rotate(napi_env env, napi_callback_info info);
     static napi_value RotateSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyFlip(napi_env env, napi_callback_info info);
+    static napi_value ApplyFlipSync(napi_env env, napi_callback_info info);
     static napi_value Flip(napi_env env, napi_callback_info info);
     static napi_value FlipSync(napi_env env, napi_callback_info info);
     static napi_value ApplyCrop(napi_env env, napi_callback_info info);

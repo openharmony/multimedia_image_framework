@@ -49,15 +49,18 @@ public:
     NATIVEEXPORT uint32_t getPixelBytesNumber();
     NATIVEEXPORT int32_t GetByteCount() override;
     NATIVEEXPORT void rotate(float degrees) override;
+    NATIVEEXPORT uint32_t Rotate(float degrees) override;
     NATIVEEXPORT uint32_t crop(const Rect &rect) override;
     NATIVEEXPORT void scale(float xAxis, float yAxis) override;
     NATIVEEXPORT void scale(float xAxis, float yAxis, const AntiAliasingOption &option) override;
+    NATIVEEXPORT uint32_t Scale(float xAxis, float yAxis, AntiAliasingOption option) override;
     NATIVEEXPORT void scale(int32_t dstW, int32_t dstH);
-    NATIVEEXPORT void scale(int32_t dstW, int32_t dstH, const AntiAliasingOption &option);
+    NATIVEEXPORT uint32_t scale(int32_t dstW, int32_t dstH, AntiAliasingOption option);
     NATIVEEXPORT bool resizeForPicture(int32_t dstW, int32_t dstH);
     NATIVEEXPORT bool resize(float xAxis, float yAxis) override;
     NATIVEEXPORT bool resize(int32_t dstW, int32_t dstH);
     NATIVEEXPORT void flip(bool xAxis, bool yAxis) override;
+    NATIVEEXPORT uint32_t Flip(bool xAxis, bool yAxis) override;
     NATIVEEXPORT uint32_t WritePixels(const uint8_t *source, const uint64_t &bufferSize, const uint32_t &offset,
                                       const uint32_t &stride, const Rect &region) override;
     NATIVEEXPORT uint32_t WritePixels(const uint8_t *source, const uint64_t &bufferSize) override;
@@ -65,6 +68,7 @@ public:
                                      const Rect &region, uint8_t *dst) override;
     NATIVEEXPORT uint32_t ReadPixels(const uint64_t &bufferSize, uint8_t *dst) override;
     NATIVEEXPORT void translate(float xAxis, float yAxis) override;
+    NATIVEEXPORT uint32_t Translate(float xAxis, float yAxis) override;
     NATIVEEXPORT uint32_t ReadPixel(const Position &pos, uint32_t &dst) override;
     NATIVEEXPORT bool WritePixels(const uint32_t &color) override;
     NATIVEEXPORT uint32_t WritePixel(const Position &pos, const uint32_t &color) override;

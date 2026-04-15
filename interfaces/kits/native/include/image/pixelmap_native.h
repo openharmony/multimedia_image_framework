@@ -139,6 +139,11 @@ typedef enum {
     * YCRCB_P010 format
     */
     PIXEL_FORMAT_YCRCB_P010 = 12,
+    /**
+     * ALPHA_U8 format
+     * @since 26.0.0
+     */
+    PIXEL_FORMAT_ALPHA_U8 = 15,
 } PIXEL_FORMAT;
 
 typedef enum {
@@ -794,7 +799,27 @@ Image_ErrorCode OH_PixelmapNative_ToSdr(OH_PixelmapNative *pixelmap);
 Image_ErrorCode OH_PixelmapNative_GetImageInfo(OH_PixelmapNative *pixelmap, OH_Pixelmap_ImageInfo *imageInfo);
 
 /**
+ * @brief Sets opacity of the PixelMap. Every pixel will be set to the same opacity value.
+ *
+ * @param pixelmap Pointer of the PixelMap to be modified.
+ * @param value The target opacity value to be set.
+ *     The valid range is (0.0, 1.0] where 1.0 is fully opaque and becoming more transparent as it approaches 0.0.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter.
+ *         Possible causes: 1. The rate is out of range. 2. The parameter is null.
+ *     {@link IMAGE_UNSUPPORTED_DATA_FORMAT} Unsupported data format. Possible cause: Alpha type is not supported.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_SetOpacity(OH_PixelmapNative *pixelmap, float value);
+
+/**
  * @brief Sets an opacity rate for this image pixel map.
+ *     It is recommended to use {@link OH_PixelmapNative_SetOpacity}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param rate Opacity rate to set. The value ranges from 0 to 1.
@@ -805,7 +830,27 @@ Image_ErrorCode OH_PixelmapNative_GetImageInfo(OH_PixelmapNative *pixelmap, OH_P
 Image_ErrorCode OH_PixelmapNative_Opacity(OH_PixelmapNative *pixelmap, float rate);
 
 /**
+ * @brief Scales the PixelMap in the horizontal and/or vertical dimensions.
+ *
+ * @param pixelmap Pointer of the PixelMap to be scaled.
+ * @param scaleX The scale ratio of width.
+ * @param scaleY The scale ratio of height.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter. Possible cause: The parameter is null.
+ *     {@link IMAGE_ALLOC_FAILED} Failed to allocate memory.
+ *         Possible causes: 1. The resulting PixelMap size is too large. 2. The system is out of memory.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ApplyScale(OH_PixelmapNative *pixelmap, float scaleX, float scaleY);
+
+/**
  * @brief Scales this image based on the input width and height.
+ *     It is recommended to use {@link OH_PixelmapNative_ApplyScale}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param scaleX Scaling ratio of the width.
@@ -817,7 +862,29 @@ Image_ErrorCode OH_PixelmapNative_Opacity(OH_PixelmapNative *pixelmap, float rat
 Image_ErrorCode OH_PixelmapNative_Scale(OH_PixelmapNative *pixelmap, float scaleX, float scaleY);
 
 /**
+ * @brief Scales the PixelMap in the horizontal and/or vertical dimensions with anti-aliasing.
+ *
+ * @param pixelmap Pointer of the PixelMap to be scaled.
+ * @param scaleX The scale ratio of width.
+ * @param scaleY The scale ratio of height.
+ * @param level The anti-aliasing algorithm to be used.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter. Possible cause: The parameter is null.
+ *     {@link IMAGE_ALLOC_FAILED} Failed to allocate memory.
+ *         Possible causes: 1. The resulting PixelMap size is too large. 2. The system is out of memory.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ApplyScaleWithAntiAliasing(OH_PixelmapNative *pixelmap, float scaleX, float scaleY,
+    OH_PixelmapNative_AntiAliasingLevel level);
+
+/**
  * @brief Scales this image based on the input width and height with anti-aliasing.
+ *     It is recommended to use {@link OH_PixelmapNative_ApplyScaleWithAntiAliasing}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param scaleX Scaling ratio of the width.
@@ -835,7 +902,27 @@ Image_ErrorCode OH_PixelmapNative_ScaleWithAntiAliasing(OH_PixelmapNative *pixel
     OH_PixelmapNative_AntiAliasingLevel level);
 
 /**
+ * @brief Repositions the PixelMap in the horizontal and/or vertical directions.
+ *
+ * @param pixelmap Pointer of the PixelMap to be translated.
+ * @param x The distance in pixels to move in the horizontal direction.
+ * @param y The distance in pixels to move in the vertical direction.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter. Possible cause: The parameter is null.
+ *     {@link IMAGE_ALLOC_FAILED} Failed to allocate memory.
+ *         Possible causes: 1. The resulting PixelMap size is too large. 2. The system is out of memory.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ApplyTranslate(OH_PixelmapNative *pixelmap, float x, float y);
+
+/**
  * @brief Translates this image based on the input coordinates.
+ *     It is recommended to use {@link OH_PixelmapNative_ApplyTranslate}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param x The distance to be translate in the X direction.
@@ -934,7 +1021,27 @@ Image_ErrorCode OH_PixelmapNative_CreateScaledPixelMapWithAntiAliasing(OH_Pixelm
     OH_PixelmapNative **dstPixelmap, float scaleX, float scaleY, OH_PixelmapNative_AntiAliasingLevel level);
 
 /**
+ * @brief Rotates the PixelMap.
+ *     Note: YUV format PixelMaps only support rotation angles that are multiples of 90 degrees.
+ *
+ * @param pixelmap Pointer of the PixelMap to be rotated.
+ * @param angle The rotation angle in degrees.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter. Possible cause: The parameter is null.
+ *     {@link IMAGE_ALLOC_FAILED} Failed to allocate memory.
+ *         Possible causes: 1. The resulting PixelMap size is too large. 2. The system is out of memory.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ApplyRotate(OH_PixelmapNative *pixelmap, float angle);
+
+/**
  * @brief Rotates this image based on the input angle.
+ *     It is recommended to use {@link OH_PixelmapNative_ApplyRotate}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param angle Angle to rotate.
@@ -945,7 +1052,27 @@ Image_ErrorCode OH_PixelmapNative_CreateScaledPixelMapWithAntiAliasing(OH_Pixelm
 Image_ErrorCode OH_PixelmapNative_Rotate(OH_PixelmapNative *pixelmap, float angle);
 
 /**
+ * @brief Flips the PixelMap in the horizontal and/or vertical directions.
+ *
+ * @param pixelmap Pointer of the PixelMap to be flipped.
+ * @param shouldFlipHorizontally Whether to flip horizontally.
+ * @param shouldFlipVertically Whether to flip vertically.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter. Possible cause: The parameter is null.
+ *     {@link IMAGE_ALLOC_FAILED} Failed to allocate memory. Possible cause: The system is out of memory.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ApplyFlip(OH_PixelmapNative *pixelmap, bool shouldFlipHorizontally,
+    bool shouldFlipVertically);
+
+/**
  * @brief Flips this image horizontally or vertically, or both.
+ *     It is recommended to use {@link OH_PixelmapNative_ApplyFlip}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param shouldFlipHorizontally Whether to flip the image horizontally.
@@ -961,7 +1088,27 @@ Image_ErrorCode OH_PixelmapNative_Flip(OH_PixelmapNative *pixelmap, bool shouldF
     bool shouldFlipVertically);
 
 /**
+ * @brief Crops the PixelMap.
+ *
+ * @param pixelmap Pointer of the PixelMap to be cropped.
+ * @param region Pointer of the region to crop.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} The PixelMap has been released.
+ *     {@link IMAGE_UNSUPPORTED_OPERATION} Unsupported operation because the PixelMap is locked.
+ *     {@link IMAGE_INVALID_REGION} The specified region is invalid or out of range.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter. Possible cause: Any parameter is null.
+ *     {@link IMAGE_ALLOC_FAILED} Failed to allocate memory.
+ *         Possible causes: 1. Failed to process pixel data. 2. The system is out of memory.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ApplyCrop(OH_PixelmapNative *pixelmap, Image_Region *region);
+
+/**
  * @brief Crops this image based on the input size.
+ *     It is recommended to use {@link OH_PixelmapNative_ApplyCrop}.
  *
  * @param pixelmap The Pixelmap pointer will be operated.
  * @param region Area size, read according to area.
@@ -992,7 +1139,31 @@ Image_ErrorCode OH_PixelmapNative_Release(OH_PixelmapNative *pixelmap);
 Image_ErrorCode OH_PixelmapNative_Destroy(OH_PixelmapNative **pixelmap);
 
 /**
+ * @brief Converts the alpha type of the PixelMap to either premultiplied or unpremultiplied.
+ *     The conversion only supports pixel formats that have an alpha channel, except RGBA_F16.
+ *
+ * @param srcPixelmap The source PixelMap containing pixel data to be converted.
+ * @param dstPixelmap An empty destination PixelMap that must have the same properties (width, height,
+ *     pixel format, etc.) as the source PixelMap, except that its alpha type must be opposite to that of
+ *     the source (premultiplied vs. unpremultiplied). The converted pixel data will be written into this PixelMap.
+ * @param toPremul Specifies the conversion direction. If true, converts from unpremultiplied to premultiplied alpha;
+ *     if false, converts from premultiplied to unpremultiplied alpha.
+ * @return Function result code:
+ *     {@link IMAGE_SUCCESS} The operation is successful.
+ *     {@link IMAGE_GET_IMAGE_DATA_FAILED} Failed to get image data.
+ *         Possible cause: Internal data is corrupted. Please check the logs for detailed information.
+ *     {@link IMAGE_PIXELMAP_RELEASED} Either PixelMap has been released.
+ *     {@link IMAGE_INVALID_PARAMETER} Invalid parameter.
+ *         Possible causes: 1. Either PixelMap does not meet the requirements. 2. Any parameter is null.
+ *     {@link IMAGE_UNSUPPORTED_DATA_FORMAT} Unsupported pixel format for either PixelMap.
+ * @since 26.0.0
+ */
+Image_ErrorCode OH_PixelmapNative_ConvertAlphaType(OH_PixelmapNative *srcPixelmap, OH_PixelmapNative *dstPixelmap,
+    const bool toPremul);
+
+/**
  * @brief Converting images to alpha format
+ *     It is recommended to use {@link OH_PixelmapNative_ConvertAlphaType}.
  *
  * @param srcpixelmap The source pixel map pointer will be operated.
  * @param dstpixelmap The destination pixel map pointer will be operated.
