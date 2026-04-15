@@ -172,6 +172,8 @@ public:
     static bool SetInitializationOptionDmaMem(InitializationOptions &option);
     static bool SetInitializationOptionAllocatorType(InitializationOptions &option, int32_t allocatorType);
     // BytesToXXX and xxxToBytes function will modify the offset value.
+    static uint8_t BytesToUint8(uint8_t* bytes, uint32_t& offset, uint32_t size);
+    static uint8_t BytesToUint8(const uint8_t* bytes, uint32_t& offset, uint32_t size);
     static uint16_t BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian = true);
     static uint32_t BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian = true);
     static int32_t BytesToInt32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian = true);
