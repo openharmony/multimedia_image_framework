@@ -452,7 +452,7 @@ static void VerifyCreateFromPixelsSuccessForFormat(PixelFormat format)
     auto [explicitSrcPixelMap, explicitSrcErrCode] = PixelMap::CreateFromPixels(
         sameFormatPixels.data(), static_cast<uint32_t>(sameFormatPixels.size()), explicitSrcOptions);
 
-    ASSERT_EQ(explicitSrcErrCode, IMAGE_RESULT_SUCCESS);
+    ASSERT_EQ(explicitSrcErrCode, SUCCESS);
     ASSERT_NE(explicitSrcPixelMap, nullptr);
     EXPECT_EQ(explicitSrcPixelMap->GetWidth(), width);
     EXPECT_EQ(explicitSrcPixelMap->GetHeight(), height);
@@ -469,12 +469,25 @@ static void VerifyCreateFromPixelsSuccessForFormat(PixelFormat format)
     auto [defaultSrcPixelMap, defaultSrcErrCode] = PixelMap::CreateFromPixels(
         bgraPixels.data(), static_cast<uint32_t>(bgraPixels.size()), defaultSrcOptions);
 
-    ASSERT_EQ(defaultSrcErrCode, IMAGE_RESULT_SUCCESS);
+    ASSERT_EQ(defaultSrcErrCode, SUCCESS);
     ASSERT_NE(defaultSrcPixelMap, nullptr);
     EXPECT_EQ(defaultSrcPixelMap->GetWidth(), width);
     EXPECT_EQ(defaultSrcPixelMap->GetHeight(), height);
     EXPECT_EQ(defaultSrcPixelMap->GetPixelFormat(), format);
     EXPECT_EQ(defaultSrcPixelMap->GetAlphaType(), expectedAlphaType);
+}
+
+static std::pair<std::unique_ptr<PixelMap>, int32_t> CreateTransformApiPixelMap(PixelFormat format,
+    int32_t width, int32_t height)
+{
+    std::vector<uint8_t> pixels(width * height * ARGB_8888_BYTES);
+    CreateBuffer(width, height, ARGB_8888_BYTES, pixels.data());
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.pixelFormat = format;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+    return PixelMap::CreateFromPixels(pixels.data(), static_cast<uint32_t>(pixels.size()), opts);
 }
 
 /**
@@ -1028,7 +1041,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest001, TestSize.Level3)
 
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
 
-    ASSERT_EQ(errCode, IMAGE_RESULT_SUCCESS);
+    ASSERT_EQ(errCode, SUCCESS);
     ASSERT_NE(pixelMap, nullptr);
     EXPECT_EQ(pixelMap->GetWidth(), 2);
     EXPECT_EQ(pixelMap->GetHeight(), 2);
@@ -1060,7 +1073,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest002, TestSize.Level3)
 
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
 
-    ASSERT_EQ(errCode, IMAGE_RESULT_SUCCESS);
+    ASSERT_EQ(errCode, SUCCESS);
     ASSERT_NE(pixelMap, nullptr);
     EXPECT_EQ(pixelMap->GetWidth(), 2);
     EXPECT_EQ(pixelMap->GetHeight(), 2);
@@ -1087,7 +1100,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest003, TestSize.Level3)
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(nullptr, 16, opts);
 
     EXPECT_EQ(pixelMap, nullptr);
-    EXPECT_EQ(errCode, IMAGE_RESULT_BAD_PARAMETER);
+    EXPECT_EQ(errCode, ERR_IMAGE_INVALID_PARAMETER);
 
     GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest003 end";
 }
@@ -1116,7 +1129,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest004, TestSize.Level3)
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
 
     EXPECT_EQ(pixelMap, nullptr);
-    EXPECT_EQ(errCode, IMAGE_RESULT_BAD_PARAMETER);
+    EXPECT_EQ(errCode, ERR_IMAGE_INVALID_PARAMETER);
 
     GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest004 end";
 }
@@ -1140,7 +1153,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest005, TestSize.Level3)
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
 
     EXPECT_EQ(pixelMap, nullptr);
-    EXPECT_EQ(errCode, IMAGE_RESULT_BAD_PARAMETER);
+    EXPECT_EQ(errCode, ERR_IMAGE_INVALID_PARAMETER);
 
     GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest005 end";
 }
@@ -1168,7 +1181,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest006, TestSize.Level3)
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
 
     EXPECT_EQ(pixelMap, nullptr);
-    EXPECT_EQ(errCode, IMAGE_RESULT_BAD_PARAMETER);
+    EXPECT_EQ(errCode, ERR_IMAGE_INVALID_PARAMETER);
 
     GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest006 end";
 }
@@ -1194,7 +1207,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest007, TestSize.Level3)
 
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels), opts);
 
-    ASSERT_EQ(errCode, IMAGE_RESULT_SUCCESS);
+    ASSERT_EQ(errCode, SUCCESS);
     ASSERT_NE(pixelMap, nullptr);
     EXPECT_EQ(pixelMap->GetPixelFormat(), PixelFormat::RGBA_8888);
     EXPECT_EQ(pixelMap->GetAlphaType(), AlphaType::IMAGE_ALPHA_TYPE_PREMUL);
@@ -1224,7 +1237,7 @@ HWTEST_F(PixelMapTest, CreateFromPixelsTest008, TestSize.Level3)
     auto [pixelMap, errCode] = PixelMap::CreateFromPixels(pixels, sizeof(pixels) - 1, opts);
 
     EXPECT_EQ(pixelMap, nullptr);
-    EXPECT_EQ(errCode, IMAGE_RESULT_BAD_PARAMETER);
+    EXPECT_EQ(errCode, ERR_IMAGE_INVALID_PARAMETER);
 
     GTEST_LOG_(INFO) << "PixelMapTest: CreateFromPixelsTest008 end";
 }
@@ -1357,7 +1370,8 @@ HWTEST_F(PixelMapTest, CreateFromPixelsNv12SuccessTest001, TestSize.Level3)
 
 /**
  * @tc.name: CreateFromPixelsRgba1010102SuccessTest001
- * @tc.desc: Verify CreateFromPixels succeeds for RGBA_1010102 with explicit and default source formats. [AUTO-GENERATED]
+ * @tc.desc: Verify CreateFromPixels succeeds for RGBA_1010102 with explicit and default source formats.
+ *           [AUTO-GENERATED]
  * @tc.type: FUNC
  */
 HWTEST_F(PixelMapTest, CreateFromPixelsRgba1010102SuccessTest001, TestSize.Level3)
@@ -3420,6 +3434,228 @@ HWTEST_F(PixelMapTest, UnmodifiablePixelMapTest, TestSize.Level3)
     EXPECT_EQ(data[0], 0xFFFFFFFF);
 
     GTEST_LOG_(INFO) << "PixelMapTest: UnmodifiablePixelMapTest end";
+}
+
+/**
+ * @tc.name: ScaleApiTest001
+ * @tc.desc: Verify Scale succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, ScaleApiTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest001 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 2);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::NONE);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 8);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 4);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 2);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::NONE);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 8);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 4);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest001 end";
+}
+
+/**
+ * @tc.name: ScaleApiTest002
+ * @tc.desc: Verify Scale with LOW succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, ScaleApiTest002, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest002 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 4);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::LOW);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 8);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 8);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 4);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::LOW);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 8);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 8);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest002 end";
+}
+
+/**
+ * @tc.name: ScaleApiTest003
+ * @tc.desc: Verify Scale with MEDIUM succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, ScaleApiTest003, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest003 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 4);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::MEDIUM);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 8);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 8);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 4);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::MEDIUM);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 8);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 8);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest003 end";
+}
+
+/**
+ * @tc.name: ScaleApiTest004
+ * @tc.desc: Verify Scale with HIGH succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, ScaleApiTest004, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest004 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 4);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::HIGH);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 8);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 8);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 4);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Scale(2.0f, 2.0f, AntiAliasingOption::HIGH);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 8);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 8);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest004 end";
+}
+
+/**
+ * @tc.name: ScaleApiTest005
+ * @tc.desc: Verify Scale with SLR behaves as expected for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, ScaleApiTest005, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest005 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 4);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Scale(0.5f, 0.5f, AntiAliasingOption::SLR);
+#if defined(_WIN32) || defined(_APPLE) || defined(IOS_PLATFORM) || defined(ANDROID_PLATFORM)
+    EXPECT_NE(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 4);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 4);
+#else
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 2);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 2);
+#endif
+
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleApiTest005 end";
+}
+
+/**
+ * @tc.name: TranslateApiTest001
+ * @tc.desc: Verify Translate succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, TranslateApiTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: TranslateApiTest001 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 2);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Translate(2.0f, 2.0f);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 6);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 4);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 2);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Translate(2.0f, 2.0f);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 6);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 4);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: TranslateApiTest001 end";
+}
+
+/**
+ * @tc.name: RotateApiTest001
+ * @tc.desc: Verify Rotate succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, RotateApiTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: RotateApiTest001 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 2);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Rotate(90.0f);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 2);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 4);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 2);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Rotate(90.0f);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 2);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 4);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: RotateApiTest001 end";
+}
+
+/**
+ * @tc.name: FlipApiTest001
+ * @tc.desc: Verify Flip succeeds for RGBA_8888 and NV21 PixelMaps. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, FlipApiTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: FlipApiTest001 start";
+
+    auto [rgbaPixelMap, rgbaErrCode] = CreateTransformApiPixelMap(PixelFormat::RGBA_8888, 4, 2);
+    ASSERT_EQ(rgbaErrCode, SUCCESS);
+    ASSERT_NE(rgbaPixelMap, nullptr);
+    uint32_t ret = rgbaPixelMap->Flip(true, false);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(rgbaPixelMap->GetWidth(), 4);
+    EXPECT_EQ(rgbaPixelMap->GetHeight(), 2);
+
+    auto [nv21PixelMap, nv21ErrCode] = CreateTransformApiPixelMap(PixelFormat::NV21, 4, 2);
+    ASSERT_EQ(nv21ErrCode, SUCCESS);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    ret = nv21PixelMap->Flip(true, false);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(nv21PixelMap->GetWidth(), 4);
+    EXPECT_EQ(nv21PixelMap->GetHeight(), 2);
+
+    GTEST_LOG_(INFO) << "PixelMapTest: FlipApiTest001 end";
 }
 
 /**

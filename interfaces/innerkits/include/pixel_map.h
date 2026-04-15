@@ -426,6 +426,16 @@ public:
     NATIVEEXPORT virtual void scale(float xAxis, float yAxis, const AntiAliasingOption &option);
 
     /**
+     * Scales the PixelMap in the horizontal and/or vertical dimensions.
+     *
+     * @param xAxis The scale ratio of width.
+     * @param yAxis The scale ratio of height.
+     * @param option The anti-aliasing algorithm to be used.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Scale(float xAxis, float yAxis, AntiAliasingOption option);
+
+    /**
      * PixelMap zooming.
      *
      * @param xAxis X-axis scaling ratio.
@@ -442,11 +452,28 @@ public:
     NATIVEEXPORT virtual void translate(float xAxis, float yAxis);
 
     /**
+     * Repositions the PixelMap in the horizontal and/or vertical directions.
+     *
+     * @param xAxis The distance in pixels to move in the horizontal direction.
+     * @param yAxis The distance in pixels to move in the vertical direction.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Translate(float xAxis, float yAxis);
+
+    /**
      * PixelMap rotation.
      *
      * @param degrees rotation angle.
      */
     NATIVEEXPORT virtual void rotate(float degrees);
+
+    /**
+     * Rotates the PixelMap.
+     *
+     * @param degrees The rotation angle in degrees.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Rotate(float degrees);
 
     /**
      * PixelMap inversion.
@@ -455,6 +482,15 @@ public:
      * @param yAxis y-axis scaling ratio.
      */
     NATIVEEXPORT virtual void flip(bool xAxis, bool yAxis);
+
+    /**
+     * Flips the PixelMap in the horizontal and/or vertical directions.
+     *
+     * @param xAxis Whether to flip horizontally.
+     * @param yAxis Whether to flip vertically.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Flip(bool xAxis, bool yAxis);
 
     /**
      * PixelMap crop.
@@ -981,7 +1017,7 @@ protected:
     void WriteData(std::vector<uint8_t> &buff, const uint8_t *data,
         const int32_t &height, const int32_t &rowDataSize, const int32_t &rowStride) const;
     static bool ReadTlvAttr(std::vector<uint8_t>& buff, ImageInfo& info, std::unique_ptr<AbsMemory>& mem, int32_t& csm);
-    bool DoTranslation(TransInfos &infos, const AntiAliasingOption &option = AntiAliasingOption::NONE);
+    uint32_t ApplyAffineTransform(TransInfos &infos, AntiAliasingOption option = AntiAliasingOption::NONE);
     void UpdateImageInfo();
     static int32_t ConvertPixelAlpha(const void *srcPixels, const int32_t srcLength, const ImageInfo &srcInfo,
         void *dstPixels, const ImageInfo &dstInfo);

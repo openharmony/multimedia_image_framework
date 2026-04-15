@@ -678,18 +678,18 @@ interface PixelMap {
   // Setter of an ArrayBuffer inside an interface (PositionArea.pixels) will copy the data instead of referencing it, but ArrayBuffer along will be referenced.
   @!sts_inject_into_interface("""
   readPixelsToArea(area: image.PositionArea): Promise<void> {
-    return this.readPixelsToAreaHelper(area, area.pixels);
+    return this.readPixelsToAreaWrapper(area, area.pixels);
   }
 
   readPixelsToAreaSync(area: image.PositionArea): void {
-    return this.readPixelsToAreaSyncHelper(area, area.pixels);
+    return this.readPixelsToAreaSyncWrapper(area, area.pixels);
   }
   """)
 
   @promise
-  ReadPixelsToAreaHelper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
+  ReadPixelsToAreaWrapper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
 
-  ReadPixelsToAreaSyncHelper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
+  ReadPixelsToAreaSyncWrapper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
 
   @promise
   WriteAllPixelsFromBuffer(src: @arraybuffer Array<u8>): void;
@@ -752,6 +752,11 @@ interface PixelMap {
 
   GetDensity(): i32;
 
+  @promise
+  ApplyScale(x: f64, y: f64, level: Optional<AntiAliasingLevel>): void;
+
+  ApplyScaleSync(x: f64, y: f64, level: Optional<AntiAliasingLevel>): void;
+
   @async @rename("scale")
   ScaleAsync(x: f64, y: f64): void;
 
@@ -781,6 +786,11 @@ interface PixelMap {
 
   CloneSync(): PixelMap;
 
+  @promise
+  ApplyTranslate(x: f64, y: f64): void;
+
+  ApplyTranslateSync(x: f64, y: f64): void;
+
   @async @rename("translate")
   TranslateAsync(x: f64, y: f64): void;
 
@@ -802,6 +812,11 @@ interface PixelMap {
 
   CropSync(region: Region): void;
 
+  @promise
+  ApplyRotate(angle: f64): void;
+
+  ApplyRotateSync(angle: f64): void;
+
   @async @rename("rotate")
   RotateAsync(angle: f64): void;
 
@@ -810,6 +825,11 @@ interface PixelMap {
 
   RotateSync(angle: f64): void;
 
+  @promise
+  ApplyFlip(horizontal: bool, vertical: bool): void;
+
+  ApplyFlipSync(horizontal: bool, vertical: bool): void;
+
   @async @rename("flip")
   FlipAsync(horizontal: bool, vertical: bool): void;
 
@@ -817,6 +837,11 @@ interface PixelMap {
   FlipPromise(horizontal: bool, vertical: bool): void;
 
   FlipSync(horizontal: bool, vertical: bool): void;
+
+  @promise
+  SetOpacity(value: f64): void;
+
+  SetOpacitySync(value: f64): void;
 
   @async @rename("opacity")
   OpacityAsync(rate: f64): void;

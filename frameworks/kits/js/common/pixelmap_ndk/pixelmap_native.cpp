@@ -900,6 +900,30 @@ Image_ErrorCode OH_PixelmapNative_GetPixelMapImageInfo(OH_PixelmapNative *pixelm
 }
 
 MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_SetOpacity(OH_PixelmapNative *pixelmap, float value)
+{
+    if (pixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = pixelmap->GetInnerPixelmap()->SetAlpha(value);
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status == ERR_IMAGE_DATA_UNSUPPORT) {
+        return IMAGE_UNSUPPORTED_DATA_FORMAT;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
+}
+
+MIDK_EXPORT
 Image_ErrorCode OH_PixelmapNative_Opacity(OH_PixelmapNative *pixelmap, float rate)
 {
     if (pixelmap == nullptr || !pixelmap->GetInnerPixelmap()) {
@@ -910,6 +934,30 @@ Image_ErrorCode OH_PixelmapNative_Opacity(OH_PixelmapNative *pixelmap, float rat
 }
 
 MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ApplyScale(OH_PixelmapNative *pixelmap, float scaleX, float scaleY)
+{
+    if (pixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = pixelmap->GetInnerPixelmap()->Scale(scaleX, scaleY, AntiAliasingOption::NONE);
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return IMAGE_ALLOC_FAILED;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
+}
+
+MIDK_EXPORT
 Image_ErrorCode OH_PixelmapNative_Scale(OH_PixelmapNative *pixelmap, float scaleX, float scaleY)
 {
     if (pixelmap == nullptr || !pixelmap->GetInnerPixelmap()) {
@@ -917,6 +965,31 @@ Image_ErrorCode OH_PixelmapNative_Scale(OH_PixelmapNative *pixelmap, float scale
     }
     pixelmap->GetInnerPixelmap()->scale(scaleX, scaleY);
     return IMAGE_SUCCESS;
+}
+
+MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ApplyScaleWithAntiAliasing(OH_PixelmapNative *pixelmap, float scaleX, float scaleY,
+    OH_PixelmapNative_AntiAliasingLevel level)
+{
+    if (pixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = pixelmap->GetInnerPixelmap()->Scale(scaleX, scaleY, static_cast<AntiAliasingOption>(level));
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return IMAGE_ALLOC_FAILED;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
 }
 
 MIDK_EXPORT
@@ -1028,6 +1101,30 @@ Image_ErrorCode OH_PixelmapNative_CreateScaledPixelMapWithAntiAliasing(OH_Pixelm
 }
 
 MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ApplyTranslate(OH_PixelmapNative *pixelmap, float x, float y)
+{
+    if (pixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = pixelmap->GetInnerPixelmap()->Translate(x, y);
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return IMAGE_ALLOC_FAILED;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
+}
+
+MIDK_EXPORT
 Image_ErrorCode OH_PixelmapNative_Translate(OH_PixelmapNative *pixelmap, float x, float y)
 {
     if (pixelmap == nullptr || !pixelmap->GetInnerPixelmap()) {
@@ -1035,6 +1132,30 @@ Image_ErrorCode OH_PixelmapNative_Translate(OH_PixelmapNative *pixelmap, float x
     }
     pixelmap->GetInnerPixelmap()->translate(x, y);
     return IMAGE_SUCCESS;
+}
+
+MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ApplyRotate(OH_PixelmapNative *pixelmap, float angle)
+{
+    if (pixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = pixelmap->GetInnerPixelmap()->Rotate(angle);
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return IMAGE_ALLOC_FAILED;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
 }
 
 MIDK_EXPORT
@@ -1048,6 +1169,31 @@ Image_ErrorCode OH_PixelmapNative_Rotate(OH_PixelmapNative *pixelmap, float angl
 }
 
 MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ApplyFlip(OH_PixelmapNative *pixelmap, bool shouldFlipHorizontally,
+    bool shouldFlipVertically)
+{
+    if (pixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = pixelmap->GetInnerPixelmap()->Flip(shouldFlipHorizontally, shouldFlipVertically);
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return IMAGE_ALLOC_FAILED;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
+}
+
+MIDK_EXPORT
 Image_ErrorCode OH_PixelmapNative_Flip(OH_PixelmapNative *pixelmap, bool shouldFlipHorizontally,
     bool shouldFlipVertically)
 {
@@ -1056,6 +1202,36 @@ Image_ErrorCode OH_PixelmapNative_Flip(OH_PixelmapNative *pixelmap, bool shouldF
     }
     pixelmap->GetInnerPixelmap()->flip(shouldFlipHorizontally, shouldFlipVertically);
     return IMAGE_SUCCESS;
+}
+
+MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ApplyCrop(OH_PixelmapNative *pixelmap, Image_Region *region)
+{
+    if (pixelmap == nullptr || region == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (pixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    OHOS::Media::Rect rect = {
+        .left = static_cast<int32_t>(region->x),
+        .top = static_cast<int32_t>(region->y),
+        .width = static_cast<int32_t>(region->width),
+        .height = static_cast<int32_t>(region->height)
+    };
+    uint32_t status = pixelmap->GetInnerPixelmap()->crop(rect);
+    if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
+        return IMAGE_UNSUPPORTED_OPERATION;
+    } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_INVALID_REGION;
+    } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return IMAGE_ALLOC_FAILED;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
 }
 
 MIDK_EXPORT
@@ -1093,6 +1269,29 @@ Image_ErrorCode OH_PixelmapNative_Destroy(OH_PixelmapNative **pixelmap)
     delete *pixelmap;
     *pixelmap = nullptr;
     return IMAGE_SUCCESS;
+}
+
+MIDK_EXPORT
+Image_ErrorCode OH_PixelmapNative_ConvertAlphaType(OH_PixelmapNative *srcPixelmap, OH_PixelmapNative *dstPixelmap,
+    const bool toPremul)
+{
+    if (srcPixelmap == nullptr || dstPixelmap == nullptr) {
+        return IMAGE_INVALID_PARAMETER;
+    }
+    if (srcPixelmap->GetInnerPixelmap() == nullptr || dstPixelmap->GetInnerPixelmap() == nullptr) {
+        return IMAGE_PIXELMAP_RELEASED;
+    }
+
+    uint32_t status = srcPixelmap->GetInnerPixelmap()->ConvertAlphaFormat(*(dstPixelmap->GetInnerPixelmap()), toPremul);
+    if (status == COMMON_ERR_INVALID_PARAMETER) {
+        return IMAGE_INVALID_PARAMETER;
+    } else if (status == ERR_IMAGE_DATA_UNSUPPORT || status == ERR_IMAGE_INVALID_PARAMETER) {
+        return IMAGE_UNSUPPORTED_DATA_FORMAT;
+    } else if (status != SUCCESS) {
+        return IMAGE_GET_IMAGE_DATA_FAILED;
+    } else {
+        return IMAGE_SUCCESS;
+    }
 }
 
 MIDK_EXPORT
