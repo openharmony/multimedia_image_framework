@@ -103,7 +103,7 @@ heif_error HeifHvccBox::ParseContent(HeifStreamReader& reader)
     // box store content is lengthSizeMinus1
     nalUnitLengthSize_ = static_cast<uint8_t>((tempByte & 0x03) + NAL_UNIT_LENGTH_SIZE_DIFF);
     int nalArrayNum = reader.Read8();
-    if (nalUnitNum > MAX_NAL_ARRAY_NUM) {
+    if (nalArrayNum > MAX_NAL_ARRAY_NUM) {
         reader.SetError(true);
         return heif_error_eof;
     }
