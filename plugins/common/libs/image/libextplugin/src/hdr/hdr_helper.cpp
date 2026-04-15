@@ -538,14 +538,14 @@ static ExtendInfoMain ParseExtendInfoMain(uint8_t* data, uint32_t& offset, uint3
 
 static bool ParseColorInfo(const uint8_t* data, uint32_t& offset, uint32_t length, ColorInfo& colorInfo)
 {
-    uint8_t size = ImageUtils::BytesToUint8(data, dataOffset, length);
+    uint8_t size = ImageUtils::BytesToUint8(data, offset, length);
     bool cond = size == EMPTY_SIZE;
     CHECK_ERROR_RETURN_RET(cond, true);
     cond = size > length - offset || size != COLOR_INFO_BYTES;
     CHECK_ERROR_RETURN_RET(cond, false);
-    colorInfo.primary = ImageUtils::BytesToUint8(data, dataOffset, length);
-    colorInfo.transFunc = ImageUtils::BytesToUint8(data, dataOffset, length);
-    colorInfo.model = ImageUtils::BytesToUint8(data, dataOffset, length);
+    colorInfo.primary = ImageUtils::BytesToUint8(data, offset, length);
+    colorInfo.transFunc = ImageUtils::BytesToUint8(data, offset, length);
+    colorInfo.model = ImageUtils::BytesToUint8(data, offset, length);
     return true;
 }
 
@@ -562,7 +562,7 @@ static bool ParseTransformInfo(uint8_t* data, uint32_t& offset, uint32_t length,
         info.mapping.resize(EMPTY_SIZE);
         return false;
     }
-    info.mappingFlag = ImageUtils::BytesToUint8(data, dataOffset, length);
+    info.mappingFlag = ImageUtils::BytesToUint8(data, offset, length);
     if (info.mappingFlag == INDEX_ZERO) {
         info.mapping.resize(EMPTY_SIZE);
         return true;
