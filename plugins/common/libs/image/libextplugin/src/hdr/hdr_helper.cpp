@@ -168,19 +168,19 @@ static bool GetVividJpegGainMapOffset(const vector<jpeg_marker_struct*>& markerL
             continue;
         }
         dataOffset += ITUT35_TAG_SIZE;
-        uint8_t itut35CountryCode = data[dataOffset++];
+        uint8_t itut35CountryCode = ImageUtils::BytesToUint8(data, dataOffset, size);
         uint16_t terminalProvideCode = ImageUtils::BytesToUint16(data, dataOffset, size);
         uint16_t terminalProvideOrientedCode = ImageUtils::BytesToUint16(data, dataOffset, size);
         IMAGE_LOGD("vivid base info countryCode=%{public}d,terminalCode=%{public}d,orientedcode=%{public}d",
             itut35CountryCode, terminalProvideCode, terminalProvideOrientedCode);
-        uint8_t extendedFrameNumber = data[dataOffset++];
+        uint8_t extendedFrameNumber = ImageUtils::BytesToUint8(data, dataOffset, size);
         if (extendedFrameNumber < JPEG_IMAGE_NUM) {
             continue;
         }
-        uint8_t fileType = data[dataOffset++];
-        uint8_t metaType = data[dataOffset++];
-        uint8_t enhanceType = data[dataOffset++];
-        uint8_t hdrType = data[dataOffset++];
+        uint8_t fileType = ImageUtils::BytesToUint8(data, dataOffset, size);
+        uint8_t metaType = ImageUtils::BytesToUint8(data, dataOffset, size);
+        uint8_t enhanceType = ImageUtils::BytesToUint8(data, dataOffset, size);
+        uint8_t hdrType = ImageUtils::BytesToUint8(data, dataOffset, size);
         IMAGE_LOGD("vivid base info metaType=%{public}d, enhanceType=%{public}d, hdrType=%{public}d",
             metaType, enhanceType, hdrType);
         if (fileType != VIVID_FILE_TYPE_BASE) {
@@ -538,14 +538,14 @@ static ExtendInfoMain ParseExtendInfoMain(uint8_t* data, uint32_t& offset, uint3
 
 static bool ParseColorInfo(const uint8_t* data, uint32_t& offset, uint32_t length, ColorInfo& colorInfo)
 {
-    uint8_t size = data[offset++];
+    uint8_t size = ImageUtils::BytesToUint8(data, dataOffset, length);
     bool cond = size == EMPTY_SIZE;
     CHECK_ERROR_RETURN_RET(cond, true);
     cond = size > length - offset || size != COLOR_INFO_BYTES;
     CHECK_ERROR_RETURN_RET(cond, false);
-    colorInfo.primary = data[offset++];
-    colorInfo.transFunc = data[offset++];
-    colorInfo.model = data[offset++];
+    colorInfo.primary = ImageUtils::BytesToUint8(data, dataOffset, length);
+    colorInfo.transFunc = ImageUtils::BytesToUint8(data, dataOffset, length);
+    colorInfo.model = ImageUtils::BytesToUint8(data, dataOffset, length);
     return true;
 }
 
@@ -562,7 +562,7 @@ static bool ParseTransformInfo(uint8_t* data, uint32_t& offset, uint32_t length,
         info.mapping.resize(EMPTY_SIZE);
         return false;
     }
-    info.mappingFlag = data[offset++];
+    info.mappingFlag = ImageUtils::BytesToUint8(data, dataOffset, length);
     if (info.mappingFlag == INDEX_ZERO) {
         info.mapping.resize(EMPTY_SIZE);
         return true;
@@ -656,7 +656,7 @@ static bool ParseVividJpegExtendInfo(uint8_t* data, uint32_t length, HDRVividExt
     uint32_t dataOffset = 0;
     uint16_t metadataSize = ImageUtils::BytesToUint16(data, dataOffset, length);
     CHECK_ERROR_RETURN_RET(metadataSize > length - UINT16_BYTE_COUNT, false);
-    uint8_t components = data[dataOffset++];
+    uint8_t components = ImageUtils::BytesToUint8(data, dataOffset, length);
     bool cond = components != THREE_COMPONENTS && components != ONE_COMPONENT;
     CHECK_ERROR_RETURN_RET(cond, false);
     ExtendInfoMain extendInfoMain = ParseExtendInfoMain(data, dataOffset, length, components == THREE_COMPONENTS);
@@ -681,18 +681,18 @@ static bool ParseVividJpegExtendInfo(uint8_t* data, uint32_t length, HDRVividExt
 static bool ParseVividMetadata(uint8_t* data, uint32_t length, HdrMetadata& metadata)
 {
     uint32_t dataOffset = 0;
-    uint8_t itut35CountryCode = data[dataOffset++];
+    uint8_t itut35CountryCode = ImageUtils::BytesToUint8(data, dataOffset, length);
     uint16_t terminalProvideCode = ImageUtils::BytesToUint16(data, dataOffset, length);
     uint16_t terminalProvideOrientedCode = ImageUtils::BytesToUint16(data, dataOffset, length);
     IMAGE_LOGD("vivid metadata countryCode=%{public}d,terminalCode=%{public}d,orientedcode=%{public}d",
         itut35CountryCode, terminalProvideCode, terminalProvideOrientedCode);
-    uint8_t extendedFrameNumber = data[dataOffset++];
+    uint8_t extendedFrameNumber = ImageUtils::BytesToUint8(data, dataOffset, length);
     bool cond = extendedFrameNumber < JPEG_IMAGE_NUM;
     CHECK_ERROR_RETURN_RET(cond, false);
-    uint8_t fileType = data[dataOffset++];
-    uint8_t metaType = data[dataOffset++];
-    uint8_t enhanceType = data[dataOffset++];
-    uint8_t hdrType = data[dataOffset++];
+    uint8_t fileType = ImageUtils::BytesToUint8(data, dataOffset, length);
+    uint8_t metaType = ImageUtils::BytesToUint8(data, dataOffset, length);
+    uint8_t enhanceType = ImageUtils::BytesToUint8(data, dataOffset, length);
+    uint8_t hdrType = ImageUtils::BytesToUint8(data, dataOffset, length);
     IMAGE_LOGD("vivid metadata info hdrType=%{public}d, enhanceType=%{public}d", hdrType, enhanceType);
     cond = fileType != VIVID_FILE_TYPE_GAINMAP;
     CHECK_ERROR_RETURN_RET(cond, false);
@@ -808,7 +808,7 @@ static bool ParseISOMetadata(uint8_t* data, uint32_t length, HdrMetadata& metada
     metadata.extendMeta.metaISO.miniVersion = metadata.extendMeta.metaISO.writeVersion & 0xFF;
     cond = metadata.extendMeta.metaISO.miniVersion != EMPTY_SIZE;
     CHECK_ERROR_RETURN_RET(cond, false);
-    uint8_t flag = data[dataOffset++];
+    uint8_t flag = ImageUtils::BytesToUint8(data, dataOffset, length);
     // The first bit indicates the gainmapChannelNum, the second bit indicates the useBaseColorFlag.
     metadata.extendMeta.metaISO.gainmapChannelNum = ((flag & 0x80) == 0x80) ? THREE_COMPONENTS : ONE_COMPONENT;
     metadata.extendMeta.metaISO.useBaseColorFlag = ((flag & 0x40) == 0x40) ? 0x01 : 0x00;

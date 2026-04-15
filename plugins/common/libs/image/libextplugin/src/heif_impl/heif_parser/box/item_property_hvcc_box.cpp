@@ -45,12 +45,18 @@ static uint32_t HEIF_MAX_IMAGE_DPB_SIZE = 32;
 static uint32_t HEIF_MAX_LONG_TERM_REF_PRESENT_FLAG_SIZE = 32;
 static uint32_t HEIF_NUM_DELTA_POCS = 1;
 static uint32_t HEIF_BASE_DELTA_FlAG = 1;
+static const uint8_t MAX_NAL_ARRAY_NUM = 32;
+static const uint16_t MAX_NAL_UNIT_NUM_PER_ARRAY = 1024;
 
 namespace OHOS {
 namespace ImagePlugin {
 heif_error HeifHvccBox::ParseNalUnitArray(HeifStreamReader& reader, std::vector<std::vector<uint8_t>>& nalUnits)
 {
     int nalUnitNum = reader.Read16();
+    if (nalUnitNum > MAX_NAL_UNIT_NUM_PER_ARRAY) {
+        reader.SetError(true);
+        return heif_error_eof;
+    }
     for (int unitIndex = 0; unitIndex < nalUnitNum && !reader.HasError(); ++unitIndex) {
         int nalUnitSize = reader.Read16();
         if (!nalUnitSize || !reader.CheckSize(nalUnitSize)) {
@@ -97,6 +103,10 @@ heif_error HeifHvccBox::ParseContent(HeifStreamReader& reader)
     // box store content is lengthSizeMinus1
     nalUnitLengthSize_ = static_cast<uint8_t>((tempByte & 0x03) + NAL_UNIT_LENGTH_SIZE_DIFF);
     int nalArrayNum = reader.Read8();
+    if (nalUnitNum > MAX_NAL_ARRAY_NUM) {
+        reader.SetError(true);
+        return heif_error_eof;
+    }
     for (int arrayIndex = 0; arrayIndex < nalArrayNum && !reader.HasError(); ++arrayIndex) {
         tempByte = reader.Read8();
         HvccNalArray array;

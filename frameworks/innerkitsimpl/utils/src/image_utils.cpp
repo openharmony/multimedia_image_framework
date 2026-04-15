@@ -1342,6 +1342,29 @@ std::string ImageUtils::GetPixelMapName(PixelMap* pixelMap)
     return pixelMapStr;
 }
 
+// BytesToUint8 function will modify the offset value.
+uint8_t ImageUtils::BytesToUint8(uint8_t* bytes, uint32_t& offset, uint32_t size)
+{
+    uint8_t data = 0;
+    if (bytes == nullptr || offset + NUM_1 > size) {
+        return data;
+    }
+    data = bytes[offset];
+    offset += NUM_1;
+    return data;
+}
+
+uint8_t ImageUtils::BytesToUint8(const uint8_t* bytes, uint32_t& offset, uint32_t size)
+{
+    uint8_t data = 0;
+    if (bytes == nullptr || offset + NUM_1 > size) {
+        return data;
+    }
+    data = bytes[offset];
+    offset += NUM_1;
+    return data;
+}
+
  // BytesToUint16 function will modify the offset value.
 uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
