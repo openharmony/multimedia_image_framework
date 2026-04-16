@@ -1346,7 +1346,7 @@ std::string ImageUtils::GetPixelMapName(PixelMap* pixelMap)
 uint8_t ImageUtils::BytesToUint8(uint8_t* bytes, uint32_t& offset, uint32_t size)
 {
     uint8_t data = 0;
-    if (bytes == nullptr || offset + NUM_1 > size) {
+    if (bytes == nullptr || offset >= size || offset + NUM_1 > size) {
         return data;
     }
     data = bytes[offset];
@@ -1357,7 +1357,7 @@ uint8_t ImageUtils::BytesToUint8(uint8_t* bytes, uint32_t& offset, uint32_t size
 uint8_t ImageUtils::BytesToUint8(const uint8_t* bytes, uint32_t& offset, uint32_t size)
 {
     uint8_t data = 0;
-    if (bytes == nullptr || offset + NUM_1 > size) {
+    if (bytes == nullptr || offset >= size || offset + NUM_1 > size) {
         return data;
     }
     data = bytes[offset];
@@ -1369,7 +1369,10 @@ uint8_t ImageUtils::BytesToUint8(const uint8_t* bytes, uint32_t& offset, uint32_
 uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     uint16_t data = 0;
-    if (bytes == nullptr || offset + NUM_2 > size) {
+    if (__builtin_add_overflow(offset, NUM_2, &offset)) {
+        return data;
+    }
+    if (bytes == nullptr || offset > size) {
         return data;
     }
     if (isBigEndian) {
@@ -1385,7 +1388,10 @@ uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t si
 uint32_t ImageUtils::BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     uint32_t data = 0;
-    if (bytes == nullptr || offset + NUM_4 > size) {
+    if (__builtin_add_overflow(offset, NUM_4, &offset)) {
+        return data;
+    }
+    if (bytes == nullptr || offset > size) {
         return data;
     }
     if (isBigEndian) {
@@ -1403,7 +1409,10 @@ uint32_t ImageUtils::BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t si
 int32_t ImageUtils::BytesToInt32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     int32_t data = 0;
-    if (bytes == nullptr || offset + NUM_4 > size) {
+    if (__builtin_add_overflow(offset, NUM_4, &offset)) {
+        return data;
+    }
+    if (bytes == nullptr || offset > size) {
         return data;
     }
     if (isBigEndian) {

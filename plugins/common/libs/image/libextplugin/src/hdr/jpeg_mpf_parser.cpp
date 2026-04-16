@@ -114,10 +114,13 @@ bool JpegMpfParser::CheckMpfOffset(uint8_t* data, uint32_t size, uint32_t& offse
 
 bool JpegMpfParser::Parsing(uint8_t* data, uint32_t size)
 {
-    if (data == nullptr || size == 0) {
+    if (data == nullptr || size == 0 || size < sizeof(MULTI_PICTURE_HEADER_FLAG)) {
         return false;
     }
     if (memcmp(data, MULTI_PICTURE_HEADER_FLAG, sizeof(MULTI_PICTURE_HEADER_FLAG)) != 0) {
+        return false;
+    }
+    if (size < UINT32_BYTE_SIZE) {
         return false;
     }
     data += UINT32_BYTE_SIZE;
