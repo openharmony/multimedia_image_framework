@@ -163,8 +163,8 @@ bool JpegMpfParser::ParsingMpIndexIFD(uint8_t* data, uint32_t size, uint32_t dat
         IMAGE_LOGD("mpf tag=%{public}d,type=%{public}d,count=%{public}d,value=%{public}d", tag, type, count, value);
         switch (tag) {
             case MpfIFDTag::MPF_VERSION_TAG:
-                if (memcmp(data + (dataOffset - UINT32_BYTE_SIZE), MPF_VERSION_DEFAULT,
-                    sizeof(MPF_VERSION_DEFAULT)) != 0) {
+                if (dataOffset - UINT32_BYTE_SIZE < 0 || memcmp(data + (dataOffset - UINT32_BYTE_SIZE),
+                    MPF_VERSION_DEFAULT, sizeof(MPF_VERSION_DEFAULT)) != 0) {
                     return false;
                 }
                 break;
