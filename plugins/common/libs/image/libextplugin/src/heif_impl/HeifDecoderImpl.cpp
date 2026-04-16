@@ -1815,7 +1815,7 @@ bool HeifDecoderImpl::GetSwDecodeHeifsDecodedParam(uint32_t index, HevcSoftDecod
 
 bool HeifDecoderImpl::CopyParamBuffer(HevcSoftDecodeParam &dst, const HevcSoftDecodeParam &src)
 {
-    return memcpy_s(dst.dstBuffer, src.bufferSize, src.dstBuffer, src.bufferSize) == 0;
+    return memcpy_s(dst.dstBuffer, dst.bufferSize, src.dstBuffer, src.bufferSize) == 0;
 }
 
 void HeifDecoderImpl::SetDstBufferSize(uint64_t byteCount)
