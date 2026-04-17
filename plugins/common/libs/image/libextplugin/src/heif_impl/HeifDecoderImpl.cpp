@@ -1691,6 +1691,31 @@ uint32_t HeifDecoderImpl::GetHeifsDelayTime(uint32_t index, int32_t &value)
     return SUCCESS;
 }
 
+uint32_t HeifDecoderImpl::GetHeifsCanvasPixelSize(uint32_t index, int32_t &value, bool isWidth)
+{
+    CHECK_ERROR_RETURN_RET(!IsHeifsImage(), ERR_MEDIA_FORMAT_UNSUPPORT);
+    CHECK_ERROR_RETURN_RET(!parser_, ERR_IMAGE_DECODE_ABNORMAL);
+
+    value = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t ret = parser_->GetHeifsCanvasPixelWidthHeight(index, width, height);
+    CHECK_ERROR_RETURN_RET_LOG(ret != heif_error_ok, ERR_IMAGE_INVALID_PARAM, "Get HeifsCanvasPixelHeight failed.");
+
+    if (isWidth) {
+        if (width > std::numeric_limits<int32_t>::max()) {
+            return ERR_MEDIA_VALUE_INVALID;
+        }
+        value = static_cast<int32_t>(width);
+    } else {
+        if (height > std::numeric_limits<int32_t>::max()) {
+            return ERR_MEDIA_VALUE_INVALID;
+        }
+        value = static_cast<int32_t>(height);
+    }
+    return SUCCESS;
+}
+
 bool HeifDecoderImpl::CreateHeifsSwDecoder(HevcSoftDecodeParam &refParam)
 {
     if (swDecHeifsHandle_) {

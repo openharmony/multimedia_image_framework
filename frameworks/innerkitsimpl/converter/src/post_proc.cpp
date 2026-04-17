@@ -768,18 +768,25 @@ std::shared_ptr<SLRWeightTuple> initSLRFactor(Size srcSize, Size dstSize)
     SkSLRCacheMgr cacheMgr = GetNewSkSLRCacheMgr();
     SLRWeightKey key(srcSize, dstSize);
     std::shared_ptr<SLRWeightTuple> weightTuplePtr = cacheMgr.find(key.fKey);
-    if (weightTuplePtr == nullptr) {
-        SLRWeightMat slrWeightX = SLRProc::GetWeights(static_cast<float>(dstSize.width) / srcSize.width,
-            static_cast<int>(dstSize.width));
-        SLRWeightMat slrWeightY = SLRProc::GetWeights(static_cast<float>(dstSize.height) / srcSize.height,
-            static_cast<int>(dstSize.height));
-        SLRWeightTuple value{slrWeightX, slrWeightY, key};
-        std::shared_ptr<SLRWeightTuple> weightPtr = std::make_shared<SLRWeightTuple>(value);
-        cacheMgr.insert(key.fKey, weightPtr);
-        IMAGE_LOGI("initSLRFactor insert:%{public}d", key.fKey);
-        return weightPtr;
+    if (weightTuplePtr != nullptr) {
+        const SLRWeightKey& cachedKey = std::get<2>(*weightTuplePtr);
+        if (cachedKey.Match(srcSize, dstSize)) {
+            return weightTuplePtr;
+        }
+        IMAGE_LOGW("initSLRFactor hash collision, cached:%{public}d x %{public}d -> %{public}d x %{public}d, "
+            "requested:%{public}d x %{public}d -> %{public}d x %{public}d, key:%{public}u",
+            cachedKey.src_.width, cachedKey.src_.height, cachedKey.dst_.width, cachedKey.dst_.height,
+            srcSize.width, srcSize.height, dstSize.width, dstSize.height, key.fKey);
     }
-    return weightTuplePtr;
+    SLRWeightMat slrWeightX = SLRProc::GetWeights(static_cast<float>(dstSize.width) / srcSize.width,
+        static_cast<int>(dstSize.width));
+    SLRWeightMat slrWeightY = SLRProc::GetWeights(static_cast<float>(dstSize.height) / srcSize.height,
+        static_cast<int>(dstSize.height));
+    SLRWeightTuple value{slrWeightX, slrWeightY, key};
+    std::shared_ptr<SLRWeightTuple> weightPtr = std::make_shared<SLRWeightTuple>(value);
+    cacheMgr.insert(key.fKey, weightPtr);
+    IMAGE_LOGI("initSLRFactor insert:%{public}d", key.fKey);
+    return weightPtr;
 }
 
 bool CheckPixelMapSLR(const Size &desiredSize, PixelMap &pixelMap)

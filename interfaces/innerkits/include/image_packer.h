@@ -98,7 +98,7 @@ struct PackOption {
      * If this value is greater than 0, a thumbnail will be attempted to be embedded in the image.
      * Currently, this parameter is only valid for the JPEG and HEIF format of the Picture.
      */
-    int32_t embedThumbnailMaxSize = 0;
+    int32_t maxEmbedThumbnailDimension = 0;
 };
 
 class PackerStream;

@@ -26,6 +26,7 @@
 #include <dlfcn.h>
 #include <filesystem>
 #include <mutex>
+#include <set>
 #include <vector>
 
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -43,6 +44,7 @@
 #include "dng/dng_exif_metadata.h"
 #endif
 #include "exif_metadata.h"
+#include "tiff_exif_metadata.h"
 #include "exif_metadata_formatter.h"
 #include "webp_metadata.h"
 #include "file_source_stream.h"
@@ -65,6 +67,8 @@
 #include "pixel_map.h"
 #include "pixel_yuv.h"
 #include "plugin_server.h"
+#include "png_metadata.h"
+#include "png_metadata_parser.h"
 #include "post_proc.h"
 #include "securec.h"
 #include "source_stream.h"
@@ -349,13 +353,42 @@ const static std::map<std::string, uint32_t> ORIENTATION_INT_MAP = {
 const static string IMAGE_DELAY_TIME = "DelayTime";
 const static string IMAGE_DISPOSAL_TYPE = "DisposalType";
 const static string IMAGE_GIFLOOPCOUNT_TYPE = "GIFLoopCount";
-const static string IMAGE_HEIFS_DELAY_TIME = "HeifsDelayTime";
+const static string GIF_CANVAS_PIXEL_WIDTH = "GifCanvasWidth";
+const static string GIF_CANVAS_PIXEL_HEIGHT = "GifCanvasHeight";
+const static string GIF_HAS_GLOBAL_COLOR_MAP = "GifHasGlobalColorMap";
+const static string GIF_UNCLAMPED_DELAY_TIME = "GifUnclampedDelayTime";
 const static string IMAGE_GIF_DELAY_TIME = "GifDelayTime";
 const static string IMAGE_GIF_DISPOSAL_TYPE = "GifDisposalType";
+const static string IMAGE_AVIS_DELAY_TIME = "AvisDelayTime";
 const static int32_t ZERO = 0;
+const static uint32_t GIF_DEFAULT_DELAY_TIME_MS = 100;
+
+const static std::string HEIFS_METADATA_DELAYTIME = "HeifsDelayTime";
+const static std::string HEIFS_METADATA_UNCLAMPED_DELAY_TIME = "HeifsUnclampedDelayTime";
+const static std::string HEIFS_METADATA_CANVAS_PIXEL_HEIGHT = "HeifsCanvasHeight";
+const static std::string HEIFS_METADATA_CANVAS_PIXEL_WIDTH = "HeifsCanvasWidth";
 
 PluginServer &ImageSource::pluginServer_ = ImageUtils::GetPluginServer();
 ImageSource::FormatAgentMap ImageSource::formatAgentMap_ = InitClass();
+
+static const std::map<std::string, std::string> GIF_PICTURE_META_MAP = {
+    {IMAGE_DELAY_TIME, GIF_METADATA_KEY_DELAY_TIME},
+    {IMAGE_DISPOSAL_TYPE, GIF_METADATA_KEY_DISPOSAL_TYPE},
+    {IMAGE_GIFLOOPCOUNT_TYPE, GIF_METADATA_KEY_LOOP_COUNT},
+    {GIF_CANVAS_PIXEL_WIDTH, GIF_METADATA_KEY_CANVAS_PIXEL_WIDTH},
+    {GIF_CANVAS_PIXEL_HEIGHT, GIF_METADATA_KEY_CANVAS_PIXEL_HEIGHT},
+    {GIF_HAS_GLOBAL_COLOR_MAP, GIF_METADATA_KEY_HAS_GLOBAL_COLOR_MAP},
+    {GIF_UNCLAMPED_DELAY_TIME, GIF_METADATA_KEY_UNCLAMPED_DELAY_TIME},
+};
+
+static const std::set<std::string> GIF_INT_PROPERTY_DECODER_KEYS = {
+    IMAGE_DELAY_TIME,
+    IMAGE_DISPOSAL_TYPE,
+    GIF_CANVAS_PIXEL_WIDTH,
+    GIF_CANVAS_PIXEL_HEIGHT,
+    GIF_HAS_GLOBAL_COLOR_MAP,
+    GIF_UNCLAMPED_DELAY_TIME,
+};
 
 #ifdef HEIF_HW_DECODE_ENABLE
 static bool IsSecureMode(const std::string &name)
@@ -461,6 +494,11 @@ uint32_t ImageSource::GetSupportedFormats(set<string> &formats)
         formats.insert(ImageUtils::GetEncodedHeifFormat());
         formats.insert(ImageUtils::GetEncodedHeifsFormat());
     }
+
+#ifdef AVIF_DECODE_ENABLE
+    formats.insert(IMAGE_AVIF_FORMAT);
+    formats.insert(IMAGE_AVIS_FORMAT);
+#endif
     return SUCCESS;
 }
 
@@ -2181,27 +2219,128 @@ void ImageSource::GetWebpPropertiesWithType(uint32_t index, std::vector<Metadata
     }
 }
 
-std::vector<MetadataValue> ImageSource::GetAllPropertiesWithType(uint32_t index)
+void ImageSource::GetAvisPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result)
 {
-    std::vector<MetadataValue> result;
-
-#if !defined(CROSS_PLATFORM)
-    if (IsWebPImage()) {
-        GetWebpPropertiesWithType(index, result);
+    for (const std::string& key : ImageKvMetadata::GetAvisMetadataKeys()) {
+        MetadataValue value;
+        uint32_t ret = GetAvisProperty(index, key, value);
+        if (ret == SUCCESS) {
+            result.push_back(value);
+        }
     }
+}
+
+void ImageSource::AppendGifPropertiesWithType(std::vector<MetadataValue> &result, uint32_t &index)
+{
+    for (const auto& [key, type] : ExifMetadata::GetGifMetadataMap()) {
+        MetadataValue entry;
+        entry.key = key;
+        entry.type = type;
+        entry.intArrayValue.clear();
+
+        uint32_t gifRet = GetGifProperty(index, key, entry);
+        if (gifRet == SUCCESS) {
+            result.push_back(std::move(entry));
+        }
+    }
+}
+
+bool ImageSource::TryGetAllGifPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result)
+{
+    ImageInfo gifInfo;
+    CHECK_ERROR_RETURN_RET(GetImageInfo(gifInfo) != SUCCESS || gifInfo.encodedFormat != IMAGE_GIF_FORMAT, false);
+    uint32_t gifIndex = index;
+    AppendGifPropertiesWithType(result, gifIndex);
+    return true;
+}
+
+void ImageSource::AppendTiffPropertiesForGetAll(std::vector<MetadataValue> &result)
+{
+#if defined(SUPPORT_LIBTIFF)
+    CHECK_ERROR_RETURN(!IsEncodedFormat(IMAGE_TIFF_FORMAT));
+    std::shared_ptr<TiffExifMetadata> tiffMetadata = std::static_pointer_cast<TiffExifMetadata>(exifMetadata_);
+    CHECK_ERROR_RETURN(tiffMetadata == nullptr);
+    tiffMetadata->GetAllTiffProperties(result);
+    IMAGE_LOGD("Retrieved %{public}lu TIFF metadata properties", static_cast<unsigned long>(result.size()));
 #endif
-    CHECK_ERROR_RETURN_RET_LOG(!exifMetadata_ && isExifReadFailed_, result, "Exif metadata not initialized");
-    CHECK_ERROR_RETURN_RET_LOG(CreatExifMetadataByImageSource() != SUCCESS, result, "Metadata creation failed");
+}
+
+void ImageSource::GetHeifsPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result)
+{
+    for (const std::string& key : ImageKvMetadata::GetHeifsMetadataKeys()) {
+        PropertyValueType type = PropertyValueType::INT;
+        MetadataValue value{key, type};
+        if (GetHeifsProperty(index, key, value) == SUCCESS) {
+            result.push_back(value);
+        }
+    }
+}
+
+void ImageSource::GetJfifMetadataPropertiesWithType(std::vector<MetadataValue> &result)
+{
+    for (const std::string& key : ImageKvMetadata::GetJfifMetadataKeys()) {
+        PropertyValueType type = (key == JFIF_METADATA_KEY_VERSION) ?
+            PropertyValueType::INT_ARRAY : PropertyValueType::INT;
+        MetadataValue value{key, type};
+        if (GetJfifProperty(key, value) == SUCCESS) {
+            result.push_back(value);
+        }
+    }
+}
+
+void ImageSource::GetPngPropertiesWithType(std::vector<MetadataValue> &result)
+{
+    for (const std::string& key : ImageKvMetadata::GetPngMetadataKeys()) {
+        MetadataValue value{key};
+        if (GetPngProperty(key, value) == SUCCESS) {
+            result.push_back(value);
+        }
+    }
+}
+
+bool ImageSource::TryGetAllDngPropertiesWithType(std::vector<MetadataValue> &result)
+{
 #if !defined(CROSS_PLATFORM)
     if (IsDngImage()) {
         std::shared_ptr<DngExifMetadata> dngMetadata = std::static_pointer_cast<DngExifMetadata>(exifMetadata_);
         if (dngMetadata != nullptr) {
             result = dngMetadata->GetAllDngProperties();
             IMAGE_LOGD("Retrieved %{public}lu DNG metadata properties", static_cast<unsigned long>(result.size()));
-            return result;
+            return true;
         }
     }
 #endif
+    return false;
+}
+
+std::vector<MetadataValue> ImageSource::GetAllPropertiesWithType(uint32_t index)
+{
+    std::vector<MetadataValue> result;
+    if (TryGetAllGifPropertiesWithType(index, result)) {
+        return result;
+    }
+    if (IsAvisImage()) {
+        GetAvisPropertiesWithType(index, result);
+    }
+#if !defined(CROSS_PLATFORM)
+    if (IsWebPImage()) {
+        GetWebpPropertiesWithType(index, result);
+    }
+    if (IsEncodedFormat(IMAGE_PNG_FORMAT)) {
+        GetPngPropertiesWithType(result);
+    }
+    if (IsEncodedFormat(IMAGE_HEIFS_FORMAT)) {
+        GetHeifsPropertiesWithType(index, result);
+    }
+#endif
+    CHECK_ERROR_RETURN_RET_LOG(!exifMetadata_ && isExifReadFailed_, result, "Exif metadata not initialized");
+    CHECK_ERROR_RETURN_RET_LOG(CreatExifMetadataByImageSource() != SUCCESS, result, "Metadata creation failed");
+#if !defined(CROSS_PLATFORM)
+    if (TryGetAllDngPropertiesWithType(result)) {
+        return result;
+    }
+#endif
+    AppendTiffPropertiesForGetAll(result);
     auto processMap = [&](const std::map<std::string, PropertyValueType>& metadataMap) {
         for (const auto& [key, type] : metadataMap) {
             MetadataValue entry;
@@ -2223,6 +2362,7 @@ std::vector<MetadataValue> ImageSource::GetAllPropertiesWithType(uint32_t index)
     processMap(ExifMetadata::GetHwMetadataMap());
 
     GetFragmentPropertiesWithType(result);
+    GetJfifMetadataPropertiesWithType(result);
     IMAGE_LOGD("Retrieved %{public}zu metadata properties", result.size());
     return result;
 }
@@ -2251,9 +2391,9 @@ uint32_t ImageSource::GetImagePropertyInt(uint32_t index, const std::string &key
     if (key.empty()) {
         return Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT;
     }
-    // keep aline with previous logical for delay time and disposal type
-    if (IMAGE_DELAY_TIME.compare(key) == ZERO || IMAGE_DISPOSAL_TYPE.compare(key) == ZERO) {
+    if (GIF_INT_PROPERTY_DECODER_KEYS.count(key) != 0) {
         IMAGE_LOGD("GetImagePropertyInt special key: %{public}s", key.c_str());
+        CHECK_ERROR_RETURN_RET(mainDecoder_ == nullptr, ERR_IMAGE_SOURCE_DATA);
         uint32_t ret = mainDecoder_->GetImagePropertyInt(index, key, value);
         return ret;
     }
@@ -2317,6 +2457,30 @@ static uint32_t ParseUInt32Key(ImageMetadata::PropertyMapPtr propertiesPtr, std:
     return SUCCESS;
 }
 
+static uint32_t FillGifUInt32Property(const ImageMetadata::PropertyMapPtr& propertiesPtr, const std::string& key,
+    MetadataValue& value, bool applyZeroDelayFallback = false)
+{
+    uint32_t u32num = 0;
+    uint32_t errorCode = ParseUInt32Key(propertiesPtr, key, u32num);
+    CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, errorCode);
+    if (applyZeroDelayFallback && u32num < GIF_DEFAULT_DELAY_TIME_MS) {
+        u32num = GIF_DEFAULT_DELAY_TIME_MS;
+    }
+    value.intArrayValue.emplace_back(u32num);
+    return SUCCESS;
+}
+
+static uint32_t FillGifDecoderIntProperty(ImagePlugin::AbsImageDecoder* decoder, uint32_t index, const std::string& key,
+    MetadataValue& value)
+{
+    CHECK_ERROR_RETURN_RET(decoder == nullptr, ERR_IMAGE_SOURCE_DATA);
+    int32_t intVal = 0;
+    uint32_t errorCode = decoder->GetImagePropertyInt(index, key, intVal);
+    CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, errorCode);
+    value.intArrayValue.emplace_back(intVal);
+    return SUCCESS;
+}
+
 uint32_t ImageSource::GetGifProperty(uint32_t index, const std::string &key, MetadataValue &value)
 {
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -2336,19 +2500,24 @@ uint32_t ImageSource::GetGifProperty(uint32_t index, const std::string &key, Met
     }
     if (IMAGE_GIF_DELAY_TIME.compare(key) == ZERO) {
         IMAGE_LOGD("GetImagePropertyInt special key: %{public}s", key.c_str());
-        uint32_t u32num;
-        errorCode = ParseUInt32Key(propertiesPtr, key, u32num);
-        CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, errorCode);
-        value.intArrayValue.emplace_back(u32num);
-        return SUCCESS;
+        return FillGifUInt32Property(propertiesPtr, key, value, true);
     }
 
     if (IMAGE_GIF_DISPOSAL_TYPE.compare(key) == ZERO) {
         IMAGE_LOGD("GetImagePropertyInt special key: %{public}s", key.c_str());
-        uint32_t u32num;
-        errorCode = ParseUInt32Key(propertiesPtr, key, u32num);
-        CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, errorCode);
-        value.intArrayValue.emplace_back(u32num);
+        return FillGifUInt32Property(propertiesPtr, key, value);
+    }
+    if (GIF_CANVAS_PIXEL_WIDTH.compare(key) == ZERO || GIF_CANVAS_PIXEL_HEIGHT.compare(key) == ZERO ||
+        GIF_HAS_GLOBAL_COLOR_MAP.compare(key) == ZERO || GIF_UNCLAMPED_DELAY_TIME.compare(key) == ZERO) {
+        IMAGE_LOGD("GetImagePropertyInt special key: %{public}s", key.c_str());
+        return FillGifDecoderIntProperty(mainDecoder_.get(), index, key, value);
+    }
+    if (key.compare(GIF_METADATA_KEY_LOOP_COUNT) == ZERO) {
+        IMAGE_LOGD("GetGifProperty special key(loop count): %{public}s", key.c_str());
+        uint32_t loopError = 0;
+        int32_t loopCount = GetLoopCount(loopError);
+        CHECK_ERROR_RETURN_RET(loopError != SUCCESS, loopError);
+        value.intArrayValue.emplace_back(static_cast<int64_t>(loopCount));
         return SUCCESS;
     }
 #endif
@@ -2386,6 +2555,73 @@ uint32_t ImageSource::GetWebPProperty(uint32_t index, const std::string &key, Me
     return ERROR;
 }
 
+uint32_t ImageSource::GetPngProperty(const std::string &key, MetadataValue &value)
+{
+#if !defined(CROSS_PLATFORM)
+    std::shared_ptr<PngMetadata> pngMetadata = nullptr;
+    uint32_t errorCode = GetPngMetadata(pngMetadata);
+    if (pngMetadata == nullptr || errorCode != SUCCESS) {
+        IMAGE_LOGE("Get png metadata failed");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    ImageMetadata::PropertyMapPtr propertiesPtr = pngMetadata->GetAllProperties();
+    if (!propertiesPtr) {
+        IMAGE_LOGE("Properties map pointer is null");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    return FillPngMetadataValue(key, propertiesPtr, value);
+#endif
+    return ERROR;
+}
+
+uint32_t ImageSource::FillPngMetadataValue(const std::string &key, const ImageMetadata::PropertyMapPtr &propertiesPtr,
+    MetadataValue &value)
+{
+    auto it = propertiesPtr->find(key);
+    if (it == propertiesPtr->end()) {
+        IMAGE_LOGE("Get metadata failed: key '%{public}s' not found", key.c_str());
+        return ERR_IMAGE_PROPERTY_NOT_EXIST;
+    }
+
+    value.key = key;
+    value.type = ExifMetadata::GetPropertyValueType(key);
+    const std::string &strValue = it->second;
+
+    if (value.type == PropertyValueType::INT) {
+        uint32_t u32num;
+        if (ImageUtils::StrToUint32(strValue, u32num)) {
+            value.intArrayValue.emplace_back(u32num);
+        }
+    } else if (value.type == PropertyValueType::DOUBLE) {
+        char* endPtr = nullptr;
+        double dblValue = strtod(strValue.c_str(), &endPtr);
+        if (endPtr != strValue.c_str() && *endPtr == '\0') {
+            value.doubleArrayValue.emplace_back(dblValue);
+        } else {
+            IMAGE_LOGE("Failed to convert string to double: %{public}s", strValue.c_str());
+        }
+    } else if (value.type == PropertyValueType::STRING) {
+        value.stringValue = strValue;
+    } else if (value.type == PropertyValueType::DOUBLE_ARRAY) {
+        size_t pos = 0;
+        const size_t len = strValue.size();
+        while (pos < len) {
+            size_t commaPos = strValue.find(',', pos);
+            commaPos = (commaPos == std::string::npos) ? len : commaPos;
+            std::string token = strValue.substr(pos, commaPos - pos);
+            char* endPtr = nullptr;
+            double dblValue = strtod(token.c_str(), &endPtr);
+            if (endPtr != token.c_str() && *endPtr == '\0') {
+                value.doubleArrayValue.emplace_back(dblValue);
+            } else {
+                IMAGE_LOGE("Failed to convert string to double: %{public}s", token.c_str());
+            }
+            pos = commaPos + 1;
+        }
+    }
+    return SUCCESS;
+}
+
 uint32_t ImageSource::GetFragmentProperty(const std::string &key, MetadataValue &value)
 {
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -2414,52 +2650,102 @@ uint32_t ImageSource::GetFragmentProperty(const std::string &key, MetadataValue 
 #endif
 }
 
-uint32_t ImageSource::GetGifLoopCountByType(uint32_t index, MetadataValue &value)
+uint32_t ImageSource::GetJfifProperty(const std::string &key, MetadataValue &value)
+{
+    ImageInfo info;
+    uint32_t ret = GetImageInfo(info);
+    CHECK_ERROR_RETURN_RET(ret != SUCCESS || info.encodedFormat != IMAGE_JPEG_FORMAT ||
+        mainDecoder_ == nullptr, ERR_IMAGE_SOURCE_DATA);
+
+    if (key == JFIF_METADATA_KEY_VERSION) {
+        int32_t majorVersion = 0;
+        int32_t minorVersion = 0;
+        std::string JFIF_METADATA_MAJOR_VERSION = JFIF_METADATA_KEY_MAJOR_VERSION;
+        std::string JFIF_METADATA_MINOR_VERSION = JFIF_METADATA_KEY_MINOR_VERSION;
+        uint32_t ret4Major = mainDecoder_->GetImagePropertyInt(0, JFIF_METADATA_MAJOR_VERSION, majorVersion);
+        uint32_t ret4Minor = mainDecoder_->GetImagePropertyInt(0, JFIF_METADATA_MINOR_VERSION, minorVersion);
+        if (ret4Major == SUCCESS && ret4Minor == SUCCESS) {
+            value.intArrayValue.clear();
+            value.intArrayValue.push_back(static_cast<int64_t>(majorVersion));
+            value.intArrayValue.push_back(static_cast<int64_t>(minorVersion));
+            ret = SUCCESS;
+        } else {
+            ret = (ret4Major != SUCCESS) ? ret4Major : ret4Minor;
+        }
+    } else {
+        int32_t tempvalue;
+        ret = mainDecoder_->GetImagePropertyInt(0, key, tempvalue);
+        value.intArrayValue.assign({tempvalue});
+    }
+    CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ret,
+        "[ImageSource]Get jfif property error. errorCode=%{public}u", ret);
+    return ret;
+}
+
+uint32_t ImageSource::GetHeifsProperty(uint32_t index, const std::string &key, MetadataValue &value)
 {
     uint32_t ret = SUCCESS;
-    IMAGE_LOGD("GetImagePropertyString special key: %{public}s", IMAGE_GIFLOOPCOUNT_TYPE.c_str());
     (void)GetFrameCount(ret);
     if (ret != SUCCESS || mainDecoder_ == nullptr) {
         IMAGE_LOGE("[ImageSource]GetFrameCount get frame sum error.");
         return ret;
     } else {
-        ret = mainDecoder_->GetImagePropertyString(index, IMAGE_GIFLOOPCOUNT_TYPE, value.stringValue);
+        int32_t tempValue = 0;
+        ImageInfo info;
+        GetImageInfo(info);
+        if (info.encodedFormat != IMAGE_HEIFS_FORMAT) {
+            IMAGE_LOGD("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
+            return ERR_IMAGE_SOURCE_DATA;
+        }
+        ret = mainDecoder_->GetImagePropertyInt(index, key, tempValue);
+        value.intArrayValue.emplace_back(tempValue);
         CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ret,
-            "[ImageSource]GetLoopCount get loop count issue. errorCode=%{public}u", ret);
+            "[ImageSource]Get heifs %{public}s error. errorCode=%{public}u", key.c_str(), ret);
     }
     return ret;
+}
+
+uint32_t ImageSource::GetAvisProperty(uint32_t index, const std::string &key, MetadataValue &value)
+{
+    value.key = key;
+    uint32_t errorCode = 0;
+    std::shared_ptr<AvisMetadata> avisMetadata = GetAvisMetadata(index, errorCode);
+    if (avisMetadata == nullptr || errorCode != SUCCESS) {
+        IMAGE_LOGE("Get avis metadata failed");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    ImageMetadata::PropertyMapPtr propertiesPtr = avisMetadata->GetAllProperties();
+    if (!propertiesPtr) {
+        IMAGE_LOGE("Properties map pointer is null");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+
+    auto iter = ExifMetadata::GetAvisMetadataMap().find(key);
+    if (iter != ExifMetadata::GetAvisMetadataMap().end() && iter->second == PropertyValueType::INT) {
+        uint32_t u32num = 0;
+        errorCode = ParseUInt32Key(propertiesPtr, key, u32num);
+        IMAGE_LOGI("%{public}s errorCode:%{public}d", __func__, errorCode);
+        if (errorCode == SUCCESS) {
+            value.type = PropertyValueType::INT;
+            value.intArrayValue.emplace_back(u32num);
+        }
+        return errorCode;
+    }
+    return errorCode;
 }
 
 uint32_t ImageSource::GetImagePropertyByType(uint32_t index, const std::string &key, MetadataValue &value)
 {
     CHECK_ERROR_RETURN_RET(key.empty(), Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT);
     uint32_t ret = SUCCESS;
-    if (IMAGE_GIFLOOPCOUNT_TYPE.compare(key) == ZERO) {
-        return GetGifLoopCountByType(index, value);
-    }
-    if (IMAGE_HEIFS_DELAY_TIME.compare(key) == ZERO) {
-        IMAGE_LOGI("GetImagePropertyString special key: %{public}s", key.c_str());
-        (void)GetFrameCount(ret);
-        if (ret != SUCCESS || mainDecoder_ == nullptr) {
-            IMAGE_LOGE("[ImageSource]GetFrameCount get frame sum error.");
-            return ret;
-        } else {
-            int32_t delayTime = 0;
-            ImageInfo info;
-            GetImageInfo(info);
-            if (info.encodedFormat != IMAGE_HEIFS_FORMAT) {
-                IMAGE_LOGD("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
-                return ERR_IMAGE_SOURCE_DATA;
-            }
-            ret = mainDecoder_->GetImagePropertyInt(index, IMAGE_DELAY_TIME, delayTime);
-            IMAGE_LOGD("GetDelayTime value:%{public}d", delayTime);
-            value.intArrayValue.emplace_back(delayTime);
-            CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ret,
-                "[ImageSource]GetDelayTime get heifs delay time error. errorCode=%{public}u", ret);
-        }
+    if (ImageKvMetadata::IsHeifsMetadataKey(key)) {
+        return GetHeifsProperty(index, key, value);
     }
     if (ImageKvMetadata::IsGifMetadataKey(key)) {
         return GetGifProperty(index, key, value);
+    }
+    if (ImageKvMetadata::IsPngMetadataKey(key)) {
+        return GetPngProperty(key, value);
     }
     if (ImageKvMetadata::IsFragmentMetadataKey(key)) {
         return GetFragmentProperty(key, value);
@@ -2467,9 +2753,18 @@ uint32_t ImageSource::GetImagePropertyByType(uint32_t index, const std::string &
     if (ImageKvMetadata::IsWebPMetadataKey(key)) {
         return GetWebPProperty(index, key, value);
     }
+    if (ImageKvMetadata::IsJfifMetadataKey(key)) {
+        return GetJfifProperty(key, value);
+    }
+    if (ImageKvMetadata::IsAvisMetadataKey(key)) {
+        return GetAvisProperty(index, key, value);
+    }
 #if !defined(CROSS_PLATFORM)
     if (IsDngImage()) {
         return GetDngImagePropertyByDngSdk(key, value);
+    }
+    if (IsEncodedFormat(IMAGE_TIFF_FORMAT)) {
+        return GetTiffImagePropertyByType(key, value);
     }
 #endif
 
@@ -3950,6 +4245,7 @@ bool ProcessAstcMetadata(PixelAstc* pixelAstc, size_t astcSize, const AstcMetada
         }
         if (memcpy_s(dstMemory->data.data, astcSize, pixelAstc->GetPixels(), astcSize) != 0) {
             IMAGE_LOGE("%{public}s memcpy failed", __func__);
+            dstMemory->Release();
             return false;
         }
         pixelAstc->SetPixelsAddr(dstMemory->data.data, dstMemory->extend.data,
@@ -4067,6 +4363,7 @@ static bool ResolveExtInfo(const uint8_t *sourceFilePtr, size_t astcSize, size_t
         extInfoBuf += sizeof(uint32_t);
         leftBytes -= sizeof(uint32_t);
         if (expendInfoBytesUnSign > MAX_INT32 || static_cast<uint32_t>(leftBytes) < expendInfoBytesUnSign) {
+            ReleaseExtendInfoMemory(extInfo);
             return false;
         }
         extInfo.extendInfoLength[idx] = expendInfoBytesUnSign;
@@ -5510,9 +5807,15 @@ std::unique_ptr<Picture> ImageSource::CreatePictureAtIndex(uint32_t index, uint3
             "[%{public}s] SetHeifsMetadataForPicture failed, index=%{public}u, errorCode=%{public}u",
             __func__, index, errorCode);
     }
+    if (info.encodedFormat == IMAGE_AVIS_FORMAT) {
+        errorCode = SetAvisMetadataForPicture(picture, index);
+        CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, nullptr,
+            "[%{public}s] SetAvisMetadataForPicture failed, index=%{public}u, errorCode=%{public}u",
+            __func__, index, errorCode);
+    }
     return picture;
 }
-
+ 
 uint32_t ImageSource::CreatePictureAtIndexPreCheck(uint32_t index, const ImageInfo &info)
 {
     if (sourceStreamPtr_ == nullptr) {
@@ -5520,7 +5823,8 @@ uint32_t ImageSource::CreatePictureAtIndexPreCheck(uint32_t index, const ImageIn
         return ERR_IMAGE_SOURCE_DATA;
     }
 
-    if (info.encodedFormat != IMAGE_GIF_FORMAT && info.encodedFormat != IMAGE_HEIFS_FORMAT) {
+    if (info.encodedFormat != IMAGE_GIF_FORMAT && info.encodedFormat != IMAGE_HEIFS_FORMAT &&
+        info.encodedFormat != IMAGE_AVIS_FORMAT) {
         IMAGE_LOGE("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
         return ERR_IMAGE_MISMATCHED_FORMAT;
     }
@@ -5542,25 +5846,19 @@ uint32_t ImageSource::SetGifMetadataForPicture(std::unique_ptr<Picture> &picture
     CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DECODE_ABNORMAL,
         "[%{public}s] mainDecoder_ is nullptr", __func__);
 
-    int32_t delayTime = 0;
-    uint32_t errorCode = mainDecoder_->GetImagePropertyInt(index, IMAGE_DELAY_TIME, delayTime);
-    CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, errorCode,
-        "[%{public}s] get delay time failed", __func__);
-
-    int32_t disposalType = 0;
-    errorCode = mainDecoder_->GetImagePropertyInt(index, IMAGE_DISPOSAL_TYPE, disposalType);
-    CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, errorCode,
-        "[%{public}s] get disposal type failed", __func__);
-
     std::shared_ptr<ImageMetadata> gifMetadata = std::make_shared<GifMetadata>();
     CHECK_ERROR_RETURN_RET_LOG(gifMetadata == nullptr, ERR_SHAMEM_NOT_EXIST,
         "[%{public}s] make_shared gifMetadata failed", __func__);
-    bool result = gifMetadata->SetValue(GIF_METADATA_KEY_DELAY_TIME, std::to_string(delayTime));
-    CHECK_ERROR_RETURN_RET_LOG(!result, ERR_IMAGE_DECODE_METADATA_FAILED,
-        "[%{public}s] set delay time failed", __func__);
-    result = gifMetadata->SetValue(GIF_METADATA_KEY_DISPOSAL_TYPE, std::to_string(disposalType));
-    CHECK_ERROR_RETURN_RET_LOG(!result, ERR_IMAGE_DECODE_METADATA_FAILED,
-        "[%{public}s] set disposal type failed", __func__);
+
+    for (const auto& [getKey, setKey] : GIF_PICTURE_META_MAP) {
+        int32_t value = 0;
+        uint32_t errorCode = mainDecoder_->GetImagePropertyInt(index, getKey, value);
+        CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, errorCode,
+            "[%{public}s] get gif property failed, tag: %{public}s", __func__, getKey.c_str());
+        bool ok = gifMetadata->SetValue(setKey, std::to_string(value));
+        CHECK_ERROR_RETURN_RET_LOG(!ok, ERR_IMAGE_DECODE_METADATA_FAILED,
+            "[%{public}s] set gif metadata field failed, tag: %{public}s", __func__, setKey.c_str());
+    }
     uint32_t ret = picture->SetMetadata(MetadataType::GIF, gifMetadata);
     CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ERR_IMAGE_DECODE_METADATA_FAILED,
         "[%{public}s] set gif metadata failed", __func__);
@@ -5573,21 +5871,54 @@ uint32_t ImageSource::SetHeifsMetadataForPicture(std::unique_ptr<Picture> &pictu
         "[%{public}s] picture is nullptr", __func__);
     CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DECODE_ABNORMAL,
         "[%{public}s] mainDecoder_ is nullptr", __func__);
+    uint32_t errorCode = SUCCESS;
+    std::shared_ptr<HeifsMetadata> heifsMetadata = GetHeifsMetadata(index, errorCode);
+    CHECK_ERROR_RETURN_RET_LOG(heifsMetadata == nullptr, ERR_IMAGE_DECODE_ABNORMAL,
+        "[%{public}s] get heifs metadata failed", __func__);
+    uint32_t ret = picture->SetMetadata(MetadataType::HEIFS, heifsMetadata);
+    CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ERR_IMAGE_DECODE_METADATA_FAILED,
+        "[%{public}s] set heifs metadata failed", __func__);
+    return SUCCESS;
+}
+
+uint32_t ImageSource::SetAvisMetadataForPicture(std::unique_ptr<Picture> &picture, uint32_t index)
+{
+    CHECK_ERROR_RETURN_RET_LOG(picture == nullptr, ERR_IMAGE_PICTURE_CREATE_FAILED,
+        "[%{public}s] picture is nullptr", __func__);
+    CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DECODE_ABNORMAL,
+        "[%{public}s] mainDecoder_ is nullptr", __func__);
 
     int32_t delayTime = 0;
     uint32_t errorCode = mainDecoder_->GetImagePropertyInt(index, IMAGE_DELAY_TIME, delayTime);
     CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, errorCode,
         "[%{public}s] get delay time failed", __func__);
 
-    std::shared_ptr<ImageMetadata> heifsMetadata = std::make_shared<HeifsMetadata>();
-    CHECK_ERROR_RETURN_RET_LOG(heifsMetadata == nullptr, ERR_SHAMEM_NOT_EXIST,
-        "[%{public}s] make_shared heifsMetadata failed", __func__);
-    bool result = heifsMetadata->SetValue(HEIFS_METADATA_KEY_DELAY_TIME, std::to_string(delayTime));
+    std::shared_ptr<ImageMetadata> avisMetadata = std::make_shared<AvisMetadata>();
+    CHECK_ERROR_RETURN_RET_LOG(avisMetadata == nullptr, ERR_SHAMEM_NOT_EXIST,
+        "[%{public}s] make_shared avisMetadata failed", __func__);
+    bool result = avisMetadata->SetValue(AVIS_METADATA_KEY_DELAY_TIME, std::to_string(delayTime));
     CHECK_ERROR_RETURN_RET_LOG(!result, ERR_IMAGE_DECODE_METADATA_FAILED,
         "[%{public}s] set delay time failed", __func__);
-    uint32_t ret = picture->SetMetadata(MetadataType::HEIFS, heifsMetadata);
+    uint32_t ret = picture->SetMetadata(MetadataType::AVIS, avisMetadata);
     CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ERR_IMAGE_DECODE_METADATA_FAILED,
-        "[%{public}s] set heifs metadata failed", __func__);
+        "[%{public}s] set avis metadata failed", __func__);
+    return SUCCESS;
+}
+
+uint32_t ImageSource::SetJfifMetadataForPicture(std::unique_ptr<Picture> &picture)
+{
+    CHECK_ERROR_RETURN_RET_LOG(picture == nullptr, ERR_IMAGE_PICTURE_CREATE_FAILED,
+        "[%{public}s] picture is nullptr", __func__);
+    CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DECODE_ABNORMAL,
+        "[%{public}s] mainDecoder_ is nullptr", __func__);
+
+    std::shared_ptr<JfifMetadata> jfifMetadata;
+    uint32_t errorCode = GetJfifMetadata(jfifMetadata);
+    CHECK_ERROR_RETURN_RET_LOG(jfifMetadata == nullptr || errorCode != SUCCESS, ERR_IMAGE_DECODE_ABNORMAL,
+        "[%{public}s] get jfif metadata failed", __func__);
+    uint32_t ret = picture->SetMetadata(MetadataType::JFIF, jfifMetadata);
+    CHECK_ERROR_RETURN_RET_LOG(ret != SUCCESS, ERR_IMAGE_DECODE_METADATA_FAILED,
+        "[%{public}s] set jfif metadata failed", __func__);
     return SUCCESS;
 }
 
@@ -5643,14 +5974,15 @@ std::unique_ptr<Picture> ImageSource::CreatePicture(const DecodingOptionsForPict
     ImageInfo info;
     GetImageInfo(info);
     if (info.encodedFormat != IMAGE_HEIF_FORMAT && info.encodedFormat != IMAGE_JPEG_FORMAT &&
-        info.encodedFormat != IMAGE_HEIC_FORMAT) {
+        info.encodedFormat != IMAGE_HEIC_FORMAT && info.encodedFormat != IMAGE_AVIF_FORMAT) {
         IMAGE_LOGE("CreatePicture failed, unsupport format: %{public}s", info.encodedFormat.c_str());
         errorCode = ERR_IMAGE_MISMATCHED_FORMAT;
         return nullptr;
     }
     DecodeOptions dopts;
     if (!ApplyDecodingOptionsForPicture(dopts, opts, errorCode)) {
-        errorCode = ERR_IMAGE_DESIRED_PIXELFORMAT_UNSUPPORTED? errorCode : ERR_IMAGE_PICTURE_CREATE_FAILED;
+        errorCode = (errorCode == ERR_IMAGE_DESIRED_PIXELFORMAT_UNSUPPORTED) ?
+            errorCode : ERR_IMAGE_PICTURE_CREATE_FAILED;
         IMAGE_LOGE("Invalid Decoding Options for Picture");
         return nullptr;
     }
@@ -5675,6 +6007,7 @@ std::unique_ptr<Picture> ImageSource::CreatePicture(const DecodingOptionsForPict
         DecodeHeifAuxiliaryPictures(auxTypes, picture, errorCode, downSamplingScaleFactor);
     } else if (info.encodedFormat == IMAGE_JPEG_FORMAT) {
         DecodeJpegAuxiliaryPicture(auxTypes, picture, errorCode, downSamplingScaleFactor);
+        SetJfifMetadataForPicture(picture);
     }
     DecodeBlobMetaData(picture, metadataTypes, info, errorCode);
     SetHdrMetadataForPicture(picture);
@@ -5891,8 +6224,9 @@ static uint32_t SetThumbnailDecodeOptions(std::unique_ptr<AbsImageDecoder> &thum
     CHECK_ERROR_RETURN_RET_LOG(thumbDecoder == nullptr, ERR_IMAGE_INVALID_PARAMETER,
         "%{public}s: thumbDecoder is nullptr!", __func__);
 
-    if (opts.maxGenerateSize <= 0) {
-        IMAGE_LOGE("%{public}s: invalid opts.maxGenerateSize: %{public}d", __func__, opts.maxGenerateSize);
+    if (opts.maxGeneratedPixelDimension <= 0) {
+        IMAGE_LOGE("%{public}s: invalid opts.maxGeneratedPixelDimension: %{public}d",
+            __func__, opts.maxGeneratedPixelDimension);
         return ERR_IMAGE_INVALID_PARAMETER;
     }
     Size imageSize{};
@@ -5947,7 +6281,7 @@ std::unique_ptr<PixelMap> ImageSource::GenerateThumbnail(const DecodingOptionsFo
         return nullptr;
     }
 
-    errorCode = ImageUtils::ScaleThumbnailWithAspectRatio(pixelMap, opts.maxGenerateSize);
+    errorCode = ImageUtils::ScaleThumbnailWithAspectRatio(pixelMap, opts.maxGeneratedPixelDimension);
     CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, nullptr, "%{public}s: Scale thumbnail failed!", __func__);
     return pixelMap;
 }
@@ -6090,15 +6424,27 @@ bool ImageSource::CompressToAstcFromPixelmap(const DecodeOptions &opts, unique_p
     CHECK_ERROR_RETURN_RET_LOG(cond, false, "CompressToAstcFromPixelmap CreateMemory failed");
 
     uint32_t ret = imagePacker.StartPacking(reinterpret_cast<uint8_t *>(dstMemory->data.data), allocMemSize, option);
-    cond = (ret != 0);
-    CHECK_ERROR_RETURN_RET_LOG(cond, false, "CompressToAstcFromPixelmap failed to start packing");
+    if (ret != 0) {
+        IMAGE_LOGE("CompressToAstcFromPixelmap failed to start packing");
+        dstMemory->Release();
+        dstMemory = nullptr;
+        return false;
+    }
     ret = imagePacker.AddImage(*(rgbaPixelmap.get()));
-    cond = (ret != 0);
-    CHECK_ERROR_RETURN_RET_LOG(cond, false, "CompressToAstcFromPixelmap failed to add image");
+    if (ret != 0) {
+        IMAGE_LOGE("CompressToAstcFromPixelmap failed to add image");
+        dstMemory->Release();
+        dstMemory = nullptr;
+        return false;
+    }
     int64_t packedSize = 0;
     ret = imagePacker.FinalizePacking(packedSize);
-    cond = (ret != 0);
-    CHECK_ERROR_RETURN_RET_LOG(cond, false, "CompressToAstcFromPixelmap failed to finalize packing");
+    if (ret != 0) {
+        IMAGE_LOGE("CompressToAstcFromPixelmap failed to finalize packing");
+        dstMemory->Release();
+        dstMemory = nullptr;
+        return false;
+    }
     return true;
 #else
     return false;
@@ -6436,32 +6782,75 @@ std::shared_ptr<HeifsMetadata> ImageSource::GetHeifsMetadata(uint32_t index, uin
         errorCode = ERR_IMAGE_SOURCE_DATA;
         return nullptr;
     }
-
-    int32_t delayTime = 0;
-
-    errorCode = mainDecoder_->GetImagePropertyInt(index, IMAGE_DELAY_TIME, delayTime);
-    CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, nullptr,
-        "[ImageSource]GetDelayTime get heifs delay time error. errorCode=%{public}u", errorCode);
-    IMAGE_LOGD("GetDelayTime value:%{public}d", delayTime);
     std::shared_ptr<ImageMetadata> metadataTemp = std::make_shared<HeifsMetadata>();
     if (metadataTemp == nullptr) {
         errorCode = ERR_IMAGE_DATA_ABNORMAL;
         return nullptr;
     }
-    metadataTemp->SetValue(HEIFS_METADATA_KEY_DELAY_TIME, std::to_string(delayTime));
+    for (auto const &key : ImageKvMetadata::GetHeifsMetadataKeys()) {
+        int32_t value = 0;
+        errorCode = mainDecoder_->GetImagePropertyInt(index, key.c_str(), value);
+        if (errorCode != SUCCESS) {
+            continue;
+        }
+        metadataTemp->SetValue(key, std::to_string(value));
+    }
     heifsMetadata = std::static_pointer_cast<HeifsMetadata>(metadataTemp);
     metadatas_[MetadataType::HEIFS] = heifsMetadata;
-    errorCode = SUCCESS;
     return heifsMetadata;
+}
+
+uint32_t ImageSource::GetJfifMetadata (std::shared_ptr<JfifMetadata> &jfifMetadata)
+{
+    jfifMetadata = std::static_pointer_cast<JfifMetadata>(FindMetadataFromMap(MetadataType::JFIF));
+    if (jfifMetadata != nullptr) {
+        return SUCCESS;
+    }
+    ImageInfo info;
+    uint32_t ret = GetImageInfo(info);
+    CHECK_ERROR_RETURN_RET(ret != SUCCESS || info.encodedFormat != IMAGE_JPEG_FORMAT ||
+        mainDecoder_ == nullptr, ERR_IMAGE_SOURCE_DATA);
+
+    std::shared_ptr<ImageMetadata> metadataTemp = std::make_shared<JfifMetadata>();
+    if (metadataTemp == nullptr) {
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+    for (auto const &key : ImageKvMetadata::GetJfifMetadataKeys()) {
+        uint32_t errorCode = ERROR;
+        int32_t value = 0;
+        if (key == JFIF_METADATA_KEY_VERSION) {
+            int32_t majorVersion = 0;
+            int32_t minorVersion = 0;
+            std::string JFIF_METADATA_MAJOR_VERSION = JFIF_METADATA_KEY_MAJOR_VERSION;
+            std::string JFIF_METADATA_MINOR_VERSION = JFIF_METADATA_KEY_MINOR_VERSION;
+            uint32_t ret4Major = mainDecoder_->GetImagePropertyInt(0, JFIF_METADATA_MAJOR_VERSION, majorVersion);
+            uint32_t ret4Minor = mainDecoder_->GetImagePropertyInt(0, JFIF_METADATA_MINOR_VERSION, minorVersion);
+            if (ret4Major != SUCCESS || ret4Minor != SUCCESS) {
+                continue;
+            }
+            metadataTemp->SetValue(key, std::to_string(majorVersion) + "." + std::to_string(minorVersion));
+        } else {
+            errorCode = mainDecoder_->GetImagePropertyInt(0, key.c_str(), value);
+            if (errorCode != SUCCESS) {
+                continue;
+            }
+            metadataTemp->SetValue(key, std::to_string(value));
+        }
+    }
+
+    jfifMetadata = std::static_pointer_cast<JfifMetadata>(metadataTemp);
+    metadatas_[MetadataType::JFIF] = jfifMetadata;
+    return SUCCESS;
 }
 
 std::shared_ptr<WebPMetadata> ImageSource::GetWebPMetadata(uint32_t index, uint32_t &errorCode)
 {
+    ImageInfo info;
+    GetImageInfo(info);
+
     CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, nullptr,
         "[%{public}s] mainDecoder_ is nullptr", __func__);
 
-    ImageInfo info;
-    GetImageInfo(info);
     if (info.encodedFormat != IMAGE_WEBP_FORMAT) {
         IMAGE_LOGE("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
         return nullptr;
@@ -6505,6 +6894,45 @@ std::shared_ptr<WebPMetadata> ImageSource::GetWebPMetadata(uint32_t index, uint3
     metadatas_[MetadataType::WEBP] = webpMetadata;
     errorCode = SUCCESS;
     return webpMetadata;
+}
+
+uint32_t ImageSource::GetPngMetadata(std::shared_ptr<PngMetadata> &pngMetadata)
+{
+    pngMetadata = std::static_pointer_cast<PngMetadata>(FindMetadataFromMap(MetadataType::PNG));
+    if (pngMetadata != nullptr) {
+        return SUCCESS;
+    }
+    ImageInfo info;
+    GetImageInfo(info);
+    if (info.encodedFormat != IMAGE_PNG_FORMAT) {
+        IMAGE_LOGE("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    PngMetadataParser parser;
+    pngMetadata = std::make_shared<PngMetadata>();
+    if (pngMetadata == nullptr) {
+        IMAGE_LOGE("[%{public}s] make_shared PngMetadata failed", __func__);
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    bool decodeRet = parser.SetupPngReading(sourceStreamPtr_.get());
+    if (!decodeRet) {
+        IMAGE_LOGE("Failed to decode PNG header");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    for (const auto& key : ImageKvMetadata::GetPngMetadataKeys()) {
+        int32_t intValue = 0;
+        double doubleValue = 0.0;
+        std::string strValue;
+        if (parser.GetPropertyInt(key, intValue)) {
+            pngMetadata->SetValue(key, std::to_string(intValue));
+        } else if (parser.GetPropertyDouble(key, doubleValue)) {
+            pngMetadata->SetValue(key, std::to_string(doubleValue));
+        } else if (parser.GetPropertyString(key, strValue)) {
+            pngMetadata->SetValue(key, strValue);
+        }
+    }
+    metadatas_[MetadataType::PNG] = pngMetadata;
+    return SUCCESS;
 }
 
 uint32_t ImageSource::CreateBlobMetadataByImageSource(ImageInfo info, MetadataType type)
@@ -6644,6 +7072,15 @@ bool ImageSource::IsWebPImage()
     return info.encodedFormat == IMAGE_WEBP_FORMAT;
 }
 
+bool ImageSource::IsEncodedFormat(const std::string& encodedFormat)
+{
+    ImageInfo info;
+    CHECK_ERROR_RETURN_RET_LOG(GetImageInfo(info) != SUCCESS, false, "IsEncodedFormat GetImageInfo failed");
+    IMAGE_LOGD("IsEncodedFormat expect %{public}s, actual %{public}s",
+        encodedFormat.c_str(), info.encodedFormat.c_str());
+    return info.encodedFormat == encodedFormat;
+}
+
 static void ClearMetadataValue(MetadataValue &value)
 {
     value.key.clear();
@@ -6668,6 +7105,67 @@ uint32_t ImageSource::GetDngImagePropertyByDngSdk(const std::string &key, Metada
     return dngMetadata->GetExifProperty(value);
 }
 #endif
+
+std::shared_ptr<AvisMetadata> ImageSource::GetAvisMetadata(uint32_t index, uint32_t &errorCode)
+{
+    ImageInfo info;
+    CHECK_ERROR_RETURN_RET_LOG(GetImageInfo(info) != SUCCESS, nullptr,
+        "[%{public}s] GetImageInfo failed", __func__);
+    if (info.encodedFormat != IMAGE_AVIS_FORMAT) {
+        IMAGE_LOGD("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
+        return nullptr;
+    }
+
+    auto avisMetadata = std::make_shared<AvisMetadata>();
+    if (avisMetadata == nullptr) {
+        IMAGE_LOGE("[%{public}s] make_shared avisMetadata failed", __func__);
+        return nullptr;
+    }
+
+    CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, nullptr, "[%{public}s] mainDecoder_ is nullptr", __func__);
+    bool ret = false;
+    int32_t delayTime = 0;
+    errorCode = mainDecoder_->GetImagePropertyInt(index, IMAGE_DELAY_TIME, delayTime);
+    if (errorCode == SUCCESS) {
+        ret = avisMetadata->SetValue(AVIS_METADATA_KEY_DELAY_TIME, std::to_string(delayTime));
+        CHECK_ERROR_RETURN_RET_LOG(!ret, nullptr, "[%{public}s] set delay time failed", __func__);
+    } else {
+        IMAGE_LOGE("[%{public}s] GetImagePropertyInt failed", __func__);
+        return nullptr;
+    }
+
+    metadatas_[MetadataType::AVIS] = avisMetadata;
+    errorCode = SUCCESS;
+    return avisMetadata;
+}
+
+bool ImageSource::IsAvisImage()
+{
+    ImageInfo info;
+    uint32_t ret = GetImageInfo(info);
+    bool cond = (ret != SUCCESS);
+    CHECK_ERROR_RETURN_RET_LOG(cond, false, "IsAvisImage GetImageInfo failed");
+    IMAGE_LOGD("IsAvisImage info.encodedFormat: %{public}s", info.encodedFormat.c_str());
+    return info.encodedFormat == IMAGE_AVIS_FORMAT;
+}
+
+uint32_t ImageSource::GetTiffImagePropertyByType(const std::string &key, MetadataValue &value)
+{
+#if defined(SUPPORT_LIBTIFF)
+    ClearMetadataValue(value);
+    std::shared_ptr<ExifMetadata> exifMetadata = GetExifMetadata();
+    CHECK_ERROR_RETURN_RET_LOG(exifMetadata == nullptr, ERR_IMAGE_DATA_ABNORMAL, "exifMetadata is nullptr");
+
+    std::shared_ptr<TiffExifMetadata> tiffMetadata = std::static_pointer_cast<TiffExifMetadata>(exifMetadata);
+    CHECK_ERROR_RETURN_RET_LOG(tiffMetadata == nullptr, ERR_IMAGE_DATA_ABNORMAL,
+        "[%{public}s] Failed to cast to TiffExifMetadata", __func__);
+
+    value.key = key;
+    return tiffMetadata->GetExifProperty(value);
+#else
+    return ERR_IMAGE_DATA_ABNORMAL;
+#endif
+}
 
 bool ImageSource::IsJpegProgressive(uint32_t &errorCode)
 {

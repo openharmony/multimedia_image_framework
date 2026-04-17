@@ -90,15 +90,27 @@ static std::vector<struct ImageEnum> metadataTypeMap = {
     {"HEIFS_METADATA", static_cast<uint32_t>(MetadataType::HEIFS), ""},
     {"DNG_METADATA", static_cast<uint32_t>(MetadataType::DNG), ""},
     {"WEBP_METADATA", static_cast<uint32_t>(MetadataType::WEBP), ""},
+    {"PNG_METADATA", static_cast<uint32_t>(MetadataType::PNG), ""},
+    {"JFIF_METADATA", static_cast<uint32_t>(MetadataType::JFIF), ""},
+    {"TIFF_METADATA", static_cast<uint32_t>(MetadataType::TIFF), ""},
+    {"AVIS_METADATA", static_cast<uint32_t>(MetadataType::AVIS), ""},
 };
 
 static std::vector<struct ImageEnum> gifPropertyKeyMap = {
     {"GIF_DELAY_TIME", 0, "GifDelayTime"},
     {"GIF_DISPOSAL_TYPE", 0, "GifDisposalType"},
+    {"GIF_CANVAS_WIDTH", 0, "GifCanvasWidth"},
+    {"GIF_CANVAS_HEIGHT", 0, "GifCanvasHeight"},
+    {"GIF_HAS_GLOBAL_COLOR_MAP", 0, "GifHasGlobalColorMap"},
+    {"GIF_UNCLAMPED_DELAY_TIME", 0, "GifUnclampedDelayTime"},
+    {"GIF_LOOP_COUNT", 0, "GifLoopCount"},
 };
 
 static std::vector<struct ImageEnum> heifsPropertyKeyMap = {
     {"HEIFS_DELAY_TIME", 0, "HeifsDelayTime"},
+    {"HEIFS_UNCLAMPED_DELAY_TIME", 0, "HeifsUnclampedDelayTime"},
+    {"HEIFS_CANVAS_HEIGHT", 0, "HeifsCanvasHeight"},
+    {"HEIFS_CANVAS_WIDTH", 0, "HeifsCanvasWidth"},
 };
 
 static std::vector<struct ImageEnum> webpPropertyKeyMap = {
@@ -107,6 +119,10 @@ static std::vector<struct ImageEnum> webpPropertyKeyMap = {
     {"DELAY_TIME", 0, "WebPDelayTime"},
     {"UNCLAMPED_DELAY_TIME", 0, "WebPUnclampedDelayTime"},
     {"LOOP_COUNT", 0, "WebPLoopCount"},
+};
+
+static std::vector<struct ImageEnum> avisPropertyKeyMap = {
+    {"DELAY_TIME", 0, "AvisDelayTime"},
 };
 
 struct NapiValues {
@@ -244,6 +260,8 @@ napi_value PictureNapi::Init(napi_env env, napi_value exports)
             ImageNapiUtils::CreateEnumTypeObject(env, napi_string, heifsPropertyKeyMap)),
         DECLARE_NAPI_PROPERTY("WebPPropertyKey",
             ImageNapiUtils::CreateEnumTypeObject(env, napi_string, webpPropertyKeyMap)),
+        DECLARE_NAPI_PROPERTY("AvisPropertyKey",
+            ImageNapiUtils::CreateEnumTypeObject(env, napi_string, avisPropertyKeyMap)),
     };
 
     napi_value constructor = nullptr;

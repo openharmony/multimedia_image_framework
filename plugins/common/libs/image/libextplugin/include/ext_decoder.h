@@ -29,6 +29,7 @@
 #include "nocopyable.h"
 #include "plugin_class_base.h"
 #include "jpeg_yuv_decoder/jpeg_decoder_yuv.h"
+#include "heif_type.h"
 
 namespace OHOS {
     struct BufferRequestConfig;
@@ -79,7 +80,12 @@ public:
     bool GetHeifMetadataBlob(std::vector<uint8_t>& metadata, Media::MetadataType type) override;
     void FillYuvInfo(DecodeContext &context, SkImageInfo &dstInfo);
     OHOS::Media::Size GetHeifRegionGridSize() override;
+    uint32_t GetJfifProperty(SkCodec *codec, const std::string &key, int32_t &value);
+#ifdef HEIF_HW_DECODE_ENABLE
+    uint32_t GetHeifsProperty(SkCodec *codec, uint32_t index, const std::string &key, int32_t &value);
+#endif
     OHOS::Media::Size GetAnimationImageSize() override;
+
 private:
     typedef struct FrameCacheInfo {
         int width;
@@ -143,6 +149,8 @@ private:
     uint32_t AllocHeifSingleHdrBuffer(DecodeContext &context);
     uint32_t DoHeifToSingleHdrDecode(OHOS::ImagePlugin::DecodeContext &context);
     uint32_t HandleGifCache(uint8_t* src, uint8_t* dst, uint64_t rowStride, int dstHeight);
+    uint32_t ParseGifMetadata();
+    uint32_t GetGifHasGlobalColorMapInt(int32_t &value);
     uint32_t GetFramePixels(SkImageInfo& info, uint8_t* buffer, uint64_t rowStride, SkCodec::Options options);
     FrameCacheInfo InitFrameCacheInfo(const uint64_t rowStride, SkImageInfo info);
     bool FrameCacheInfoIsEqual(FrameCacheInfo& src, FrameCacheInfo& dst);
@@ -170,6 +178,7 @@ private:
 
     bool IsHeifsDecode(DecodeContext &context);
     uint32_t DoHeifsDecode(OHOS::ImagePlugin::DecodeContext &context);
+    uint32_t AvifDecode(uint32_t index, DecodeContext &context, uint64_t rowStride, uint64_t byteCount);
 
     ImagePlugin::InputDataStream *stream_ = nullptr;
     std::unique_ptr<InputDataStream> previewStream_ = nullptr;
@@ -184,6 +193,8 @@ private:
     uint8_t *gifCache_ = nullptr;
     int gifCacheIndex_ = 0;
     FrameCacheInfo frameCacheInfo_ = {0, 0, 0, 0};
+    bool gifMetadataParsed_ = false;
+    bool gifHasGlobalColorMap_ = false;
     uint32_t heifParseErr_ = 0;
     std::shared_ptr<Media::PixelMap> reusePixelmap_ = nullptr;
     OHOS::Media::Rect desiredRegion_ = {0, 0, 0, 0};

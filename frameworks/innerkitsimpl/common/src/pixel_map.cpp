@@ -730,7 +730,7 @@ uint32_t PixelMap::SetMemoryName(const std::string &pixelMapName)
 
     if (allocatorType == AllocatorType::SHARE_MEM_ALLOC) {
         int *fd = static_cast<int*>(GetFd());
-        if (*fd < 0) {
+        if (fd == nullptr || *fd < 0) {
             return ERR_MEMORY_NOT_SUPPORT;
         }
         int ret = TEMP_FAILURE_RETRY(ioctl(*fd, ASHMEM_SET_NAME, pixelMapName.c_str()));
@@ -1315,6 +1315,7 @@ static unique_ptr<PixelMap> CloneAstc(PixelMap *srcAstc, int32_t &errorCode)
         return nullptr;
     }
     if (memcpy_s(dstMemory->data.data, astcSize, srcAstc->GetPixels(), astcSize) != 0) {
+        dstMemory->Release();
         IMAGE_LOGE("CloneAstc source memory size %{public}u", astcSize);
         return nullptr;
     }
@@ -1686,7 +1687,7 @@ bool PixelMap::RGB565ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, 
         IMAGE_LOGE("RGB565ToARGB invalid input parameter: in or out is null");
         return false;
     }
-    if (((inCount / RGB_565_BYTES) != outCount) && ((inCount % RGB_565_BYTES) != 0)) {
+    if (((inCount / RGB_565_BYTES) != outCount) || ((inCount % RGB_565_BYTES) != 0)) {
         IMAGE_LOGE("input count:%{public}u is not match to output count:%{public}u.", inCount, outCount);
         return false;
     }
@@ -1761,7 +1762,7 @@ bool PixelMap::RGB888ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, 
         IMAGE_LOGE("RGB888ToARGB invalid input parameter: in or out is null");
         return false;
     }
-    if (((inCount / RGB_888_BYTES) != outCount) && ((inCount % RGB_888_BYTES) != 0)) {
+    if (((inCount / RGB_888_BYTES) != outCount) || ((inCount % RGB_888_BYTES) != 0)) {
         IMAGE_LOGE("input count:%{public}u is not match to output count:%{public}u.", inCount, outCount);
         return false;
     }
@@ -2742,6 +2743,51 @@ bool PixelMap::WritePropertiesToParcel(Parcel &parcel) const
     return true;
 }
 
+static bool WriteRecoveredAshMemToParcel(Parcel &parcel, const uint8_t *src, int32_t bufferSize)
+{
+#ifndef CROSS_PLATFORM
+    if (src == nullptr || bufferSize <= 0) {
+        IMAGE_LOGE("[PixelMap] WriteRecoveredAshMemToParcel invalid params, src=%{public}p, bufferSize=%{public}d",
+            src, bufferSize);
+        return false;
+    }
+    std::string name = "PixelMapRecovery_Pid" + std::to_string(getpid());
+    int32_t newFd = AshmemCreate(name.c_str(), bufferSize);
+    if (newFd < 0) {
+        IMAGE_LOGE("[PixelMap] failed to create new ashmem for recovery");
+        return false;
+    }
+    if (AshmemSetProt(newFd, PROT_READ | PROT_WRITE) < 0) {
+        ::close(newFd);
+        IMAGE_LOGE("[PixelMap] failed to set ashmem prot for recovery");
+        return false;
+    }
+    void* newAddr = mmap(nullptr, bufferSize, PROT_READ | PROT_WRITE, MAP_SHARED, newFd, 0);
+    if (newAddr == MAP_FAILED) {
+        ::close(newFd);
+        IMAGE_LOGE("[PixelMap] failed to mmap mem for recovery, errno:%{public}d", errno);
+        return false;
+    }
+    if (memcpy_s(newAddr, bufferSize, src, bufferSize) != 0) {
+        ::close(newFd);
+        ::munmap(newAddr, bufferSize);
+        IMAGE_LOGE("[PixelMap] failed to copy mem for recovery, errno:%{public}d", errno);
+        return false;
+    }
+    sptr<IPCFileDescriptor> descriptor = new IPCFileDescriptor(newFd);
+    bool writeSuccess = parcel.WriteObject<IPCFileDescriptor>(descriptor);
+    ::munmap(newAddr, bufferSize);
+    if (!writeSuccess) {
+        ::close(newFd);
+        IMAGE_LOGE("[PixelMap] failed to write recovered fd to parcel");
+        return false;
+    }
+    return true;
+#else
+    return false;
+#endif
+}
+
 bool PixelMap::WriteMemInfoToParcel(Parcel &parcel, const int32_t &bufferSize) const
 {
 #if !defined(_WIN32) && !defined(_APPLE) &&!defined(IOS_PLATFORM) &&!defined(ANDROID_PLATFORM)
@@ -2750,18 +2796,23 @@ bool PixelMap::WriteMemInfoToParcel(Parcel &parcel, const int32_t &bufferSize) c
             return false;
         }
 
+        // Lock ordering: metadataMutex_ must be acquired before unmapMutex_.
+        std::lock_guard<std::mutex> unmapLock(*unmapMutex_);
         int *fd = static_cast<int *>(context_);
         if (fd == nullptr || *fd < 0) {
             IMAGE_LOGE("write pixel map failed, fd is [%{public}d] or fd < 0.", fd == nullptr ? 1 : 0);
             return false;
         }
         if (!CheckAshmemSize(*fd, bufferSize, isAstc_)) {
-            IMAGE_LOGE("write pixel map check ashmem size failed, fd:[%{public}d].", *fd);
-            return false;
+            IMAGE_LOGW("write pixel map fd %{public}d is invalid, trying to recover for parcel", *fd);
+            if (isUnMap_ || data_ == nullptr || !WriteRecoveredAshMemToParcel(parcel, data_, bufferSize)) {
+                IMAGE_LOGE("write pixel map check ashmem size and recovery failed, fd:[%{public}d].", *fd);
+                return false;
+            }
+            return true;
         }
         if (!WriteFileDescriptor(parcel, *fd)) {
             IMAGE_LOGE("write pixel map fd:[%{public}d] to parcel failed.", *fd);
-            ::close(*fd);
             return false;
         }
     } else if (allocatorType_ == AllocatorType::DMA_ALLOC) {

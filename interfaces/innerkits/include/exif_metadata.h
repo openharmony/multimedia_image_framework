@@ -80,8 +80,19 @@ public:
     static const std::map<std::string, PropertyValueType>& GetGifMetadataMap();
     static const std::map<std::string, PropertyValueType>& GetDngMetadataMap();
     static const std::map<std::string, PropertyValueType>& GetWebPMetadataMap();
+    static const std::map<std::string, PropertyValueType>& GetJfifMetadataMap();
+    static const std::map<std::string, PropertyValueType>& GetTiffMetadataMap();
+    static const std::map<std::string, PropertyValueType>& GetPngMetadataMap();
+    static const std::map<std::string, PropertyValueType>& GetAvisMetadataMap();
     static const std::map<NapiMetadataType, std::map<std::string, PropertyValueType>>& GetPropertyTypeMapping();
     static const std::unordered_map<std::string, std::string>& GetPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetTiffPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetGifPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetJfifPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetPngPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetHeifsPropertyKeyMap();
+    static const std::unordered_map<std::string, std::string>& GetAvisPropertyKeyMap();
+
     void SetSystemApi(bool isSystemApi)
     {
         isSystemApi_ = isSystemApi;

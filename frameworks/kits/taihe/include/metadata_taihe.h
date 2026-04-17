@@ -23,6 +23,7 @@
 #include "ohos.multimedia.image.image.impl.hpp"
 #include "taihe/runtime.hpp"
 #include "webp_metadata.h"
+#include "avis_metadata.h"
 
 namespace ANI::Image {
 using namespace taihe;
@@ -97,6 +98,13 @@ public:
     WebPMetadataImpl();
     explicit WebPMetadataImpl(std::shared_ptr<OHOS::Media::WebPMetadata> metadata);
     ~WebPMetadataImpl();
+};
+
+class AvisMetadataImpl : public MetadataImpl {
+public:
+    AvisMetadataImpl();
+    explicit AvisMetadataImpl(std::shared_ptr<OHOS::Media::AvisMetadata> metadata);
+    ~AvisMetadataImpl();
 };
 } // namespace ANI::Image
 

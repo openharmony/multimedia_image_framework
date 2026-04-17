@@ -158,6 +158,7 @@ if (use_clang_android) {
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/blob_metadata.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/file_metadata_stream.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/kv_metadata.cpp",
+      "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/png_metadata_parser.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/common/src/memory_manager.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/common/src/native_image.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/common/src/pixel_astc.cpp",
@@ -259,6 +260,7 @@ if (use_clang_android) {
         "hitrace:hitrace_meter",
         "ipc:ipc_core",
         "libjpeg-turbo:turbojpeg",
+        "libpng:libpng",
         "napi:ace_napi",
         "zlib:libz",
         "graphic_2d:GLESv3",
@@ -271,6 +273,10 @@ if (use_clang_android) {
       ]
       if (enable_libexif) {
         external_deps += [ "libexif:libexif" ]
+      }
+      if (has_libtiff) {
+        defines += [ "SUPPORT_LIBTIFF" ]
+        external_deps += [ "libtiff:libtiff" ]
       }
       if (is_ohos && is_standard_system && !is_arkui_x &&
           defined(global_parts_info) &&
@@ -311,7 +317,9 @@ if (use_clang_android) {
     if (image_use_new_skia) {
       defines += [ "USE_M133_SKIA" ]
     }
-
+    if (has_dav1d) {
+      defines += [ "AVIF_DECODE_ENABLE" ]
+    }
     defines += [
       "UNIX_ENV=1",
       "XMP_StaticBuild=1",
@@ -358,6 +366,7 @@ if (use_mingw_win || use_clang_mac || use_clang_ios || use_clang_android) {
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/metadata_accessor_factory.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/png_exif_metadata_accessor.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/png_image_chunk_utils.cpp",
+      "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/png_metadata_parser.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/tiff_parser.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/accessor/src/webp_exif_metadata_accessor.cpp",
       "${image_subsystem}/frameworks/innerkitsimpl/common/src/pixel_astc.cpp",
@@ -486,6 +495,7 @@ if (use_mingw_win || use_clang_mac || use_clang_ios || use_clang_android) {
         "graphic_2d:color_manager",
         "graphic_surface:surface",
         "hilog:libhilog",
+        "libpng:libpng",
         "napi:ace_napi",
         "graphic_2d:GLESv3",
       ]
@@ -516,6 +526,9 @@ if (use_mingw_win || use_clang_mac || use_clang_ios || use_clang_android) {
     }
     if (target_cpu == "arm64" || is_emulator) {
       defines += [ "SUT_PATH_X64" ]
+    }
+    if (has_dav1d) {
+      defines += [ "AVIF_DECODE_ENABLE" ]
     }
     subsystem_name = "multimedia"
     part_name = "image_framework"

@@ -128,7 +128,8 @@ static std::shared_ptr<PixelMap> CreatePixelMap()
     return pixelmap;
 }
 
-static std::shared_ptr<PixelMap> CreatePixelMap(std::string srcFormat, std::string srcPathName)
+static std::shared_ptr<PixelMap> CreatePixelMapInner(std::string srcFormat, std::string srcPathName,
+    PixelFormat pixelFormat = PixelFormat::RGBA_8888, AllocatorType allocatorType = AllocatorType::DMA_ALLOC)
 {
     uint32_t errorCode = -1;
     SourceOptions opts;
@@ -141,6 +142,8 @@ static std::shared_ptr<PixelMap> CreatePixelMap(std::string srcFormat, std::stri
     }
 
     DecodeOptions dstOpts;
+    dstOpts.desiredPixelFormat = pixelFormat;
+    dstOpts.allocatorType = allocatorType;
     std::shared_ptr<PixelMap> pixelmap = imageSource->CreatePixelMapEx(0, dstOpts, errorCode);
     EXPECT_EQ(errorCode, OHOS::Media::SUCCESS);
     EXPECT_NE(pixelmap, nullptr);
@@ -178,7 +181,8 @@ static std::shared_ptr<Picture> CreatePictureByPixelMap(std::string srcFormat, s
     return picture;
 }
 
-static std::shared_ptr<Picture> CreatePictureByImageSource(std::string srcFormat, std::string srcPathName)
+static std::shared_ptr<Picture> CreatePictureByImageSource(std::string srcFormat, std::string srcPathName,
+    PixelFormat pixelFormat = PixelFormat::RGBA_8888, AllocatorType allocatorType = AllocatorType::DMA_ALLOC)
 {
     uint32_t errorCode = -1;
     SourceOptions opts;
@@ -189,6 +193,8 @@ static std::shared_ptr<Picture> CreatePictureByImageSource(std::string srcFormat
         return nullptr;
     }
     DecodingOptionsForPicture dstOpts;
+    dstOpts.desiredPixelFormat = pixelFormat;
+    dstOpts.allocatorType = allocatorType;
     std::unique_ptr<Picture> tmpPicture = imageSource->CreatePicture(dstOpts, errorCode);
     EXPECT_EQ(errorCode, OHOS::Media::SUCCESS);
     if (tmpPicture == nullptr) {
@@ -1704,8 +1710,8 @@ HWTEST_F(PictureExtTest, CreateThumbnail002, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail003
- * @tc.desc: Test generateThumbnailIfAbsent=true with maxGenerateSize=400 for JPEG without embedded thumbnail;
- *           generates thumbnail scaled to 300x400.
+ * @tc.desc: Test generateThumbnailIfAbsent=true with maxGeneratedPixelDimension=400 for
+ *           JPEG without embedded thumbnail; generates thumbnail scaled to 300x400.
  * @tc.type: FUNC
  */
 HWTEST_F(PictureExtTest, CreateThumbnail003, TestSize.Level1)
@@ -1718,7 +1724,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail003, TestSize.Level1)
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
     dopts.generateThumbnailIfAbsent = true;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(pixelMap.get(), nullptr);
@@ -1730,8 +1736,8 @@ HWTEST_F(PictureExtTest, CreateThumbnail003, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail004
- * @tc.desc: Test JPEG with embedded thumbnail (320x240), generateThumbnailIfAbsent=true, maxGenerateSize=600;
- *           returns embedded thumbnail unchanged.
+ * @tc.desc: Test JPEG with embedded thumbnail (320x240), generateThumbnailIfAbsent=true,
+ *           maxGeneratedPixelDimension=600; returns embedded thumbnail unchanged.
  * @tc.type: FUNC
  */
 HWTEST_F(PictureExtTest, CreateThumbnail004, TestSize.Level1)
@@ -1744,7 +1750,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail004, TestSize.Level1)
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
     dopts.generateThumbnailIfAbsent = true;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_600;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_600;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(pixelMap.get(), nullptr);
@@ -1756,7 +1762,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail004, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail005
- * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true, maxGenerateSize=400;
+ * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true, maxGeneratedPixelDimension=400;
  *           generates scaled thumbnail 400x225.
  * @tc.type: FUNC
  */
@@ -1770,7 +1776,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail005, TestSize.Level1)
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
     dopts.generateThumbnailIfAbsent = true;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(pixelMap.get(), nullptr);
@@ -1782,7 +1788,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail005, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail006
- * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true without maxGenerateSize;
+ * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true without maxGeneratedPixelDimension;
  *           uses default size 512x288.
  * @tc.type: FUNC
  */
@@ -1807,7 +1813,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail006, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail007
- * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true, maxGenerateSize=400;
+ * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true, maxGeneratedPixelDimension=400;
  *           generates 400x225 (duplicate of 005).
  * @tc.type: FUNC
  */
@@ -1821,7 +1827,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail007, TestSize.Level1)
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
     dopts.generateThumbnailIfAbsent = true;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(pixelMap.get(), nullptr);
@@ -1833,7 +1839,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail007, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail008
- * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true, maxGenerateSize=600;
+ * @tc.desc: Test HEIF without embedded thumbnail, generateThumbnailIfAbsent=true, maxGeneratedPixelDimension=600;
  *           generates scaled thumbnail 600x338.
  * @tc.type: FUNC
  */
@@ -1847,7 +1853,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail008, TestSize.Level1)
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
     dopts.generateThumbnailIfAbsent = true;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_600;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_600;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(pixelMap.get(), nullptr);
@@ -1859,7 +1865,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail008, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail009
- * @tc.desc: Test JPEG with embedded thumbnail, generateThumbnailIfAbsent=true, maxGenerateSize=400;
+ * @tc.desc: Test JPEG with embedded thumbnail, generateThumbnailIfAbsent=true, maxGeneratedPixelDimension=400;
  *           returns embedded thumbnail 320x240 (embedded smaller than max).
  * @tc.type: FUNC
  */
@@ -1872,7 +1878,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail009, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     dopts.generateThumbnailIfAbsent = true;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
@@ -1885,7 +1891,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail009, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail010
- * @tc.desc: Test JPEG with embedded thumbnail, generateThumbnailIfAbsent=false, maxGenerateSize=400;
+ * @tc.desc: Test JPEG with embedded thumbnail, generateThumbnailIfAbsent=false, maxGeneratedPixelDimension=400;
  *           returns embedded thumbnail (no generation).
  * @tc.type: FUNC
  */
@@ -1898,7 +1904,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail010, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     dopts.generateThumbnailIfAbsent = false;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
@@ -1911,7 +1917,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail010, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail011
- * @tc.desc: Test HEIF with embedded thumbnail (exif), generateThumbnailIfAbsent=true, maxGenerateSize=400;
+ * @tc.desc: Test HEIF with embedded thumbnail (exif), generateThumbnailIfAbsent=true, maxGeneratedPixelDimension=400;
  *           returns embedded thumbnail 256x192.
  * @tc.type: FUNC
  */
@@ -1924,7 +1930,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail011, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     dopts.generateThumbnailIfAbsent = true;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
@@ -1937,7 +1943,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail011, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail012
- * @tc.desc: Test HEIF with embedded thumbnail (exif), generateThumbnailIfAbsent=false, maxGenerateSize=400;
+ * @tc.desc: Test HEIF with embedded thumbnail (exif), generateThumbnailIfAbsent=false, maxGeneratedPixelDimension=400;
  *           returns embedded thumbnail.
  * @tc.type: FUNC
  */
@@ -1950,7 +1956,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail012, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     dopts.generateThumbnailIfAbsent = false;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
@@ -1963,7 +1969,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail012, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail013
- * @tc.desc: Test HEIF with box thumbnail, generateThumbnailIfAbsent=true, maxGenerateSize=400;
+ * @tc.desc: Test HEIF with box thumbnail, generateThumbnailIfAbsent=true, maxGeneratedPixelDimension=400;
  *           returns box thumbnail 512x384 (no scaling).
  * @tc.type: FUNC
  */
@@ -1976,7 +1982,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail013, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     dopts.generateThumbnailIfAbsent = true;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
@@ -1989,7 +1995,8 @@ HWTEST_F(PictureExtTest, CreateThumbnail013, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail014
- * @tc.desc: Test HEIF with box thumbnail, generateThumbnailIfAbsent=false, maxGenerateSize=400; returns box thumbnail.
+ * @tc.desc: Test HEIF with box thumbnail, generateThumbnailIfAbsent=false, maxGeneratedPixelDimension=400;
+ *           returns box thumbnail.
  * @tc.type: FUNC
  */
 HWTEST_F(PictureExtTest, CreateThumbnail014, TestSize.Level1)
@@ -2001,7 +2008,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail014, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = MAX_GEN_SIZE_400;
+    dopts.maxGeneratedPixelDimension = MAX_GEN_SIZE_400;
     dopts.generateThumbnailIfAbsent = false;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     ASSERT_EQ(errorCode, SUCCESS);
@@ -2014,7 +2021,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail014, TestSize.Level1)
 
 /**
  * @tc.name: CreateThumbnail015
- * @tc.desc: Test invalid parameter: maxGenerateSize=1 (too small), expects ERR_IMAGE_INVALID_PARAMETER.
+ * @tc.desc: Test invalid parameter: maxGeneratedPixelDimension=1 (too small), expects ERR_IMAGE_INVALID_PARAMETER.
  * @tc.type: FUNC
  */
 HWTEST_F(PictureExtTest, CreateThumbnail015, TestSize.Level1)
@@ -2026,7 +2033,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail015, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = INVALID_MAX_GEN_SIZE;
+    dopts.maxGeneratedPixelDimension = INVALID_MAX_GEN_SIZE;
     dopts.generateThumbnailIfAbsent = true;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     EXPECT_EQ(errorCode, ERR_IMAGE_INVALID_PARAMETER);
@@ -2047,7 +2054,7 @@ HWTEST_F(PictureExtTest, CreateThumbnail016, TestSize.Level1)
     ASSERT_EQ(errorCode, SUCCESS);
     ASSERT_NE(imageSource.get(), nullptr);
     DecodingOptionsForThumbnail dopts;
-    dopts.maxGenerateSize = INVALID_MAX_GEN_SIZE;
+    dopts.maxGeneratedPixelDimension = INVALID_MAX_GEN_SIZE;
     dopts.generateThumbnailIfAbsent = true;
     std::unique_ptr<PixelMap> pixelMap = imageSource->CreateThumbnail(dopts, errorCode);
     EXPECT_EQ(errorCode, ERR_IMAGE_MISMATCHED_FORMAT);
@@ -2103,7 +2110,8 @@ std::shared_ptr<PixelMap> CreateThumbnailInner(std::string srcFormat, std::strin
 
 /**
  * @tc.name: EncodeThumbnailPicture001
- * @tc.desc: Test encoding JPEG without embedded thumbnail (embedThumbnailMaxSize=0); decoded image has no thumbnail.
+ * @tc.desc: Test encoding JPEG without embedded thumbnail (maxEmbedThumbnailDimension=0);
+ *           decoded image has no thumbnail.
  * @tc.type: FUNC
  */
 HWTEST_F(PictureExtTest, EncodeThumbnailPicture001, TestSize.Level1)
@@ -2115,7 +2123,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture001, TestSize.Level1)
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = NO_THUMBNAIL_EMBED,
+        .maxEmbedThumbnailDimension = NO_THUMBNAIL_EMBED,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_JPEG_DEST);
@@ -2129,7 +2137,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture001, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture002
- * @tc.desc: Test encoding JPEG with embedThumbnailMaxSize=200;
+ * @tc.desc: Test encoding JPEG with maxEmbedThumbnailDimension=200;
  *           decoded thumbnail is generated and has expected size 150x200.
  * @tc.type: FUNC
  */
@@ -2142,7 +2150,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture002, TestSize.Level1)
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_JPEG_DEST);
@@ -2160,7 +2168,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture002, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture003
- * @tc.desc: Test encoding JPEG with embedThumbnailMaxSize=200 and decoding with generateThumbnailIfAbsent=true;
+ * @tc.desc: Test encoding JPEG with maxEmbedThumbnailDimension=200 and decoding with generateThumbnailIfAbsent=true;
  *           uses embedded thumbnail (same size).
  * @tc.type: FUNC
  */
@@ -2173,7 +2181,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture003, TestSize.Level1)
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_JPEG_DEST);
@@ -2191,7 +2199,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture003, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture004
- * @tc.desc: Test encoding HEIF without embedded thumbnail (embedThumbnailMaxSize=0);
+ * @tc.desc: Test encoding HEIF without embedded thumbnail (maxEmbedThumbnailDimension=0);
  *           decoded image has no thumbnail.
  * @tc.type: FUNC
  */
@@ -2204,7 +2212,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture004, TestSize.Level1)
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = NO_THUMBNAIL_EMBED,
+        .maxEmbedThumbnailDimension = NO_THUMBNAIL_EMBED,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_HEIF_DEST);
@@ -2218,7 +2226,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture004, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture005
- * @tc.desc: Test encoding HEIF with embedThumbnailMaxSize=200;
+ * @tc.desc: Test encoding HEIF with maxEmbedThumbnailDimension=200;
  *           decoded thumbnail is generated and has expected size 200x113.
  * @tc.type: FUNC
  */
@@ -2231,7 +2239,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture005, TestSize.Level1)
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_HEIF_DEST);
@@ -2249,7 +2257,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture005, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture006
- * @tc.desc: Test encoding HEIF with embedThumbnailMaxSize=200 and decoding with generateThumbnailIfAbsent=true;
+ * @tc.desc: Test encoding HEIF with maxEmbedThumbnailDimension=200 and decoding with generateThumbnailIfAbsent=true;
  *           uses embedded thumbnail (same size).
  * @tc.type: FUNC
  */
@@ -2262,7 +2270,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture006, TestSize.Level1)
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_HEIF_DEST);
@@ -2280,7 +2288,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture006, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture007
- * @tc.desc: Test JPEG with embedded thumbnail, encode with embedThumbnailMaxSize=200;
+ * @tc.desc: Test JPEG with embedded thumbnail, encode with maxEmbedThumbnailDimension=200;
  *           new thumbnail replaces original, size 150x200.
  * @tc.type: FUNC
  */
@@ -2306,7 +2314,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture007, TestSize.Level1)
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_JPEG_DEST);
@@ -2324,7 +2332,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture007, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture008
- * @tc.desc: Test HEIF with embedded thumbnail (exif), encode with embedThumbnailMaxSize=200;
+ * @tc.desc: Test HEIF with embedded thumbnail (exif), encode with maxEmbedThumbnailDimension=200;
  *           new thumbnail replaces original, size 200x113.
  * @tc.type: FUNC
  */
@@ -2350,7 +2358,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture008, TestSize.Level1)
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_HEIF_DEST);
@@ -2368,7 +2376,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture008, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture009
- * @tc.desc: Test HEIF with box thumbnail, encode with embedThumbnailMaxSize=200;
+ * @tc.desc: Test HEIF with box thumbnail, encode with maxEmbedThumbnailDimension=200;
  *           new thumbnail replaces original, size 200x113.
  * @tc.type: FUNC
  */
@@ -2394,7 +2402,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture009, TestSize.Level1)
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_HEIF_DEST);
@@ -2412,7 +2420,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture009, TestSize.Level1)
 
 /**
  * @tc.name: EncodeThumbnailPicture010
- * @tc.desc: Test JPEG with embedded thumbnail, embedThumbnailMaxSize=2000 (larger than original);
+ * @tc.desc: Test JPEG with embedded thumbnail, maxEmbedThumbnailDimension=2000 (larger than original);
  *           no thumbnail embedded, decoding returns nullptr.
  * @tc.type: FUNC
  */
@@ -2435,7 +2443,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture010, TestSize.Level1)
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_2000,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_2000,
     };
     // remove the file if it exists
     std::filesystem::remove(IMAGE_JPEG_DEST);
@@ -2454,24 +2462,15 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture010, TestSize.Level1)
  */
 HWTEST_F(PictureExtTest, EncodeThumbnailPicture011, TestSize.Level1)
 {
-    uint32_t errorCode = -1;
-    SourceOptions opts;
-    std::unique_ptr<ImageSource> imageSource = ImageSource::CreateImageSource(IMAGE_JPEGHDR_SRC.c_str(),
-        opts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
-    ASSERT_NE(imageSource, nullptr);
-    DecodingOptionsForPicture dstOpts;
-    dstOpts.desiredPixelFormat = PixelFormat::NV12;
-    dstOpts.allocatorType = AllocatorType::DMA_ALLOC;
-    std::shared_ptr<Picture> picture = imageSource->CreatePicture(dstOpts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
+    auto picture = CreatePictureByImageSource("image/jpeg", IMAGE_JPEGHDR_SRC,
+        PixelFormat::NV12, AllocatorType::DMA_ALLOC);
     ASSERT_NE(picture, nullptr);
 
     PackOption option {
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
         .desiredDynamicRange = EncodeDynamicRange::HDR_VIVID_DUAL,
     };
     // remove the file if it exists
@@ -2494,24 +2493,15 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture011, TestSize.Level1)
  */
 HWTEST_F(PictureExtTest, EncodeThumbnailPicture012, TestSize.Level1)
 {
-    uint32_t errorCode = -1;
-    SourceOptions opts;
-    std::unique_ptr<ImageSource> imageSource = ImageSource::CreateImageSource(IMAGE_HEIFHDR_SRC.c_str(),
-        opts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
-    ASSERT_NE(imageSource, nullptr);
-    DecodingOptionsForPicture dstOpts;
-    dstOpts.desiredPixelFormat = PixelFormat::NV12;
-    dstOpts.allocatorType = AllocatorType::DMA_ALLOC;
-    std::shared_ptr<Picture> picture = imageSource->CreatePicture(dstOpts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
+    auto picture = CreatePictureByImageSource("image/heif", IMAGE_HEIFHDR_SRC,
+        PixelFormat::NV12, AllocatorType::DMA_ALLOC);
     ASSERT_NE(picture, nullptr);
 
     PackOption option {
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
         .desiredDynamicRange = EncodeDynamicRange::HDR_VIVID_DUAL,
     };
     // remove the file if it exists
@@ -2534,17 +2524,8 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture012, TestSize.Level1)
  */
 HWTEST_F(PictureExtTest, EncodeThumbnailPicture013, TestSize.Level1)
 {
-    uint32_t errorCode = -1;
-    SourceOptions opts;
-    std::unique_ptr<ImageSource> imageSource = ImageSource::CreateImageSource(IMAGE_INPUT_JPEG_EXIF_THUMBNAIL.c_str(),
-        opts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
-    ASSERT_NE(imageSource, nullptr);
-    DecodeOptions dstOpts;
-    dstOpts.desiredPixelFormat = PixelFormat::NV12;
-    dstOpts.allocatorType = AllocatorType::DMA_ALLOC;
-    std::shared_ptr<PixelMap> pixelMap = imageSource->CreatePixelMap(0, dstOpts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
+    auto pixelMap = CreatePixelMapInner(IMAGE_JPEG_FORMAT, IMAGE_INPUT_JPEG_EXIF_THUMBNAIL, PixelFormat::NV12,
+        AllocatorType::DMA_ALLOC);
     ASSERT_NE(pixelMap, nullptr);
     int32_t error;
     auto thumbnailPixelMap = PixelYuv::CreateThumbnailPixelMap(*pixelMap, EMBED_THUMB_MAX_SIZE_200, error);
@@ -2556,7 +2537,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture013, TestSize.Level1)
         .format = IMAGE_JPEG_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
 
     // remove the file if it exists
@@ -2568,14 +2549,8 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture013, TestSize.Level1)
     ASSERT_EQ(retAddPicture, OHOS::Media::SUCCESS);
     uint32_t retFinalizePacking = packer.FinalizePacking();
     ASSERT_EQ(retFinalizePacking, OHOS::Media::SUCCESS);
-    
-    std::unique_ptr<ImageSource> dstImageSource = ImageSource::CreateImageSource(IMAGE_JPEG_DEST.c_str(),
-        opts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
-    ASSERT_NE(dstImageSource, nullptr);
-    DecodeOptions dopts;
-    std::shared_ptr<PixelMap> packedPixelMap = dstImageSource->CreatePixelMap(0, dopts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
+
+    auto packedPixelMap = CreatePixelMapInner(IMAGE_JPEG_FORMAT, IMAGE_JPEG_DEST);
     ASSERT_NE(packedPixelMap, nullptr);
     ImageInfo info;
     packedPixelMap->GetImageInfo(info);
@@ -2590,17 +2565,8 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture013, TestSize.Level1)
  */
 HWTEST_F(PictureExtTest, EncodeThumbnailPicture014, TestSize.Level1)
 {
-    uint32_t errorCode = -1;
-    SourceOptions opts;
-    std::unique_ptr<ImageSource> imageSource = ImageSource::CreateImageSource(IMAGE_INPUT_HEIF_BOX_THUMBNAIL.c_str(),
-        opts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
-    ASSERT_NE(imageSource, nullptr);
-    DecodeOptions dstOpts;
-    dstOpts.desiredPixelFormat = PixelFormat::NV12;
-    dstOpts.allocatorType = AllocatorType::DMA_ALLOC;
-    std::shared_ptr<PixelMap> pixelMap = imageSource->CreatePixelMap(0, dstOpts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
+    auto pixelMap = CreatePixelMapInner(IMAGE_HEIC_FORMAT, IMAGE_INPUT_HEIF_BOX_THUMBNAIL, PixelFormat::NV12,
+        AllocatorType::DMA_ALLOC);
     ASSERT_NE(pixelMap, nullptr);
     int32_t error = -1;
     auto thumbnailPixelMap = PixelYuv::CreateThumbnailPixelMap(*pixelMap, EMBED_THUMB_MAX_SIZE_200, error);
@@ -2612,7 +2578,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture014, TestSize.Level1)
         .format = IMAGE_HEIC_FORMAT,
         .quality = DEFAULT_JPEG_QUALITY,
         .needsPackProperties = true,
-        .embedThumbnailMaxSize = EMBED_THUMB_MAX_SIZE_200,
+        .maxEmbedThumbnailDimension = EMBED_THUMB_MAX_SIZE_200,
     };
 
     // remove the file if it exists
@@ -2625,13 +2591,7 @@ HWTEST_F(PictureExtTest, EncodeThumbnailPicture014, TestSize.Level1)
     uint32_t retFinalizePacking = packer.FinalizePacking();
     ASSERT_EQ(retFinalizePacking, OHOS::Media::SUCCESS);
     
-    std::unique_ptr<ImageSource> dstImageSource = ImageSource::CreateImageSource(IMAGE_HEIF_DEST.c_str(),
-        opts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
-    ASSERT_NE(dstImageSource, nullptr);
-    DecodeOptions dopts;
-    std::shared_ptr<PixelMap> packedPixelMap = dstImageSource->CreatePixelMap(0, dopts, errorCode);
-    ASSERT_EQ(errorCode, OHOS::Media::SUCCESS);
+    auto packedPixelMap = CreatePixelMapInner(IMAGE_HEIC_FORMAT, IMAGE_HEIF_DEST);
     ASSERT_NE(packedPixelMap, nullptr);
     ImageInfo info;
     packedPixelMap->GetImageInfo(info);
