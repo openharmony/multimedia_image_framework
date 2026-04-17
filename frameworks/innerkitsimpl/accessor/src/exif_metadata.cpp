@@ -435,6 +435,7 @@ const std::map<NapiMetadataType, std::map<std::string, PropertyValueType>>& Exif
         {NapiMetadataType::TIFF_METADATA, GetTiffMetadataMap()},
         {NapiMetadataType::JFIF_METADATA, GetJfifMetadataMap()},
         {NapiMetadataType::PNG_METADATA, GetPngMetadataMap()},
+        {NapiMetadataType::AVIS_METADATA, GetAvisMetadataMap()},
     };
     return propertyTypeMap;
 }
@@ -809,6 +810,22 @@ const std::unordered_map<std::string, std::string>& ExifMetadata::GetHeifsProper
         {"heifsCanvasWidth", "HeifsCanvasWidth"},
     };
     return heifsPropertyKeyMap;
+}
+
+const std::unordered_map<std::string, std::string>& ExifMetadata::GetAvisPropertyKeyMap()
+{
+    static const std::unordered_map<std::string, std::string> avisPropertyKeyMap = {
+        {"delayTime", "AvisDelayTime"},
+    };
+    return avisPropertyKeyMap;
+}
+
+const std::map<std::string, PropertyValueType>& ExifMetadata::GetAvisMetadataMap()
+{
+    static const std::map<std::string, PropertyValueType> avisMetadataMap = {
+        {"AvisDelayTime", PropertyValueType::INT},
+    };
+    return avisMetadataMap;
 }
 
 template <typename T, typename U> std::istream &OutputRational(std::istream &is, T &r)

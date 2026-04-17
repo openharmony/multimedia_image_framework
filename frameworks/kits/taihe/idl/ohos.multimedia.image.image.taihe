@@ -434,7 +434,8 @@ enum MetadataType: i32 {
   HEIFS_METADATA = 15,
   DNG_METADATA = 16,
   WEBP_METADATA = 17,
-  HW_MAKER_NOTE_METADATA = 18
+  HW_MAKER_NOTE_METADATA = 18,
+  AVIS_METADATA = 23,
 }
 
 enum FragmentMapPropertyKey: String {
@@ -551,6 +552,10 @@ enum WebPPropertyKey: String {
   DELAY_TIME = "WebPDelayTime",
   UNCLAMPED_DELAY_TIME = "WebPUnclampedDelayTime",
   LOOP_COUNT = "WebPLoopCount"
+}
+
+enum AvisPropertyKey: String {
+  DELAY_TIME = "AvisDelayTime",
 }
 
 enum Orientation: i32 {
@@ -1449,12 +1454,20 @@ interface WebPMetadata {
   """)
 }
 
+@class
+interface AvisMetadata {
+  @!sts_inject_into_class("""
+    delayTime?: int;
+  """)
+}
+
 struct ImageMetadata {
   exifMetadata: Optional<ExifMetadata>;
   makerNoteHuaweiMetadata: Optional<MakerNoteHuaweiMetadata>;
   heifsMetadata: Optional<HeifsMetadata>;
   dngMetadata: Optional<DngMetadata>;
   webPMetadata: Optional<WebPMetadata>;
+  avisMetadata: Optional<AvisMetadata>;
 }
 
 struct ImageRawData {
@@ -1705,6 +1718,14 @@ interface ImageSource {
               break;
             }
             status = MetadataFieldHelper.setFieldViaReflection(webPMetadata, metadataValue.key, metadataValue.value);
+            break;
+          case image.MetadataType.AVIS_METADATA:
+            const avisMetadata = imageMetadata.avisMetadata;
+            if (avisMetadata == undefined) {
+              console.info("[assembleImageMetadata] avisMetadata is undefined");
+              break;
+            }
+            status = MetadataFieldHelper.setFieldViaReflection(avisMetadata, metadataValue.key, metadataValue.value);
             break;
           default:
             console.error(`[assembleImageMetadata] Unsupported metadata type: ${metadataValue.metadataType}`);
@@ -2014,6 +2035,9 @@ function DngMetadataCtor(): DngMetadata;
 
 @ctor("WebPMetadata")
 function WebPMetadataCtor(): WebPMetadata;
+
+@ctor("AvisMetadata")
+function AvisMetadataCtor(): AvisMetadata;
 
 // static functions
 @static("ExifMetadata")

@@ -296,6 +296,7 @@ public:
         MetadataType type, uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<ImageMetadata> GetMetadata(MetadataType type, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<FragmentMetadata> GetFragmentMetadata(uint32_t &errorCode);
+    NATIVEEXPORT std::shared_ptr<AvisMetadata> GetAvisMetadata(uint32_t index, uint32_t &errorCode);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     NATIVEEXPORT std::shared_ptr<GifMetadata> GetGifMetadata(uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<HeifsMetadata> GetHeifsMetadata(uint32_t index, uint32_t &errorCode);
@@ -363,11 +364,13 @@ private:
     uint32_t GetPngProperty(const std::string &key, MetadataValue &value);
     uint32_t FillPngMetadataValue(const std::string &key, const ImageMetadata::PropertyMapPtr &propertiesPtr,
         MetadataValue &value);
+    uint32_t GetAvisProperty(uint32_t index, const std::string &key, MetadataValue &value);
     void GetFragmentPropertiesWithType(std::vector<MetadataValue> &result);
     void GetJfifMetadataPropertiesWithType(std::vector<MetadataValue> &result);
     void GetHeifsPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
     void GetWebpPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
     void GetPngPropertiesWithType(std::vector<MetadataValue> &result);
+    void GetAvisPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
     void AppendGifPropertiesWithType(std::vector<MetadataValue> &result, uint32_t &index);
     bool TryGetAllGifPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result);
     bool TryGetAllDngPropertiesWithType(std::vector<MetadataValue> &result);
@@ -474,6 +477,7 @@ private:
     std::string GetPixelMapName(PixelMap* pixelMap);
     bool IsDngImage();
     bool IsWebPImage();
+    bool IsAvisImage();
     bool IsEncodedFormat(const std::string& encodedFormat);
     void SetAnimationSize(uint32_t index, const DecodeOptions &opts, ImageInfo &info);
 

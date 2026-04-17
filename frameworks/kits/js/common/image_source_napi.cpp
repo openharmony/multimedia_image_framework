@@ -143,6 +143,7 @@ struct ImageSourceAsyncContext {
     std::shared_ptr<XtStyleMetadata> rXtStyleMetadata;
     std::shared_ptr<RfDataBMetadata> rRfDataBMetadata;
     std::shared_ptr<JfifMetadata> rJfifMetadata;
+    std::shared_ptr<AvisMetadata> rAvisMetadata;
     DecodingOptionsForThumbnail decodingOptsForThumbnail;
 #ifdef XMP_TOOLKIT_SDK_ENABLE
     std::shared_ptr<XMPMetadata> rXMPMetadata;
@@ -573,7 +574,8 @@ std::unordered_map<std::string, std::string> CreateReverseMap(
     return reverse;
 }
 
-static MetadataMaps InitMetadataMap() {
+static MetadataMaps InitMetadataMap()
+{
     MetadataMaps metadataMaps;
     std::unordered_map<std::string, std::string> exifPropertyKeyMap = ExifMetadata::GetPropertyKeyMap();
     metadataMaps[NapiMetadataType::EXIF_METADATA] = {exifPropertyKeyMap, CreateReverseMap(exifPropertyKeyMap)};
@@ -591,11 +593,14 @@ static MetadataMaps InitMetadataMap() {
         CreateReverseMap(ExifMetadata::GetJfifPropertyKeyMap())};
     metadataMaps[NapiMetadataType::PNG_METADATA] = {ExifMetadata::GetPngPropertyKeyMap(),
         CreateReverseMap(ExifMetadata::GetPngPropertyKeyMap())};
+    metadataMaps[NapiMetadataType::AVIS_METADATA] = {ExifMetadata::GetAvisPropertyKeyMap(),
+        CreateReverseMap(ExifMetadata::GetAvisPropertyKeyMap())};
 
     return metadataMaps;
 }
 
-std::string MetadataToPropertyKey(const std::string& metadataKey) {
+std::string MetadataToPropertyKey(const std::string& metadataKey)
+{
     auto it = ExifMetadata::GetPropertyKeyMap().find(metadataKey);
     if (it != ExifMetadata::GetPropertyKeyMap().end()) {
         return it->second;
@@ -603,7 +608,8 @@ std::string MetadataToPropertyKey(const std::string& metadataKey) {
     return "";
 }
 
-std::string PropertyKeyToMetadata(const std::string &propertyKey, NapiMetadataType &type) {
+std::string PropertyKeyToMetadata(const std::string &propertyKey, NapiMetadataType &type)
+{
     static MetadataMaps metadataMaps = InitMetadataMap();
     auto it = metadataMaps.find(type);
     if (it != metadataMaps.end()) {
@@ -3117,6 +3123,9 @@ NapiMetadataType GetMetadataTypeByKey(const std::string& key)
         for (const auto& pair : ExifMetadata::GetPngMetadataMap()) {
             mapping[pair.first] = NapiMetadataType::PNG_METADATA;
         }
+        for (const auto& pair : ExifMetadata::GetAvisMetadataMap()) {
+            mapping[pair.first] = NapiMetadataType::AVIS_METADATA;
+        }
         return mapping;
     }();
     auto it = KEY_TYPE_MAP.find(key);
@@ -3167,6 +3176,7 @@ struct MetadataCollection {
     napi_value tiffMetadata = nullptr;
     napi_value jfifMetadata = nullptr;
     napi_value pngMetadata = nullptr;
+    napi_value avisMetadata = nullptr;
     bool hasExif = false;
     bool hasMakerNote = false;
     bool hasHeifsMetadata = false;
@@ -3179,6 +3189,7 @@ struct MetadataCollection {
     bool hasTiffMetadata = false;
     bool hasJfifMetadata = false;
     bool hasPngMetadata = false;
+    bool hasAvisMetadata = false;
 };
 
 static void InitMetadataAndFlags(napi_env env, ImageSourceAsyncContext *context, MetadataCollection& metaCol)
@@ -3195,6 +3206,7 @@ static void InitMetadataAndFlags(napi_env env, ImageSourceAsyncContext *context,
     metaCol.dngMetadata = MetadataNapi::CreateDngMetadata(env);
     metaCol.tiffMetadata = MetadataNapi::CreateTiffMetadata(env);
     metaCol.jfifMetadata = MetadataNapi::CreateJfifMetadata(env, context->rJfifMetadata);
+    metaCol.avisMetadata = MetadataNapi::CreateAvisMetadata(env, context->rAvisMetadata);
 }
 
 static bool IsValidMetadataValue(const MetadataValue &metadataValue)
@@ -3205,52 +3217,58 @@ static bool IsValidMetadataValue(const MetadataValue &metadataValue)
            !metadataValue.bufferValue.empty();
 }
 
+static void ProcessExifMetadata(napi_env env, NapiMetadataType type, MetadataValue &value,
+    bool &hasFlag, napi_value &successResult)
+{
+    CHECK_ERROR_RETURN(!IsValidMetadataValue(value));
+    CreatePropertyResult(env, value, successResult, type);
+    hasFlag = true;
+}
+
+static void ProcessKvMetadata(napi_env env, std::shared_ptr<ImageKvMetadata> metadata,
+    MetadataValue &value, bool &hasFlag, napi_value &successResult)
+{
+    CHECK_ERROR_RETURN(value.intArrayValue.empty());
+    CHECK_ERROR_RETURN(!metadata);
+    CHECK_ERROR_RETURN_LOG(!metadata->SetValue(value.key, std::to_string(value.intArrayValue[0])),
+        "%{public}s set value error.", __func__);
+    auto type = GetMetadataTypeByKey(value.key);
+    CreatePropertyResult(env, value, successResult, type);
+    hasFlag = true;
+}
+
 static void ProcessMetadataValueTypeArray(napi_env env, ImageSourceAsyncContext *context, MetadataCollection& metaCol)
 {
     CHECK_ERROR_RETURN(context == nullptr);
     for (auto &metadataValue: context->kValueTypeArray) {
         auto type = GetMetadataTypeByKey(metadataValue.key);
-        if (!IsValidMetadataValue(metadataValue)) {
-            continue;
-        }
         if (type == NapiMetadataType::EXIF_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.exifMetadata, type);
-            metaCol.hasExif = true;
+            ProcessExifMetadata(env, type, metadataValue, metaCol.hasExif, metaCol.exifMetadata);
         } else if (type == NapiMetadataType::HWMAKERNOTE_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.makerNoteMetadata, type);
-            metaCol.hasMakerNote = true;
-        } else if (type == NapiMetadataType::HEIFS_METADATA) {
-            context->rImageHeifsMetadata->SetValue(metadataValue.key,
-                std::to_string(metadataValue.intArrayValue[0]));
-            CreatePropertyResult(env, metadataValue, metaCol.heifsMetadata, type);
-            metaCol.hasHeifsMetadata = true;
-        } else if (type == NapiMetadataType::FRAGMENT_METADATA) {
-            if (!metadataValue.intArrayValue.empty()) {
-                context->rFragmentMetadata->SetValue(metadataValue.key, std::to_string(metadataValue.intArrayValue[0]));
-                CreatePropertyResult(env, metadataValue, metaCol.fragmentMetadata, type);
-                metaCol.hasFragmentMetadata = true;
-            }
-        } else if (type == NapiMetadataType::GIF_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.gifMetadata, type);
-            metaCol.hasGifMetadata = true;
+            ProcessExifMetadata(env, type, metadataValue, metaCol.hasMakerNote, metaCol.makerNoteMetadata);
         } else if (type == NapiMetadataType::DNG_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.dngMetadata, type);
-            metaCol.hasDngMetadata = true;
+            ProcessExifMetadata(env, type, metadataValue, metaCol.hasDngMetadata, metaCol.dngMetadata);
+        } else if (type == NapiMetadataType::HEIFS_METADATA) {
+            ProcessKvMetadata(env, context->rImageHeifsMetadata, metadataValue,
+                metaCol.hasHeifsMetadata, metaCol.heifsMetadata);
+        } else if (type == NapiMetadataType::FRAGMENT_METADATA) {
+            ProcessKvMetadata(env, context->rFragmentMetadata, metadataValue,
+                metaCol.hasFragmentMetadata, metaCol.fragmentMetadata);
+        } else if (type == NapiMetadataType::GIF_METADATA) {
+            ProcessKvMetadata(env, context->rGifMetadata, metadataValue,
+                metaCol.hasGifMetadata, metaCol.gifMetadata);
         } else if (type == NapiMetadataType::WEBP_METADATA) {
-            if (!metadataValue.intArrayValue.empty()) {
-                context->rWebPMetadata->SetValue(metadataValue.key, std::to_string(metadataValue.intArrayValue[0]));
-                CreatePropertyResult(env, metadataValue, metaCol.webpMetadata, type);
-                metaCol.hasWebPMetadata = true;
-            }
+            ProcessKvMetadata(env, context->rWebPMetadata, metadataValue,
+                metaCol.hasWebPMetadata, metaCol.webpMetadata);
         } else if (type == NapiMetadataType::TIFF_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.tiffMetadata, type);
-            metaCol.hasTiffMetadata = true;
+            ProcessExifMetadata(env, type, metadataValue, metaCol.hasTiffMetadata, metaCol.tiffMetadata);
         } else if (type == NapiMetadataType::JFIF_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.jfifMetadata, type);
-            metaCol.hasJfifMetadata = true;
+            ProcessExifMetadata(env, type, metadataValue, metaCol.hasJfifMetadata, metaCol.jfifMetadata);
         } else if (type == NapiMetadataType::PNG_METADATA) {
-            CreatePropertyResult(env, metadataValue, metaCol.pngMetadata, type);
-            metaCol.hasPngMetadata = true;
+            ProcessExifMetadata(env, type, metadataValue, metaCol.hasPngMetadata, metaCol.pngMetadata);
+        } else if (type == NapiMetadataType::AVIS_METADATA) {
+            ProcessKvMetadata(env, context->rAvisMetadata, metadataValue,
+                metaCol.hasAvisMetadata, metaCol.avisMetadata);
         }
     }
 }
@@ -3314,6 +3332,9 @@ static void AttachMetadataToResultObj(napi_env env, MetadataCollection& metaCol,
     }
     if (metaCol.hasPngMetadata) {
         NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env, resultObj, "pngMetadata", metaCol.pngMetadata));
+    }
+    if (metaCol.hasAvisMetadata) {
+        NAPI_CALL_RETURN_VOID(env, napi_set_named_property(env, resultObj, "avisMetadata", metaCol.avisMetadata));
     }
 }
 
@@ -3582,6 +3603,7 @@ static void ReadImageMetadataExecute(napi_env env, void *data)
     context->rImageHeifsMetadata = CreateNullHeifsMetadata();
     context->rWebPMetadata = CreateNullWebPMetadata();
     context->rJfifMetadata = CreateNullJfifMetadata();
+    context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
     context->rFragmentMetadata = context->rImageSource->GetFragmentMetadata(errorCode);
@@ -4008,6 +4030,8 @@ static const std::map<std::string, PropertyValueType> GetMetadataKeyMapByType(ui
             return ExifMetadata::GetJfifMetadataMap();
         case static_cast<uint32_t>(MetadataType::PNG):
             return ExifMetadata::GetPngMetadataMap();
+        case static_cast<uint32_t>(MetadataType::AVIS):
+            return ExifMetadata::GetAvisMetadataMap();
         default:
             return std::map<std::string, PropertyValueType>();
     }
@@ -4104,6 +4128,7 @@ static void ReadImageMetadataByTypeExecute(napi_env env, void *data)
     context->rImageHeifsMetadata = CreateNullHeifsMetadata();
     context->rWebPMetadata = CreateNullWebPMetadata();
     context->rJfifMetadata = CreateNullJfifMetadata();
+    context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
     context->rFragmentMetadata = context->rImageSource->GetFragmentMetadata(errorCode);

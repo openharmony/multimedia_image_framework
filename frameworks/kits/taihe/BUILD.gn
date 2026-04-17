@@ -112,6 +112,12 @@ taihe_shared_library("image_taihe") {
     external_deps += [ "libexif:libexif" ]
   }
 
+  defines = []
+  if (has_dav1d) {
+    external_deps += [ "dav1d:dav1d_ohos" ]
+    defines += [ "AVIF_DECODE_ENABLE" ]
+  }
+
   cflags = [
     "-DIMAGE_DEBUG_FLAG",
     "-DIMAGE_COLORSPACE_FLAG",
