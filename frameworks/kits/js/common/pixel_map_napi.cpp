@@ -1810,6 +1810,9 @@ static void ExtractAlphaPixelMapExec(napi_env env, void* data)
     if (errCode == IMAGE_RESULT_FORMAT_CONVERT_FAILED) {
         CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_DATA_CONVERSION_FAILED,
             "Failed to convert the pixels.");
+    } else if (errCode == ERR_IMAGE_DECODE_FAILED) {
+        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_DATA_CONVERSION_FAILED,
+            "Failed to convert the pixels: YUV formats are not supported.");
     } else if (errCode != SUCCESS || context->alphaMap == nullptr) {
         CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Failed to extract the alpha channel. (" + std::to_string(errCode) + ")");

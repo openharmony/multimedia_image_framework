@@ -1038,7 +1038,6 @@ unique_ptr<PixelMap> PixelMap::Create(PixelMap &source, const Rect &srcRect, con
         return nullptr;
     }
     if (source.IsAstc() && ImageUtils::IsAstc(opts.pixelFormat) && ImageUtils::IsAstc(opts.srcPixelFormat)) {
-        errorCode = IMAGE_RESULT_DECODE_FAILED;
         return CreateFromAstc(source, srcRect, opts, errorCode, cropType);
     }
     ImageInfo dstImageInfo;
