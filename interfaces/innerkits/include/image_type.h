@@ -39,14 +39,32 @@ namespace Media {
 
 #define GIF_METADATA_KEY_DELAY_TIME "GifDelayTime"
 #define GIF_METADATA_KEY_DISPOSAL_TYPE "GifDisposalType"
+#define GIF_METADATA_KEY_CANVAS_PIXEL_WIDTH "GifCanvasWidth"
+#define GIF_METADATA_KEY_CANVAS_PIXEL_HEIGHT "GifCanvasHeight"
+#define GIF_METADATA_KEY_HAS_GLOBAL_COLOR_MAP "GifHasGlobalColorMap"
+#define GIF_METADATA_KEY_UNCLAMPED_DELAY_TIME "GifUnclampedDelayTime"
+#define GIF_METADATA_KEY_LOOP_COUNT "GifLoopCount"
 
 #define HEIFS_METADATA_KEY_DELAY_TIME "HeifsDelayTime"
+#define HEIFS_METADATA_KEY_UNCLAMPED_DELAY_TIME "HeifsUnclampedDelayTime"
+#define HEIFS_METADATA_KEY_CANVAS_PIXEL_HEIGHT "HeifsCanvasHeight"
+#define HEIFS_METADATA_KEY_CANVAS_PIXEL_WIDTH "HeifsCanvasWidth"
+
+#define JFIF_METADATA_KEY_X_DENSITY "JfifXDensity"
+#define JFIF_METADATA_KEY_Y_DENSITY "JfifYDensity"
+#define JFIF_METADATA_KEY_DENSITY_UNIT "JfifDensityUnit"
+#define JFIF_METADATA_KEY_VERSION "JfifVersion"
+#define JFIF_METADATA_KEY_IS_PROGRESSIVE "JfifIsProgressive"
+#define JFIF_METADATA_KEY_MAJOR_VERSION "JFIF_major_version"
+#define JFIF_METADATA_KEY_MINOR_VERSION "JFIF_minor_version"
 
 #define WEBP_METADATA_KEY_CANVAS_PIXEL_HEIGHT "WebPCanvasHeight"
 #define WEBP_METADATA_KEY_CANVAS_PIXEL_WIDTH "WebPCanvasWidth"
 #define WEBP_METADATA_KEY_DELAY_TIME "WebPDelayTime"
 #define WEBP_METADATA_KEY_UNCLAMPED_DELAY_TIME "WebPUnclampedDelayTime"
 #define WEBP_METADATA_KEY_LOOP_COUNT "WebPLoopCount"
+
+#define AVIS_METADATA_KEY_DELAY_TIME "AvisDelayTime"
 
 // There is no definite tag name for gainmap and thumbnail
 #define AUXILIARY_TAG_GAINMAP ""
@@ -160,7 +178,8 @@ enum class EncodedFormat : int32_t {
     GIF = 3,
     HEIF = 4,
     WEBP = 5,
-    DNG = 6
+    DNG = 6,
+    TIFF = 7,
 };
 
 enum class PixelFormat : int32_t {
@@ -431,19 +450,23 @@ enum class ScaleMode : int32_t {
 
 enum class IncrementalMode { FULL_DATA = 0, INCREMENTAL_DATA = 1 };
 
-// used in ScalePixelMapEx
+// Shared by PostProc::ScalePixelMapEx and PixelMap::scale.
+// These values represent anti-aliasing / resampling options, but the concrete scaling
+// algorithm behind the same enum value depends on the caller/backend implementation.
+// ScalePixelMapEx uses FFmpeg swscale interpolation flags, while PixelMap::scale uses
+// Skia sampling for most options and a dedicated SLR path for AntiAliasingOption::SLR.
 enum class AntiAliasingOption : int32_t {
-    NONE = 0, // SWS_POINT_NEAREST
-    LOW = 1, // SWS_BILINEAR
-    MEDIUM = 2, // SWS_BICUBIC
-    HIGH = 3, // SWS_AREA
-    FAST_BILINEAER = 4, // SWS_FAST_BILINEAER
-    BICUBLIN = 5, // SWS_AREA
-    GAUSS = 6, // SWS_GAUSS
-    SINC = 7, // SWS_SINC
-    LANCZOS = 8, // SWS_LANCZOS
-    SPLINE = 9, // SWS_SPLINE
-    SLR = 10, // SLR
+    NONE = 0, // ScalePixelMapEx: SWS_POINT; PixelMap::scale: nearest
+    LOW = 1, // ScalePixelMapEx: SWS_BILINEAR; PixelMap::scale: linear
+    MEDIUM = 2, // ScalePixelMapEx: SWS_BICUBIC; PixelMap::scale: linear + linear mipmap
+    HIGH = 3, // ScalePixelMapEx: SWS_AREA; PixelMap::scale: cubic resampler (B = 1/3, C = 1/3)
+    FAST_BILINEAER = 4, // ScalePixelMapEx: SWS_FAST_BILINEAR; PixelMap::scale: fallback to nearest
+    BICUBLIN = 5, // ScalePixelMapEx: SWS_BICUBLIN; PixelMap::scale: fallback to nearest
+    GAUSS = 6, // ScalePixelMapEx: SWS_GAUSS; PixelMap::scale: fallback to nearest
+    SINC = 7, // ScalePixelMapEx: SWS_SINC; PixelMap::scale: fallback to nearest
+    LANCZOS = 8, // ScalePixelMapEx: SWS_LANCZOS; PixelMap::scale: fallback to nearest
+    SPLINE = 9, // ScalePixelMapEx: SWS_SPLINE; PixelMap::scale: fallback to nearest
+    SLR = 10, // ScalePixelMapEx: fallback to SWS_POINT; PixelMap::scale: PostProc::ScalePixelMapWithSLR
 };
 
 enum class AuxiliaryPictureType {
@@ -489,6 +512,10 @@ enum class MetadataType {
     DNG = 16,
     WEBP = 17,
     HW_MAKER_NOTE = 18,
+    PNG = 19,
+    JFIF = 20,
+    TIFF = 21,
+    AVIS = 23,
 };
 
 static const std::map<MetadataType, std::string> BLOB_METADATA_TAG_MAP = {
@@ -508,7 +535,7 @@ struct DecodingOptionsForPicture {
 };
 
 struct DecodingOptionsForThumbnail {
-    int32_t maxGenerateSize = 512;
+    int32_t maxGeneratedPixelDimension = 512;
     bool generateThumbnailIfAbsent = true;
     PixelFormat desiredPixelFormat = PixelFormat::RGBA_8888;
     AllocatorType allocatorType = AllocatorType::DMA_ALLOC;
@@ -567,6 +594,7 @@ enum class PropertyValueType : int32_t {
     INT_ARRAY = 4,
     DOUBLE_ARRAY = 5,
     BLOB = 6,
+    BOOL = 7,
 };
 
 struct MetadataValue {
@@ -587,6 +615,10 @@ enum class NapiMetadataType {
     GIF_METADATA = 5,
     DNG_METADATA = 6,
     WEBP_METADATA = 7,
+    TIFF_METADATA = 8,
+    JFIF_METADATA = 9,
+    PNG_METADATA = 10,
+    AVIS_METADATA = 11,
 };
 
 enum class XMPTagType: int32_t {

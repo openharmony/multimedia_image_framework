@@ -318,7 +318,7 @@ struct PackingOption {
   bufferSize: Optional<i32>;
   desiredDynamicRange: Optional<PackingDynamicRange>;
   needsPackProperties: Optional<bool>;
-  embedThumbnailMaxSize: Optional<i32>;
+  maxEmbedThumbnailDimension: Optional<i32>;
 }
 
 struct PackingOptionsForSequence {
@@ -435,7 +435,8 @@ enum MetadataType: i32 {
   HEIFS_METADATA = 15,
   DNG_METADATA = 16,
   WEBP_METADATA = 17,
-  HW_MAKER_NOTE_METADATA = 18
+  HW_MAKER_NOTE_METADATA = 18,
+  AVIS_METADATA = 23,
 }
 
 enum FragmentMapPropertyKey: String {
@@ -554,6 +555,10 @@ enum WebPPropertyKey: String {
   LOOP_COUNT = "WebPLoopCount"
 }
 
+enum AvisPropertyKey: String {
+  DELAY_TIME = "AvisDelayTime",
+}
+
 enum Orientation: i32 {
   TOP_LEFT = 1,
   TOP_RIGHT = 2,
@@ -613,7 +618,7 @@ struct DecodingOptionsForPicture {
 }
 
 struct DecodingOptionsForThumbnail {
-  maxGenerateSize: Optional<i32>;
+  maxGeneratedPixelDimension: Optional<i32>;
   generateThumbnailIfAbsent: Optional<bool>;
 }
 
@@ -998,14 +1003,22 @@ interface Metadata {
   @!sts_inject_into_class("""
     clone(): Promise<(image.Metadata | undefined)> {
       return new Promise<(image.Metadata | undefined)>((resolve, reject): void => {
-        launch() {
+        let cb = (): image.Metadata | undefined | Error => {
+          let result: image.Metadata | undefined | Error;
           try {
-            let res = this.cloneMetadata();
-            resolve(res);
-          } catch(err) {
-            reject(err as Error);
-          };
-        }
+            result = this.cloneMetadata();
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as image.Metadata | undefined);
+          }
+        });
       });
     }
   """)
@@ -1141,15 +1154,24 @@ interface ExifMetadata : Metadata {
   @!sts_inject_into_class("""
     clone(): Promise<image.ExifMetadata> {
       return new Promise<image.ExifMetadata>((resolve, reject): void => {
-        launch() {
+        let cb = (): image.ExifMetadata | Error => {
+          let result: image.ExifMetadata | Error;
           try {
             let res = this.cloneExifMetadata();
             MetadataFieldHelper.copyDeclaredFields(this, res);
-            resolve(res);
-          } catch(err) {
-            reject(err as Error);
-          };
-        }
+            result = res;
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as image.ExifMetadata);
+          }
+        });
       });
     }
   """)
@@ -1304,15 +1326,24 @@ interface MakerNoteHuaweiMetadata : Metadata {
   @!sts_inject_into_class("""
     clone(): Promise<image.MakerNoteHuaweiMetadata> {
       return new Promise<image.MakerNoteHuaweiMetadata>((resolve, reject): void => {
-        launch() {
+        let cb = (): image.MakerNoteHuaweiMetadata | Error => {
+          let result: image.MakerNoteHuaweiMetadata | Error;
           try {
             let res = this.cloneMakerNoteHuaweiMetadata();
             MetadataFieldHelper.copyDeclaredFields(this, res);
-            resolve(res);
-          } catch(err) {
-            reject(err as Error);
-          };
-        }
+            result = res;
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as image.MakerNoteHuaweiMetadata);
+          }
+        });
       });
     }
   """)
@@ -1358,15 +1389,24 @@ interface HeifsMetadata : Metadata {
   @!sts_inject_into_class("""
     clone(): Promise<image.HeifsMetadata> {
       return new Promise<image.HeifsMetadata>((resolve, reject): void => {
-        launch() {
+        let cb = (): image.HeifsMetadata | Error => {
+          let result: image.HeifsMetadata | Error;
           try {
             let res = this.cloneHeifsMetadata();
             MetadataFieldHelper.copyDeclaredFields(this, res);
-            resolve(res);
-          } catch(err) {
-            reject(err as Error);
-          };
-        }
+            result = res;
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as image.HeifsMetadata);
+          }
+        });
       });
     }
   """)
@@ -1482,12 +1522,20 @@ interface WebPMetadata {
   """)
 }
 
+@class
+interface AvisMetadata {
+  @!sts_inject_into_class("""
+    delayTime?: int;
+  """)
+}
+
 struct ImageMetadata {
   exifMetadata: Optional<ExifMetadata>;
   makerNoteHuaweiMetadata: Optional<MakerNoteHuaweiMetadata>;
   heifsMetadata: Optional<HeifsMetadata>;
   dngMetadata: Optional<DngMetadata>;
   webPMetadata: Optional<WebPMetadata>;
+  avisMetadata: Optional<AvisMetadata>;
 }
 
 struct ImageRawData {
@@ -1619,39 +1667,58 @@ interface ImageSource {
   @!sts_inject_into_class("""
     readImageMetadata(propertyKeys?: string[], index?: int): Promise<image.ImageMetadata> {
       return new Promise<image.ImageMetadata>((resolve, reject): void => {
-        launch() {
+        let cb = (): image.ImageMetadata | Error => {
+          let result: image.ImageMetadata | Error;
           try {
             let imageMetadataPackage = this.readImageMetadataPackage(propertyKeys, index);
             if (imageMetadataPackage.properties != undefined) {
               this.assembleImageMetadata(imageMetadataPackage.metadata, imageMetadataPackage.properties!);
             }
-            resolve(imageMetadataPackage.metadata);
-          } catch (err) {
-            reject(err as Error);
-          };
-        }
+            result = imageMetadataPackage.metadata;
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as image.ImageMetadata);
+          }
+        });
       });
     }
 
     readImageMetadataByType(metadataTypes?: image.MetadataType[], index?: int): Promise<image.ImageMetadata> {
       return new Promise<image.ImageMetadata>((resolve, reject): void => {
-        launch() {
+        let cb = (): image.ImageMetadata | Error => {
+          let result: image.ImageMetadata | Error;
           try {
             let imageMetadataPackage = this.readImageMetadataPackageByType(metadataTypes, index);
             if (imageMetadataPackage.properties != undefined) {
               this.assembleImageMetadata(imageMetadataPackage.metadata, imageMetadataPackage.properties!);
             }
-            resolve(imageMetadataPackage.metadata);
-          } catch (err) {
-            reject(err as Error);
-          };
-        }
+            result = imageMetadataPackage.metadata;
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as image.ImageMetadata);
+          }
+        });
       });
     }
 
     writeImageMetadata(imageMetadata: image.ImageMetadata): Promise<void> {
       return new Promise<void>((resolve, reject): void => {
-        launch() {
+        let cb = (): undefined | Error => {
+          let result: undefined | Error;
           try {
             let properties = this.extractImageMetadata(imageMetadata);
             let imageMetadataPackage: image.ImageMetadataPackage = {
@@ -1659,12 +1726,19 @@ interface ImageSource {
               properties: properties
             };
             this.writeImageMetadataPackage(imageMetadataPackage);
-            let res = undefined;
-            resolve(res);
-          } catch (err) {
-            reject(err as Error);
-          };
-        }
+            result = undefined;
+          } catch(e) {
+            result = e as Error;
+          }
+          return result;
+        };
+        taskpool.execute(cb).then((ret: Any): void => {
+          if (ret instanceof Error) {
+            reject(ret);
+          } else {
+            resolve(ret as undefined);
+          }
+        });
       });
     }
 
@@ -1712,6 +1786,14 @@ interface ImageSource {
               break;
             }
             status = MetadataFieldHelper.setFieldViaReflection(webPMetadata, metadataValue.key, metadataValue.value);
+            break;
+          case image.MetadataType.AVIS_METADATA:
+            const avisMetadata = imageMetadata.avisMetadata;
+            if (avisMetadata == undefined) {
+              console.info("[assembleImageMetadata] avisMetadata is undefined");
+              break;
+            }
+            status = MetadataFieldHelper.setFieldViaReflection(avisMetadata, metadataValue.key, metadataValue.value);
             break;
           default:
             console.error(`[assembleImageMetadata] Unsupported metadata type: ${metadataValue.metadataType}`);
@@ -2021,6 +2103,9 @@ function DngMetadataCtor(): DngMetadata;
 
 @ctor("WebPMetadata")
 function WebPMetadataCtor(): WebPMetadata;
+
+@ctor("AvisMetadata")
+function AvisMetadataCtor(): AvisMetadata;
 
 // static functions
 @static("ExifMetadata")

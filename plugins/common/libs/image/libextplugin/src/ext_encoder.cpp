@@ -1968,26 +1968,29 @@ uint32_t ExtEncoder::ProcessJpegThumbnail()
 
 bool ExtEncoder::ShouldGenerateThumbnail()
 {
-    return opts_.needsPackProperties && opts_.embedThumbnailMaxSize > 0;
+    return opts_.needsPackProperties && opts_.maxEmbedThumbnailDimension > 0;
 }
 
-static bool GenerateThumbnailForPicture(Media::Picture *picture, const int32_t &embedThumbnailMaxSize)
+static bool GenerateThumbnailForPicture(Media::Picture *picture, const int32_t &maxEmbedThumbnailDimension)
 {
     bool cond = picture == nullptr;
     CHECK_ERROR_RETURN_RET_LOG(cond, false, "%{public}s: picture is nullptr", __func__);
-    cond = (embedThumbnailMaxSize <= 0);
+    cond = (maxEmbedThumbnailDimension <= 0);
     CHECK_ERROR_RETURN_RET_LOG(cond, false, "%{public}s: Thumbnail generation is enabled only when "
-        "embedThumbnailMaxSize > 0.", __func__);
+        "maxEmbedThumbnailDimension > 0.", __func__);
 
     int32_t errorCode = static_cast<int32_t>(ERROR);
     auto mainPixelMap = picture->GetMainPixel();
     CHECK_ERROR_RETURN_RET_LOG(mainPixelMap == nullptr, false, "%{public}s: mainPixelMap is nullptr", __func__);
     std::unique_ptr<PixelMap> pixelMap = nullptr;
     if (ImageUtils::IsYuvFormat(mainPixelMap->GetPixelFormat())) {
-        pixelMap = PixelYuv::CreateThumbnailPixelMap(*mainPixelMap, embedThumbnailMaxSize, errorCode);
+        pixelMap = PixelYuv::CreateThumbnailPixelMap(*mainPixelMap, maxEmbedThumbnailDimension, errorCode);
     } else {
         pixelMap = mainPixelMap->Clone(errorCode);
-        errorCode = static_cast<int32_t>(ImageUtils::ScaleThumbnailWithAspectRatio(pixelMap, embedThumbnailMaxSize));
+        CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS || pixelMap == nullptr, false,
+            "%{public}s: clone thumbnail for clone failed! errorCode: %{public}d", __func__, errorCode);
+        uint32_t ret = ImageUtils::ScaleThumbnailWithAspectRatio(pixelMap, maxEmbedThumbnailDimension);
+        errorCode = static_cast<int32_t>(ret);
     }
     CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS || pixelMap == nullptr, false,
         "%{public}s: Scale thumbnail failed! errorCode: %{public}d", __func__, errorCode);
@@ -2006,7 +2009,7 @@ uint32_t ExtEncoder::EncodePicture()
     bool cond = (encodeFormat_ != SkEncodedImageFormat::kJPEG && encodeFormat_ != SkEncodedImageFormat::kHEIF);
     CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER,
         "%{public}s: unsupported encode format: %{public}s", __func__, opts_.format.c_str());
-    if (ShouldGenerateThumbnail() && !GenerateThumbnailForPicture(picture_, opts_.embedThumbnailMaxSize)) {
+    if (ShouldGenerateThumbnail() && !GenerateThumbnailForPicture(picture_, opts_.maxEmbedThumbnailDimension)) {
         IMAGE_LOGW("%{public}s: Generate thumbnail for picture failed", __func__);
     }
     if (opts_.isEditScene && encodeFormat_ == SkEncodedImageFormat::kHEIF) {

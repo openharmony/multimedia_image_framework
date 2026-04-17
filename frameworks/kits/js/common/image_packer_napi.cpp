@@ -584,7 +584,7 @@ static bool parseNeedsPackProperties(napi_env env, napi_value root)
 static int32_t parseEmbedThumbnailMaxSize(napi_env env, napi_value root)
 {
     int32_t tmpNumber = 0;
-    if (!GET_INT32_BY_NAME(root, "embedThumbnailMaxSize", tmpNumber)) {
+    if (!GET_INT32_BY_NAME(root, "maxEmbedThumbnailDimension", tmpNumber)) {
         return tmpNumber;
     }
     return tmpNumber;
@@ -799,7 +799,7 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
     opts->desiredDynamicRange = parseDynamicRange(env, root);
     IMAGE_LOGD("parsePackOptions format:[%{public}s]", opts->format.c_str());
     opts->needsPackProperties = parseNeedsPackProperties(env, root);
-    opts->embedThumbnailMaxSize = parseEmbedThumbnailMaxSize(env, root);
+    opts->maxEmbedThumbnailDimension = parseEmbedThumbnailMaxSize(env, root);
     return parsePackOptionOfQuality(env, root, opts);
 }
 

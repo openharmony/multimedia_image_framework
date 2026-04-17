@@ -1088,6 +1088,32 @@ uint32_t PixelYuv::ApplyColorSpace(const OHOS::ColorManager::ColorSpace &grColor
 }
 #endif
 
+struct YUVPlaneCopyInfo {
+    const uint8_t *srcBase = nullptr;
+    uint8_t *dstBase = nullptr;
+    uint64_t srcOffset = 0;
+    uint64_t dstOffset = 0;
+    uint64_t srcStride = 0;
+    uint64_t dstStride = 0;
+    uint64_t rowBytes = 0;
+    uint32_t height = 0;
+    const char* planeName = nullptr;
+};
+ 
+static bool CopyYuvPlaneRows(const YUVPlaneCopyInfo &copyInfo)
+{
+    for (uint32_t row = 0; row < copyInfo.height; ++row) {
+        const uint8_t *srcRow = copyInfo.srcBase + copyInfo.srcOffset + row * copyInfo.srcStride;
+        uint8_t *dstRow = copyInfo.dstBase + copyInfo.dstOffset + row * copyInfo.dstStride;
+        if (memcpy_s(dstRow, static_cast<size_t>(copyInfo.dstStride),
+            srcRow, static_cast<size_t>(copyInfo.rowBytes)) != EOK) {
+            IMAGE_LOGE("CopyYuvPlanes %{public}s plane copy failed", copyInfo.planeName);
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool CopyYuvPlanes(PixelMap &source, PixelMap &dstPixelMap)
 {
     ImageInfo srcInfo;
@@ -1135,26 +1161,17 @@ static bool CopyYuvPlanes(PixelMap &source, PixelMap &dstPixelMap)
     cond = (dstYOffsetBytes + dstYStrideBytes * static_cast<uint64_t>(dstYuv.yHeight) > dstCapacity ||
         dstUvOffsetBytes + dstUvStrideBytes * static_cast<uint64_t>(dstYuv.uvHeight) > dstCapacity);
     CHECK_ERROR_RETURN_RET_LOG(cond, false, "CopyYuvPlanes destination out of range, capacity=%{public}u", dstCapacity);
-    
+
     cond = (yRowBytes > srcYStrideBytes || yRowBytes > dstYStrideBytes || uvRowBytes > srcUvStrideBytes ||
         uvRowBytes > dstUvStrideBytes);
     CHECK_ERROR_RETURN_RET_LOG(cond, false, "CopyYuvPlanes invalid stride for yuv copy");
 
-    for (uint32_t row = 0; row < srcYuv.yHeight; ++row) {
-        const uint8_t *srcRow = srcBase + srcYOffsetBytes + row * srcYStrideBytes;
-        uint8_t *dstRow = dstBase + dstYOffsetBytes + row * dstYStrideBytes;
-
-        cond = (memcpy_s(dstRow, static_cast<size_t>(dstYStrideBytes), srcRow, static_cast<size_t>(yRowBytes)) != EOK);
-        CHECK_ERROR_RETURN_RET_LOG(cond, false, "CopyYuvPlanes y plane copy failed");
-    }
-
-    for (uint32_t row = 0; row < srcYuv.uvHeight; ++row) {
-        const uint8_t *srcRow = srcBase + srcUvOffsetBytes + row * srcUvStrideBytes;
-        uint8_t *dstRow = dstBase + dstUvOffsetBytes + row * dstUvStrideBytes;
-        
-        cond = (memcpy_s(dstRow, static_cast<size_t>(dstUvStrideBytes), srcRow,
-            static_cast<size_t>(uvRowBytes)) != EOK);
-        CHECK_ERROR_RETURN_RET_LOG(cond, false, "CopyYuvPlanes uv plane copy failed");
+    YUVPlaneCopyInfo yCopyInfo = {srcBase, dstBase, srcYOffsetBytes, dstYOffsetBytes,
+        srcYStrideBytes, dstYStrideBytes, yRowBytes, srcYuv.yHeight, "y"};
+    YUVPlaneCopyInfo uvCopyInfo = {srcBase, dstBase, srcUvOffsetBytes, dstUvOffsetBytes,
+        srcUvStrideBytes, dstUvStrideBytes, uvRowBytes, srcYuv.uvHeight, "uv"};
+    if (!CopyYuvPlaneRows(yCopyInfo) || !CopyYuvPlaneRows(uvCopyInfo)) {
+        return false;
     }
 
     ImageUtils::FlushSurfaceBuffer(&dstPixelMap);
@@ -1210,30 +1227,33 @@ std::unique_ptr<PixelMap> PixelYuv::CloneYuvImpl(PixelMap &source, int32_t &erro
 
 static void GetYuvDataInfo(PixelMap &source, YUVDataInfo &yuvDataInfo)
 {
+#if !defined(CROSS_PLATFORM)
     // For DMA allocator, retrieve correct stride/offset from SurfaceBuffer planes.
     // The stride/offset returned by GetImageYUVInfo may be incomplete or incorrect for DMA buffers in some scenes.
-    if (source.GetAllocatorType() == AllocatorType::DMA_ALLOC) {
-        SurfaceBuffer *sb = reinterpret_cast<SurfaceBuffer *>(source.GetFd());
-        if (sb != nullptr) {
-            OH_NativeBuffer_Planes *planes = nullptr;
-            GSError retVal = sb->GetPlanesInfo(reinterpret_cast<void**>(&planes));
-            if (retVal == OHOS::GSERROR_OK && planes != nullptr && planes->planeCount >= NUM_2) {
-                int32_t pixelFmt = sb->GetFormat();
-                YUVStrideInfo strideInfo;
-                ImageUtils::GetYUVStrideInfo(pixelFmt, planes, strideInfo);
-                if (strideInfo.yStride > 0 && strideInfo.uvStride > 0) {
-                    yuvDataInfo.yStride = strideInfo.yStride;
-                    yuvDataInfo.uvStride = strideInfo.uvStride;
-                    yuvDataInfo.yOffset = strideInfo.yOffset;
-                    yuvDataInfo.uvOffset = strideInfo.uvOffset;
-                    IMAGE_LOGD("CreateThumbnailPixelMap use DMA stride: yStride=%{public}d, uvStride=%{public}d",
-                        yuvDataInfo.yStride, yuvDataInfo.uvStride);
-                }
-            } else {
-                IMAGE_LOGE("CreateThumbnailPixelMap GetPlanesInfo failed, retVal:%{public}d", retVal);
-            }
-        }
+    CHECK_ERROR_RETURN_LOG(source.GetAllocatorType() != AllocatorType::DMA_ALLOC,
+        "GetYuvDataInfo source is not DMA allocator");
+
+    SurfaceBuffer *sb = reinterpret_cast<SurfaceBuffer *>(source.GetFd());
+    CHECK_ERROR_RETURN_LOG(sb == nullptr, "GetYuvDataInfo source pixelMap etFd failed");
+
+    OH_NativeBuffer_Planes *planes = nullptr;
+    GSError retVal = sb->GetPlanesInfo(reinterpret_cast<void**>(&planes));
+
+    CHECK_ERROR_RETURN_LOG(retVal != OHOS::GSERROR_OK || planes == nullptr || planes->planeCount < NUM_2,
+        "GetYuvDataInfo GetPlanesInfo failed, retVal:%{public}d", retVal);
+
+    int32_t pixelFmt = sb->GetFormat();
+    YUVStrideInfo strideInfo;
+    ImageUtils::GetYUVStrideInfo(pixelFmt, planes, strideInfo);
+    if (strideInfo.yStride > 0 && strideInfo.uvStride > 0) {
+        yuvDataInfo.yStride = strideInfo.yStride;
+        yuvDataInfo.uvStride = strideInfo.uvStride;
+        yuvDataInfo.yOffset = strideInfo.yOffset;
+        yuvDataInfo.uvOffset = strideInfo.uvOffset;
+        IMAGE_LOGD("GetYuvDataInfo use DMA stride: yStride=%{public}d, uvStride=%{public}d",
+            yuvDataInfo.yStride, yuvDataInfo.uvStride);
     }
+#endif
 }
 
 static void SetDstYuvDataInfo(Size size, YUVStrideInfo dstStrides, YUVDataInfo &dstYuvDataInfo)
@@ -1305,9 +1325,10 @@ std::unique_ptr<PixelMap> PixelYuv::CreateThumbnailPixelMap(PixelMap &source, in
     }
     Size targetSize;
     float scale = 1.0f;
-    errorCode = ImageUtils::GetThumbnailScaleTargetSize(imageInfo.size, maxPixelSize, targetSize, scale);
+    uint32_t err = ImageUtils::GetThumbnailScaleTargetSize(imageInfo.size, maxPixelSize, targetSize, scale);
+    errorCode = static_cast<int32_t>(err);
     CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, nullptr);
-    if (scale == 1.0f) {
+    if (ImageUtils::FloatEqual(scale, 1.0f)) {
         return CloneYuvImpl(source, errorCode);
     }
     targetSize.width = targetSize.width - (targetSize.width % NUM_2);
@@ -1328,9 +1349,7 @@ std::unique_ptr<PixelMap> PixelYuv::CreateThumbnailPixelMap(PixelMap &source, in
  
     YUVDataInfo yuvDataInfo;
     source.GetImageYUVInfo(yuvDataInfo);
-#if !defined(CROSS_PLATFORM)
     GetYuvDataInfo(source, yuvDataInfo);
-#endif
  
     YUVDataInfo dstYuvDataInfo = yuvDataInfo;
     SetDstYuvDataInfo(targetSize, dstStrides, dstYuvDataInfo);

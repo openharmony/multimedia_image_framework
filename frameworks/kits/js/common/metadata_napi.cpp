@@ -25,9 +25,12 @@
 #include "heifs_metadata.h"
 #include "fragment_metadata.h"
 #include "gif_metadata.h"
+#include "jfif_metadata.h"
 #include "rfdatab_metadata.h"
 #include "xtstyle_metadata.h"
 #include "webp_metadata.h"
+#include "png_metadata.h"
+#include "avis_metadata.h"
 
 #undef LOG_DOMAIN
 #define LOG_DOMAIN LOG_TAG_DOMAIN_ID_IMAGE
@@ -51,7 +54,10 @@ namespace Media {
     static const std::string GIF_CLASS = "GifMetadata";
     static const std::string XTSTYLE_CLASS = "XtStyleMetadata";
     static const std::string RFDATAB_CLASS = "RfDataBMetadata";
+    static const std::string JFIF_CLASS = "JfifMetadata";
     static const std::string WEBP_CLASS = "WebPMetadata";
+    static const std::string PNG_CLASS = "PngMetadata";
+    static const std::string AVIS_CLASS = "AvisMetadata";
     thread_local napi_ref MetadataNapi::sConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sExifConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sMakerNoteConstructor_ = nullptr;
@@ -60,7 +66,10 @@ namespace Media {
     thread_local napi_ref MetadataNapi::sGifMetadataConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sXtStyleMetadataConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sRfDataBMetadataConstructor_ = nullptr;
+    thread_local napi_ref MetadataNapi::sJfifMetadataConstructor_ = nullptr;
     thread_local napi_ref MetadataNapi::sWebpConstructor_ = nullptr;
+    thread_local napi_ref MetadataNapi::sPngConstructor_ = nullptr;
+    thread_local napi_ref MetadataNapi::sAvisMetadataConstructor_ = nullptr;
     thread_local std::shared_ptr<ImageMetadata> MetadataNapi::sMetadata_ = nullptr;
 
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
@@ -712,6 +721,80 @@ napi_value MetadataNapi::InitWebPMetadata(napi_env env, napi_value exports)
     return exports;
 }
 
+napi_value MetadataNapi::InitJfifMetadata(napi_env env, napi_value exports)
+{
+    IMAGE_LOGD("InitJfifMetadata ENTER");
+    
+    napi_property_descriptor instanceProps[] = {};
+    napi_property_descriptor staticProps[] = {};
+    napi_value constructor = nullptr;
+    napi_status status = napi_define_class(env, JFIF_CLASS.c_str(), NAPI_AUTO_LENGTH, Constructor, nullptr,
+        sizeof(instanceProps) / sizeof(instanceProps[0]), instanceProps, &constructor);
+    if (status != napi_ok || constructor == nullptr) {
+        IMAGE_LOGE("Failed to define JfifMetadata class: %{public}d", status);
+        return exports;
+    }
+    status = napi_define_properties(env, constructor, sizeof(staticProps) / sizeof(staticProps[0]), staticProps);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to define static methods: %{public}d", status);
+        return exports;
+    }
+    status = napi_create_reference(env, constructor, 1, &sJfifMetadataConstructor_);
+    if (status != napi_ok || sJfifMetadataConstructor_ == nullptr) {
+        IMAGE_LOGE("Failed to create JfifMetadata ref: %{public}d", status);
+        return exports;
+    }
+    status = napi_set_named_property(env, exports, JFIF_CLASS.c_str(), constructor);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to export %{public}s class: %{public}d", JFIF_CLASS.c_str(), status);
+    }
+    auto context = new NapiConstructorContext();
+    context->env_ = env;
+    context->ref_ = sJfifMetadataConstructor_;
+    napi_add_env_cleanup_hook(env, ImageNapiUtils::CleanUpConstructorContext, context);
+    
+    IMAGE_LOGD("InitJfifMetadata EXIT");
+    return exports;
+}
+
+napi_value MetadataNapi::InitPngMetadata(napi_env env, napi_value exports)
+{
+    IMAGE_LOGD("InitPngMetadata ENTER");
+    napi_property_descriptor instanceProps[] = {};
+    napi_property_descriptor staticProps[] = {};
+
+    napi_value constructor = nullptr;
+    napi_status status = napi_define_class(env, PNG_CLASS.c_str(), NAPI_AUTO_LENGTH, Constructor, nullptr,
+        sizeof(instanceProps) / sizeof(instanceProps[0]), instanceProps, &constructor);
+    if (status != napi_ok || constructor == nullptr) {
+        IMAGE_LOGE("Failed to define PngMetadata class: %{public}d", status);
+        return exports;
+    }
+    status = napi_define_properties(env, constructor, sizeof(staticProps) / sizeof(staticProps[0]), staticProps);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to define static methods for PngMetadata: %{public}d", status);
+    }
+
+    status = napi_create_reference(env, constructor, 1, &sPngConstructor_);
+    if (status != napi_ok || sPngConstructor_ == nullptr) {
+        IMAGE_LOGE("Failed to create Png ref: %{public}d", status);
+        return exports;
+    }
+
+    status = napi_set_named_property(env, exports, PNG_CLASS.c_str(), constructor);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to export %{public}s class: %{public}d", PNG_CLASS.c_str(), status);
+    }
+
+    auto context = new NapiConstructorContext();
+    context->env_ = env;
+    context->ref_ = sPngConstructor_;
+    napi_add_env_cleanup_hook(env, ImageNapiUtils::CleanUpConstructorContext, context);
+
+    IMAGE_LOGD("InitPngMetadata EXIT");
+    return exports;
+}
+
 napi_value MetadataNapi::CreateMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata)
 {
     if (sConstructor_ == nullptr) {
@@ -913,6 +996,63 @@ napi_value MetadataNapi::CreateWebPMetadata(napi_env env, std::shared_ptr<ImageM
     }
     if (!IMG_IS_OK(status)) {
         IMAGE_LOGE("CreateWebPMetadata | New instance could not be obtained");
+        napi_get_undefined(env, &result);
+    }
+    return result;
+}
+
+napi_value MetadataNapi::CreateTiffMetadata(napi_env env)
+{
+    napi_value obj = nullptr;
+    napi_status status = napi_create_object(env, &obj);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to create empty TiffMetadata object: %{public}d", status);
+        napi_value result = nullptr;
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    return obj;
+}
+
+napi_value MetadataNapi::CreateJfifMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata)
+{
+    if (sJfifMetadataConstructor_ == nullptr) {
+        napi_value exports = nullptr;
+        napi_create_object(env, &exports);
+        MetadataNapi::InitJfifMetadata(env, exports);
+    }
+    napi_value constructor = nullptr;
+    napi_value result = nullptr;
+    napi_status status = napi_get_reference_value(env, sJfifMetadataConstructor_, &constructor);
+    if (status == napi_ok) {
+        sMetadata_ = metadata;
+        status = napi_new_instance(env, constructor, 0, nullptr, &result);
+    }
+    if (status != napi_ok) {
+        IMAGE_LOGE("CreateJfifMetadata | Failed to create instance");
+        napi_get_undefined(env, &result);
+    }
+    return result;
+}
+
+napi_value MetadataNapi::CreatePngMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata)
+{
+    if (sPngConstructor_ == nullptr) {
+        napi_value exports = nullptr;
+        napi_create_object(env, &exports);
+        MetadataNapi::InitPngMetadata(env, exports);
+    }
+
+    napi_value constructor = nullptr;
+    napi_value result = nullptr;
+    IMAGE_LOGD("CreatePngMetadata IN");
+    napi_status status = napi_get_reference_value(env, sPngConstructor_, &constructor);
+    if (IMG_IS_OK(status)) {
+        sMetadata_ = metadata;
+        status = napi_new_instance(env, constructor, NUM_0, nullptr, &result);
+    }
+    if (!IMG_IS_OK(status)) {
+        IMAGE_LOGE("CreatePngMetadata | New instance could not be obtained");
         napi_get_undefined(env, &result);
     }
     return result;
@@ -2461,6 +2601,139 @@ napi_value MetadataNapi::CreateWebPMetadataInstance(napi_env env, napi_callback_
     }
     metadataNapi->nativeMetadata_ = metadata;
     IMAGE_LOGD("MetadataNapi::CreateWebPMetadataInstance OUT");
+    return result;
+}
+
+napi_value MetadataNapi::CreateJfifMetadataInstance(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("MetadataNapi::CreateJfifMetadataInstance IN");
+    napi_value result = nullptr;
+    napi_value constructor = nullptr;
+    napi_status status;
+
+    status = napi_get_reference_value(env, sJfifMetadataConstructor_, &constructor);
+    if (status != napi_ok || constructor == nullptr) {
+        IMAGE_LOGE("Failed to get constructor reference, status: %{public}d", status);
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    auto metadata = std::make_shared<JfifMetadata>();
+    if (!metadata) {
+        IMAGE_LOGE("Failed to create JfifMetadata instance");
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    status = napi_new_instance(env, constructor, 0, nullptr, &result);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to create new instance, status: %{public}d", status);
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    MetadataNapi* metadataNapi = nullptr;
+    status = napi_unwrap(env, result, reinterpret_cast<void**>(&metadataNapi));
+    if (status != napi_ok || metadataNapi == nullptr) {
+        IMAGE_LOGE("Failed to unwrap metadataNapi, status: %{public}d", status);
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    metadataNapi->nativeMetadata_ = metadata;
+    IMAGE_LOGD("MetadataNapi::CreateJfifMetadataInstance OUT");
+    return result;
+}
+
+napi_value MetadataNapi::CreatePngMetadataInstance(napi_env env, napi_callback_info info)
+{
+    IMAGE_LOGD("MetadataNapi::CreatePngMetadataInstance IN");
+    napi_value result = nullptr;
+    napi_value constructor = nullptr;
+    napi_status status;
+
+    status = napi_get_reference_value(env, sPngConstructor_, &constructor);
+    if (status != napi_ok || constructor == nullptr) {
+        IMAGE_LOGE("Failed to get constructor reference, status: %{public}d", status);
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    auto metadata = std::make_shared<PngMetadata>();
+    if (!metadata) {
+        IMAGE_LOGE("Failed to create PngMetadata instance");
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    status = napi_new_instance(env, constructor, 0, nullptr, &result);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to create new instance, status: %{public}d", status);
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    MetadataNapi* metadataNapi = nullptr;
+    status = napi_unwrap(env, result, reinterpret_cast<void**>(&metadataNapi));
+    if (status != napi_ok || metadataNapi == nullptr) {
+        IMAGE_LOGE("Failed to unwrap metadataNapi, status: %{public}d", status);
+        napi_get_undefined(env, &result);
+        return result;
+    }
+    metadataNapi->nativeMetadata_ = metadata;
+    IMAGE_LOGD("MetadataNapi::CreatePngMetadataInstance OUT");
+    return result;
+}
+
+napi_value MetadataNapi::InitAvisMetadata(napi_env env, napi_value exports)
+{
+    IMAGE_LOGD("InitAvisMetadata ENTER");
+
+    napi_property_descriptor instanceProps[] = {};
+    napi_property_descriptor staticProps[] = {};
+    napi_value constructor = nullptr;
+    napi_status status = napi_define_class(env, AVIS_CLASS.c_str(), NAPI_AUTO_LENGTH, Constructor, nullptr,
+        sizeof(instanceProps) / sizeof(instanceProps[0]), instanceProps, &constructor);
+    if (status != napi_ok || constructor == nullptr) {
+        IMAGE_LOGE("Failed to define AvisMetadata class: %{public}d", status);
+        return exports;
+    }
+    status = napi_define_properties(env, constructor, sizeof(staticProps) / sizeof(staticProps[0]), staticProps);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to define static methods for AvisMetadata: %{public}d", status);
+    }
+
+    status = napi_create_reference(env, constructor, 1, &sAvisMetadataConstructor_);
+    if (status != napi_ok || sAvisMetadataConstructor_ == nullptr) {
+        IMAGE_LOGE("Failed to create Avis ref: %{public}d", status);
+        return exports;
+    }
+
+    status = napi_set_named_property(env, exports, AVIS_CLASS.c_str(), constructor);
+    if (status != napi_ok) {
+        IMAGE_LOGE("Failed to export %{public}s class: %{public}d", AVIS_CLASS.c_str(), status);
+    }
+
+    auto context = new NapiConstructorContext();
+    context->env_ = env;
+    context->ref_ = sAvisMetadataConstructor_;
+    napi_add_env_cleanup_hook(env, ImageNapiUtils::CleanUpConstructorContext, context);
+
+    IMAGE_LOGD("InitAvisMetadata EXIT");
+    return exports;
+}
+
+napi_value MetadataNapi::CreateAvisMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata)
+{
+    if (sAvisMetadataConstructor_ == nullptr) {
+        napi_value exports = nullptr;
+        napi_create_object(env, &exports);
+        MetadataNapi::InitAvisMetadata(env, exports);
+    }
+    napi_value constructor = nullptr;
+    napi_value result = nullptr;
+    napi_status status = napi_get_reference_value(env, sAvisMetadataConstructor_, &constructor);
+    if (status == napi_ok) {
+        sMetadata_ = metadata;
+        status = napi_new_instance(env, constructor, 0, nullptr, &result);
+    }
+    if (status != napi_ok) {
+        IMAGE_LOGE("CreateAvisMetadata | Failed to create instance");
+        napi_get_undefined(env, &result);
+    }
     return result;
 }
 } // namespace Media

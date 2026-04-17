@@ -95,6 +95,7 @@ public:
     bool GetHeifsFrameCount(uint32_t &sampleCount);
     bool IsHeifsImage();
     uint32_t GetHeifsDelayTime(uint32_t index, int32_t &value);
+    uint32_t GetHeifsCanvasPixelSize(uint32_t index, int32_t &value, bool isWidth);
     void SetDstBufferSize(uint64_t byteCount);
     void SetDstPrimaryImageBufferSize(uint64_t byteCount);
     void SetDstImageInfo(uint32_t dstWidth, uint32_t dstHeight);

@@ -422,6 +422,15 @@ WebPMetadataImpl::WebPMetadataImpl(std::shared_ptr<OHOS::Media::WebPMetadata> me
 WebPMetadataImpl::~WebPMetadataImpl() = default;
 // --- End of WebpMetadata --- //
 
+// --- Begin of AvisMetadata --- //
+AvisMetadataImpl::AvisMetadataImpl() : MetadataImpl() {}
+
+AvisMetadataImpl::AvisMetadataImpl(std::shared_ptr<OHOS::Media::AvisMetadata> metadata)
+    : MetadataImpl(metadata) {}
+
+AvisMetadataImpl::~AvisMetadataImpl() = default;
+// --- End of AvisMetadata --- //
+
 // --- Begin of global functions --- //
 ExifMetadata CreateExifMetadataInstance()
 {
@@ -462,6 +471,11 @@ WebPMetadata WebPMetadataCtor()
 {
     return make_holder<WebPMetadataImpl, WebPMetadata>();
 }
+
+AvisMetadata AvisMetadataCtor()
+{
+    return make_holder<AvisMetadataImpl, AvisMetadata>();
+}
 // --- End of global functions --- //
 
 } // namespace ANI::Image
@@ -474,3 +488,4 @@ TH_EXPORT_CPP_API_MakerNoteHuaweiMetadataCtor(MakerNoteHuaweiMetadataCtor);
 TH_EXPORT_CPP_API_HeifsMetadataCtor(HeifsMetadataCtor);
 TH_EXPORT_CPP_API_DngMetadataCtor(DngMetadataCtor);
 TH_EXPORT_CPP_API_WebPMetadataCtor(WebPMetadataCtor);
+TH_EXPORT_CPP_API_AvisMetadataCtor(AvisMetadataCtor);

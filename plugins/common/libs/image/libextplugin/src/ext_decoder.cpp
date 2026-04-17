@@ -52,9 +52,11 @@
 #include "heif_impl/HeifDecoder.h"
 #include "heif_impl/HeifDecoderImpl.h"
 #endif
+#include "heif_impl/AvifDecoderImpl.h"
 #include "buffer_source_stream.h"
 #include "color_utils.h"
 #include "cr3_format_agent.h"
+#include "gif_format_agent.h"
 #include "cr3_parser.h"
 #include "heif_parser.h"
 #include "heif_format_agent.h"
@@ -66,6 +68,7 @@
 #include "include/core/SkBitmap.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkImage.h"
+#include "kv_metadata.h"
 #ifdef USE_M133_SKIA
 #include "include/codec/SkCodecAnimation.h"
 #include "modules/skcms/src/skcms_public.h"
@@ -127,6 +130,8 @@ namespace {
     constexpr static int LUMA_10_BIT = 10;
     constexpr static int JPEG_MARKER_LENGTH = 2;
     static constexpr uint8_t JPEG_SOI_HEADER[] = { 0xFF, 0xD8 };
+    constexpr static uint64_t BIT_10_MULTIPLIER = 2;
+    constexpr static uint32_t GIF_HEADER_AND_SCREEN_SIZE = 13;
 }
 
 namespace OHOS {
@@ -152,7 +157,12 @@ const static string IMAGE_DELAY_TIME = "DelayTime";
 const static string IMAGE_DISPOSAL_TYPE = "DisposalType";
 const static string IMAGE_LOOP_COUNT = "GIFLoopCount";
 const static string WEBP_LOOP_COUNT = "WebPLoopCount";
+const static string GIF_CANVAS_PIXEL_WIDTH = "GifCanvasWidth";
+const static string GIF_CANVAS_PIXEL_HEIGHT = "GifCanvasHeight";
+const static string GIF_HAS_GLOBAL_COLOR_MAP = "GifHasGlobalColorMap";
+const static string GIF_UNCLAMPED_DELAY_TIME = "GifUnclampedDelayTime";
 const static std::string HW_MNOTE_TAG_HEADER = "HwMnote";
+constexpr static uint32_t GIF_HEADER_SIZE = 6;
 const static std::string HW_MNOTE_CAPTURE_MODE = "HwMnoteCaptureMode";
 const static std::string HW_MNOTE_PHYSICAL_APERTURE = "HwMnotePhysicalAperture";
 const static std::string HW_MNOTE_TAG_ROLL_ANGLE = "HwMnoteRollAngle";
@@ -169,6 +179,18 @@ const static std::string HW_MNOTE_TAG_SCENE_NIGHT_CONF = "HwMnoteSceneNightConf"
 const static std::string HW_MNOTE_TAG_SCENE_TEXT_CONF = "HwMnoteSceneTextConf";
 const static std::string HW_MNOTE_TAG_FACE_COUNT = "HwMnoteFaceCount";
 const static std::string HW_MNOTE_TAG_FOCUS_MODE = "HwMnoteFocusMode";
+const static std::string JFIF_METADATA_DENSITY_UNIT = "JfifDensityUnit";
+const static std::string JFIF_METADATA_IS_PROGRESSIVE = "JfifIsProgressive";
+const static std::string JFIF_METADATA_VERSION  = "JfifVersion";
+const static std::string JFIF_METADATA_X_DENSITY = "JfifXDensity";
+const static std::string JFIF_METADATA_Y_DENSITY = "JfifYDensity";
+const static std::string JFIF_METADATA_MAJOR_VERSION = "JFIF_major_version";
+const static std::string JFIF_METADATA_MINOR_VERSION = "JFIF_minor_version";
+const static std::string HEIFS_METADATA_DELAYTIME = "HeifsDelayTime";
+const static std::string HEIFS_METADATA_UNCLAMPED_DELAY_TIME = "HeifsUnclampedDelayTime";
+const static std::string HEIFS_METADATA_CANVAS_PIXEL_HEIGHT = "HeifsCanvasHeight";
+const static std::string HEIFS_METADATA_CANVAS_PIXEL_WIDTH = "HeifsCanvasWidth";
+
 // SUCCESS is existed in both OHOS::HiviewDFX and OHOS::Media
 #define SUCCESS OHOS::Media::SUCCESS
 const static std::string DEFAULT_PACKAGE_NAME = "entry";
@@ -220,6 +242,7 @@ static const map<SkEncodedImageFormat, string> FORMAT_NAME = {
     { SkEncodedImageFormat::kASTC, "" },
     { SkEncodedImageFormat::kDNG, "image/raw" },
     { SkEncodedImageFormat::kHEIF, "image/heif" },
+    { SkEncodedImageFormat::kAVIF, "image/avif" },
 };
 
 static const map<piex::image_type_recognition::RawImageTypes, string> RAW_FORMAT_NAME = {
@@ -314,9 +337,9 @@ static BufferRequestConfig CreateDmaRequestConfig(const SkImageInfo &dstInfo, ui
     auto formatSearch = PIXELFORMAT_TOGRAPHIC_MAP.find(pixelFormat);
     requestConfig.format = (formatSearch != PIXELFORMAT_TOGRAPHIC_MAP.end()) ?
         formatSearch->second : GRAPHIC_PIXEL_FMT_RGBA_8888;
-    if (requestConfig.format == GRAPHIC_PIXEL_FMT_YCBCR_420_SP ||
-        requestConfig.format == GRAPHIC_PIXEL_FMT_YCRCB_420_SP) {
-        count = JpegDecoderYuv::GetYuvOutSize(dstInfo.width(), dstInfo.height());
+    if (ImageUtils::IsYuvFormat(pixelFormat)) {
+        uint32_t pixelByte = (pixelFormat == PixelFormat::NV12 || pixelFormat == PixelFormat::NV21) ? NUM_1 : NUM_2;
+        count = JpegDecoderYuv::GetYuvOutSize(dstInfo.width(), dstInfo.height()) * pixelByte;
     } else if (requestConfig.format == GRAPHIC_PIXEL_FMT_RGBA16_FLOAT) {
         count = (uint32_t)dstInfo.width() * (uint32_t)dstInfo.height() *
             (uint32_t)ImageUtils::GetPixelBytes(PixelFormat::RGBA_F16);
@@ -521,6 +544,8 @@ void ExtDecoder::Reset()
     dstSubset_ = SkIRect::MakeEmpty();
     info_.reset();
     rawEncodedFormat_.clear();
+    gifMetadataParsed_ = false;
+    gifHasGlobalColorMap_ = false;
 }
 
 static inline float Max(float a, float b)
@@ -903,6 +928,15 @@ uint32_t ExtDecoder::SetDecodeOptions(uint32_t index, const PixelDecodeOptions &
         }
         if (skEncodeFormat == SkEncodedImageFormat::kHEIF && IsYuv420Format(opts.desiredPixelFormat)) {
             info.pixelFormat = opts.desiredPixelFormat;
+        }
+        if (skEncodeFormat == SkEncodedImageFormat::kAVIF) {
+            auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec_->getHeifContext());
+            CHECK_ERROR_RETURN_RET_LOG(decoder == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "Avif Decoder is nullptr.");
+#ifndef CROSS_PLATFORM
+            CHECK_ERROR_RETURN_RET_LOG(!decoder->IsSupportedPixelFormat(opts.isAnimationDecode,
+                opts.desiredPixelFormat), ERR_IMAGE_DATA_UNSUPPORT,
+                "%{public}s current AVIF desiredFormat is not support", __func__);
+#endif
         }
     }
     regionDesiredSize_.width = opts.desiredSize.width;
@@ -1769,6 +1803,14 @@ uint32_t ExtDecoder::Decode(uint32_t index, DecodeContext &context)
         res = GifDecode(index, context, rowStride);
         ImageUtils::FlushContextSurfaceBuffer(context);
         return res;
+    } else if (skEncodeFormat == SkEncodedImageFormat::kAVIF) {
+        if (!context.isAnimationDecode && index > 0) {
+            context.isAnimationDecode = true;
+        }
+        context.index = index;
+        res = AvifDecode(index, context, rowStride, byteCount);
+        ImageUtils::FlushContextSurfaceBuffer(context);
+        return res;
     }
     CHECK_ERROR_RETURN_RET_LOG(codec_ == nullptr, ERR_IMAGE_DECODE_FAILED, "codec_ is nullptr");
     SkCodec::Result ret = codec_->getPixels(dstInfo_, dstBuffer, rowStride, &dstOptions_);
@@ -2359,6 +2401,16 @@ static uint32_t GetFormatName(SkEncodedImageFormat format, std::string &name, Sk
             }
         }
 #endif
+        if (format == SkEncodedImageFormat::kAVIF) {
+            CHECK_ERROR_RETURN_RET_LOG(!codec, ERR_IMAGE_DATA_UNSUPPORT, "codec is nullptr");
+            auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec->getHeifContext());
+            CHECK_ERROR_RETURN_RET_LOG(!decoder, ERR_IMAGE_DATA_UNSUPPORT, "HeifDecoder is nullptr");
+#ifndef CROSS_PLATFORM
+            if (decoder->IsAvisImage()) {
+                name = IMAGE_AVIS_FORMAT;
+            }
+#endif
+        }
         if (format == SkEncodedImageFormat::kWBMP && ImageUtils::GetAPIVersion() >= APIVERSION_20) {
             name = IMAGE_WBMP_FORMAT;
         }
@@ -2477,7 +2529,8 @@ static std::vector<ColorSpaceNameEnum> sColorSpaceNamedMap = {
     {"BT.2020", OHOS::ColorManager::ColorSpaceName::BT2020},
     {"DCI-P3", OHOS::ColorManager::ColorSpaceName::DCI_P3},
     {"Rec2020 Gamut with HLG Transfer", OHOS::ColorManager::ColorSpaceName::BT2020_HLG},
-    {"REC. 2020", OHOS::ColorManager::ColorSpaceName::BT2020_HLG}
+    {"REC. 2020", OHOS::ColorManager::ColorSpaceName::BT2020_HLG},
+    {"Skia", OHOS::ColorManager::ColorSpaceName::ADOBE_RGB}
 };
 
 // Determine if a ColorSpaceName is supported by current framework mapping
@@ -2586,7 +2639,8 @@ OHOS::ColorManager::ColorSpace ExtDecoder::GetSrcColorSpace()
                 return ColorManager::ColorSpace(cName);
             }
         }
-        if (codec_->getEncodedFormat() == SkEncodedImageFormat::kHEIF) {
+        auto format = codec_->getEncodedFormat();
+        if (format == SkEncodedImageFormat::kHEIF || format == SkEncodedImageFormat::kAVIF) {
             ColorManager::ColorSpaceName cName = GetHeifNclxColor(codec_.get());
             if (cName != ColorManager::NONE) {
                 heifColorSpaceName_ = cName;
@@ -2684,6 +2738,20 @@ static uint32_t GetHeifsDelayTime(SkCodec *codec, uint32_t index, int32_t &value
 }
 #endif
 
+static uint32_t GetAvisDelayTime(SkCodec *codec, uint32_t index, int32_t &value)
+{
+#ifndef CROSS_PLATFORM
+    CHECK_ERROR_RETURN_RET(!codec, ERR_MEDIA_INVALID_PARAM);
+    auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec->getHeifContext());
+    CHECK_ERROR_RETURN_RET(!decoder, ERR_MEDIA_INVALID_PARAM);
+    auto ret = decoder->GetAvisDelayTime(index, value);
+    IMAGE_LOGD("GetAvisDelayTime : %{public}d", value);
+    return ret;
+#else
+    return ERR_MEDIA_INVALID_PARAM;
+#endif
+}
+
 static uint32_t GetDelayTime(SkCodec * codec, uint32_t index, int32_t &value)
 {
 #ifdef HEIF_HW_DECODE_ENABLE
@@ -2691,6 +2759,9 @@ static uint32_t GetDelayTime(SkCodec * codec, uint32_t index, int32_t &value)
         return GetHeifsDelayTime(codec, index, value);
     }
 #endif
+    if (codec->getEncodedFormat() == SkEncodedImageFormat::kAVIF) {
+        return GetAvisDelayTime(codec, index, value);
+    }
     if (codec->getEncodedFormat() != SkEncodedImageFormat::kGIF &&
         codec->getEncodedFormat() != SkEncodedImageFormat::kWEBP) {
         IMAGE_LOGE("[GetDelayTime] Should not get delay time in %{public}d", codec->getEncodedFormat());
@@ -2741,6 +2812,135 @@ static uint32_t GetLoopCount(SkCodec *codec, int32_t &value)
     return SUCCESS;
 }
 
+static uint32_t ReadGifHeaderAndPalette(InputDataStream *stream, std::vector<uint8_t> &gifData)
+{
+    uint32_t savedPosition = stream->Tell();
+    CHECK_ERROR_RETURN_RET_LOG(!stream->Seek(0), ERR_IMAGE_GET_DATA_ABNORMAL,
+        "[ReadGifHeaderAndPalette] Seek to 0 failed");
+
+    const uint32_t want = static_cast<uint32_t>(gifData.size());
+    uint32_t readSize = 0;
+    if (!stream->Read(want, gifData.data(), want, readSize) || readSize < GIF_HEADER_AND_SCREEN_SIZE) {
+        (void)stream->Seek(savedPosition);
+        IMAGE_LOGE("[ParseGifMetadata] Read GIF data failed");
+        return ERR_IMAGE_GET_DATA_ABNORMAL;
+    }
+    (void)stream->Seek(savedPosition);
+    return SUCCESS;
+}
+
+uint32_t ExtDecoder::ParseGifMetadata()
+{
+    CHECK_ERROR_RETURN_RET(stream_ == nullptr || codec_ == nullptr ||
+        codec_->getEncodedFormat() != SkEncodedImageFormat::kGIF, ERR_MEDIA_INVALID_PARAM);
+
+    CHECK_INFO_RETURN_RET_LOG(gifMetadataParsed_, SUCCESS, "[ParseGifMetadata] GIF metadata already parsed");
+    std::vector<uint8_t> gifData(GIF_HEADER_AND_SCREEN_SIZE);
+    uint32_t ret = ReadGifHeaderAndPalette(stream_, gifData);
+    if (ret != SUCCESS) {
+        return ret;
+    }
+    const uint8_t *data = gifData.data();
+
+    GifFormatAgent agent;
+    CHECK_ERROR_RETURN_RET_LOG(!agent.CheckFormat(data, gifData.size()), ERR_IMAGE_DATA_ABNORMAL,
+        "[ParseGifMetadata] Invalid GIF signature");
+    // LSD packed-fields byte: signature(6) + screen width(2) + screen height(2)
+    constexpr uint32_t lsdPackedFieldsOffset = 10;
+    uint8_t packed = data[lsdPackedFieldsOffset];
+    gifHasGlobalColorMap_ = (packed & 0x80) != 0;
+    gifMetadataParsed_ = true;
+    IMAGE_LOGD("[ParseGifMetadata] hasGlobalColorMap=%{public}d", gifHasGlobalColorMap_);
+    return SUCCESS;
+}
+
+static uint32_t GetGifCanvasDimensions(SkCodec *codec, const std::string &key, int32_t &value)
+{
+    CHECK_ERROR_RETURN_RET_LOG(codec == nullptr || codec->getEncodedFormat() != SkEncodedImageFormat::kGIF,
+        ERR_MEDIA_INVALID_PARAM, "[GetGifCanvasDimensions] Not GIF format");
+    SkISize size = codec->dimensions();
+    if (key == GIF_CANVAS_PIXEL_WIDTH) {
+        value = size.width();
+    } else {
+        value = size.height();
+    }
+    return SUCCESS;
+}
+
+static uint32_t GetGifUnclampedDelayTime(SkCodec *codec, uint32_t index, int32_t &value)
+{
+    CHECK_ERROR_RETURN_RET_LOG(codec == nullptr || codec->getEncodedFormat() != SkEncodedImageFormat::kGIF,
+        ERR_MEDIA_INVALID_PARAM, "[GetGifUnclampedDelayTime] Not GIF format");
+    auto frameInfos = codec->getFrameInfo();
+    CHECK_ERROR_RETURN_RET_LOG(index >= frameInfos.size(), ERR_MEDIA_INVALID_PARAM,
+        "[GetGifUnclampedDelayTime] frame size %{public}zu, index:%{public}u", frameInfos.size(), index);
+    value = frameInfos[index].fDuration;
+    return SUCCESS;
+}
+
+uint32_t ExtDecoder::GetJfifProperty(SkCodec *codec, const std::string &key, int32_t &value)
+{
+    if (codec->getEncodedFormat() != SkEncodedImageFormat::kJPEG) {
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    
+    SkJpegCodec* jpegCodec = static_cast<SkJpegCodec*>(codec);
+    auto cond = (jpegCodec == nullptr || jpegCodec->decoderMgr() == nullptr ||
+        jpegCodec->decoderMgr()->dinfo() == nullptr);
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_MEDIA_INVALID_PARAM, "%{public}s invalid SkJpegCodec", __func__);
+
+    struct jpeg_decompress_struct* dInfo = jpegCodec->decoderMgr()->dinfo();
+    if (JFIF_METADATA_X_DENSITY.compare(key) == ZERO) {
+        value = dInfo->X_density;
+    } else if (JFIF_METADATA_Y_DENSITY.compare(key) == ZERO) {
+        value = dInfo->Y_density;
+    } else if (JFIF_METADATA_DENSITY_UNIT.compare(key) == ZERO) {
+        value = dInfo->density_unit;
+    } else if (JFIF_METADATA_MAJOR_VERSION.compare(key) == ZERO) {
+        value = dInfo->JFIF_major_version;
+    } else if (JFIF_METADATA_MINOR_VERSION.compare(key) == ZERO) {
+        value = dInfo->JFIF_minor_version;
+    } else if (JFIF_METADATA_IS_PROGRESSIVE.compare(key) == ZERO) {
+        value = static_cast<int32_t>(IsProgressiveJpeg());
+    } else {
+        return ERR_MEDIA_INVALID_PARAM;
+    }
+    return SUCCESS;
+}
+
+#ifdef HEIF_HW_DECODE_ENABLE
+uint32_t ExtDecoder::GetHeifsProperty(SkCodec *codec, uint32_t index, const std::string &key, int32_t &value)
+{
+    auto decoder = reinterpret_cast<HeifDecoderImpl*>(codec->getHeifContext());
+    CHECK_ERROR_RETURN_RET(!decoder, ERR_MEDIA_INVALID_PARAM);
+    if (HEIFS_METADATA_DELAYTIME.compare(key) == ZERO) {
+        return decoder->GetHeifsDelayTime(index, value);
+    } else if (HEIFS_METADATA_UNCLAMPED_DELAY_TIME.compare(key) == ZERO) {
+        return decoder->GetHeifsDelayTime(index, value);
+    } else if (HEIFS_METADATA_CANVAS_PIXEL_HEIGHT.compare(key) == ZERO) {
+        return decoder->GetHeifsCanvasPixelSize(index, value, false);
+    } else if (HEIFS_METADATA_CANVAS_PIXEL_WIDTH.compare(key) == ZERO) {
+        return decoder->GetHeifsCanvasPixelSize(index, value, true);
+    } else {
+        return ERR_MEDIA_INVALID_PARAM;
+    }
+    return SUCCESS;
+}
+#endif
+
+uint32_t ExtDecoder::GetGifHasGlobalColorMapInt(int32_t &value)
+{
+    if (codec_.get() == nullptr || codec_.get()->getEncodedFormat() != SkEncodedImageFormat::kGIF) {
+        return ERR_MEDIA_INVALID_PARAM;
+    }
+    uint32_t parseRet = ParseGifMetadata();
+    if (parseRet != SUCCESS) {
+        return parseRet;
+    }
+    value = gifHasGlobalColorMap_ ? 1 : 0;
+    return SUCCESS;
+}
+
 uint32_t ExtDecoder::GetImagePropertyInt(uint32_t index, const std::string &key, int32_t &value)
 {
     IMAGE_LOGD("[GetImagePropertyInt] enter ExtDecoder plugin, key:%{public}s", key.c_str());
@@ -2756,6 +2956,26 @@ uint32_t ExtDecoder::GetImagePropertyInt(uint32_t index, const std::string &key,
     }
     if (IMAGE_LOOP_COUNT.compare(key) == ZERO || WEBP_LOOP_COUNT.compare(key) == ZERO) {
         return GetLoopCount(codec_.get(), value);
+    }
+    if (ImageKvMetadata::IsJfifMetadataKey(key)) {
+        return GetJfifProperty(codec_.get(), key, value);
+    }
+#ifdef HEIF_HW_DECODE_ENABLE
+    if (ImageKvMetadata::IsHeifsMetadataKey(key)) {
+        return GetHeifsProperty(codec_.get(), index, key, value);
+    }
+#endif
+    if (GIF_CANVAS_PIXEL_WIDTH.compare(key) == ZERO) {
+        return GetGifCanvasDimensions(codec_.get(), GIF_CANVAS_PIXEL_WIDTH, value);
+    }
+    if (GIF_CANVAS_PIXEL_HEIGHT.compare(key) == ZERO) {
+        return GetGifCanvasDimensions(codec_.get(), GIF_CANVAS_PIXEL_HEIGHT, value);
+    }
+    if (GIF_HAS_GLOBAL_COLOR_MAP.compare(key) == ZERO) {
+        return GetGifHasGlobalColorMapInt(value);
+    }
+    if (GIF_UNCLAMPED_DELAY_TIME.compare(key) == ZERO) {
+        return GetGifUnclampedDelayTime(codec_.get(), index, value);
     }
     // There can add some not need exif property
     if (res == Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT) {
@@ -3500,6 +3720,34 @@ uint32_t ExtDecoder::DoHeifsDecode(DecodeContext &context)
 OHOS::Media::Size ExtDecoder::GetAnimationImageSize()
 {
     return animationSize_;
+}
+
+uint32_t ExtDecoder::AvifDecode(uint32_t index, DecodeContext &context, uint64_t rowStride, uint64_t byteCount)
+{
+#ifndef CROSS_PLATFORM
+    CHECK_ERROR_RETURN_RET_LOG(codec_ == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "AssignAVIFDecode falied, codec error.");
+    auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec_->getHeifContext());
+    CHECK_ERROR_RETURN_RET_LOG(decoder == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "Avif Decoder is nullptr.");
+    UpdateDstInfoAndOutInfo(context);
+    CHECK_ERROR_RETURN_RET_LOG(SkImageInfo::ByteSizeOverflowed(byteCount), ERR_IMAGE_TOO_LARGE,
+        "%{public}s too large byteCount: %{public}llu", __func__, static_cast<unsigned long long>(byteCount));
+    CHECK_ERROR_RETURN_RET_LOG(!decoder->IsSupportedPixelFormat(context.isAnimationDecode,
+        context.info.pixelFormat), ERR_IMAGE_DATA_UNSUPPORT,
+        "%{public}s current AVIF desiredFormat is not support", __func__);
+    decoder->setDstBuffer(reinterpret_cast<uint8_t *>(context.pixelsBuffer.buffer), rowStride, nullptr);
+    decoder->SetAllocatorType(context.allocatorType);
+    decoder->SetDesiredPixelFormat(context.info.pixelFormat);
+    decoder->SetBufferSize(context.pixelsBuffer.bufferSize);
+    bool decodeRet = false;
+    if (decoder->IsAvisImage() && context.isAnimationDecode) {
+        decodeRet = decoder->decodeSequence(context.index);
+    } else {
+        decodeRet = decoder->decode();
+    }
+    return decodeRet ? SUCCESS : ERR_IMAGE_DECODE_FAILED;
+#else
+    return ERR_IMAGE_DECODE_FAILED;
+#endif
 }
 } // namespace ImagePlugin
 } // namespace OHOS

@@ -18,6 +18,7 @@
 #include "image_log.h"
 #include "image_utils.h"
 #include "media_errors.h"
+#include "png_metadata.h"
 #include "securec.h"
 
 #undef LOG_DOMAIN
@@ -28,7 +29,7 @@
 
 namespace OHOS {
 namespace Media {
-const static uint64_t MAX_KV_META_COUNT = 10;
+const static uint64_t MAX_KV_META_COUNT = 20;
 const static uint64_t MAX_KV_META_STRING_LENGTH = 128;
 
 const static std::set<std::string> FRAGMENT_METADATA_KEYS = {
@@ -41,10 +42,18 @@ const static std::set<std::string> FRAGMENT_METADATA_KEYS = {
 const static std::set<std::string> GIF_METADATA_KEYS = {
     GIF_METADATA_KEY_DELAY_TIME,
     GIF_METADATA_KEY_DISPOSAL_TYPE,
+    GIF_METADATA_KEY_LOOP_COUNT,
+    GIF_METADATA_KEY_CANVAS_PIXEL_WIDTH,
+    GIF_METADATA_KEY_CANVAS_PIXEL_HEIGHT,
+    GIF_METADATA_KEY_HAS_GLOBAL_COLOR_MAP,
+    GIF_METADATA_KEY_UNCLAMPED_DELAY_TIME,
 };
 
 const static std::set<std::string> HEIFS_METADATA_KEYS = {
     HEIFS_METADATA_KEY_DELAY_TIME,
+    HEIFS_METADATA_KEY_UNCLAMPED_DELAY_TIME,
+    HEIFS_METADATA_KEY_CANVAS_PIXEL_HEIGHT,
+    HEIFS_METADATA_KEY_CANVAS_PIXEL_WIDTH,
 };
 
 const static std::set<std::string> WEBP_METADATA_KEYS = {
@@ -55,11 +64,47 @@ const static std::set<std::string> WEBP_METADATA_KEYS = {
     WEBP_METADATA_KEY_LOOP_COUNT,
 };
 
+const static std::set<std::string> AVIS_METADATA_KEYS = {
+    AVIS_METADATA_KEY_DELAY_TIME,
+};
+
+const static std::set<std::string> JFIF_METADATA_KEYS = {
+    JFIF_METADATA_KEY_X_DENSITY,
+    JFIF_METADATA_KEY_Y_DENSITY,
+    JFIF_METADATA_KEY_DENSITY_UNIT,
+    JFIF_METADATA_KEY_VERSION,
+    JFIF_METADATA_KEY_IS_PROGRESSIVE,
+    JFIF_METADATA_KEY_MAJOR_VERSION,
+    JFIF_METADATA_KEY_MINOR_VERSION,
+};
+
+const static std::set<std::string> PNG_METADATA_KEYS = {
+    PNG_METADATA_KEY_X_PIXELS_PER_METER,
+    PNG_METADATA_KEY_Y_PIXELS_PER_METER,
+    PNG_METADATA_KEY_GAMMA,
+    PNG_METADATA_KEY_INTERLACE_TYPE,
+    PNG_METADATA_KEY_SRGB_INTENT,
+    PNG_METADATA_KEY_CHROMATICITIES,
+    PNG_METADATA_KEY_TITLE,
+    PNG_METADATA_KEY_DESCRIPTION,
+    PNG_METADATA_KEY_COMMENT,
+    PNG_METADATA_KEY_DISCLAIMER,
+    PNG_METADATA_KEY_WARNING,
+    PNG_METADATA_KEY_AUTHOR,
+    PNG_METADATA_KEY_COPYRIGHT,
+    PNG_METADATA_KEY_CREATION_TIME,
+    PNG_METADATA_KEY_MODIFICATION_TIME,
+    PNG_METADATA_KEY_SOFTWARE,
+};
+
 const static std::map<MetadataType, std::set<std::string>> KV_METADATA_KEYS = {
     {MetadataType::FRAGMENT, FRAGMENT_METADATA_KEYS},
     {MetadataType::GIF, GIF_METADATA_KEYS},
     {MetadataType::HEIFS, HEIFS_METADATA_KEYS},
     {MetadataType::WEBP, WEBP_METADATA_KEYS},
+    {MetadataType::AVIS, AVIS_METADATA_KEYS},
+    {MetadataType::JFIF, JFIF_METADATA_KEYS},
+    {MetadataType::PNG, PNG_METADATA_KEYS},
 };
 
 ImageKvMetadata::ImageKvMetadata() {}
@@ -270,6 +315,26 @@ bool ImageKvMetadata::IsWebPMetadataKey(const std::string& key)
     return WEBP_METADATA_KEYS.find(key) != WEBP_METADATA_KEYS.end();
 }
 
+bool ImageKvMetadata::IsAvisMetadataKey(const std::string& key)
+{
+    return AVIS_METADATA_KEYS.find(key) != AVIS_METADATA_KEYS.end();
+}
+
+bool ImageKvMetadata::IsJfifMetadataKey(const std::string& key)
+{
+    return JFIF_METADATA_KEYS.find(key) != JFIF_METADATA_KEYS.end();
+}
+
+bool ImageKvMetadata::IsHeifsMetadataKey(const std::string& key)
+{
+    return HEIFS_METADATA_KEYS.find(key) != HEIFS_METADATA_KEYS.end();
+}
+
+bool ImageKvMetadata::IsPngMetadataKey(const std::string& key)
+{
+    return PNG_METADATA_KEYS.find(key) != PNG_METADATA_KEYS.end();
+}
+
 std::set<std::string> ImageKvMetadata::GetFragmentMetadataKeys()
 {
     return FRAGMENT_METADATA_KEYS;
@@ -283,6 +348,26 @@ std::set<std::string> ImageKvMetadata::GetGifMetadataKeys()
 std::set<std::string> ImageKvMetadata::GetWebPMetadataKeys()
 {
     return WEBP_METADATA_KEYS;
+}
+
+std::set<std::string> ImageKvMetadata::GetAvisMetadataKeys()
+{
+    return AVIS_METADATA_KEYS;
+}
+
+std::set<std::string> ImageKvMetadata::GetJfifMetadataKeys()
+{
+    return JFIF_METADATA_KEYS;
+}
+
+std::set<std::string> ImageKvMetadata::GetHeifsMetadataKeys()
+{
+    return HEIFS_METADATA_KEYS;
+}
+
+std::set<std::string> ImageKvMetadata::GetPngMetadataKeys()
+{
+    return PNG_METADATA_KEYS;
 }
 
 uint32_t ImageKvMetadata::GetBlobSize()
