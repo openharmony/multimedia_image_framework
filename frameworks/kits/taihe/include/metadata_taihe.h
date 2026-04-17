@@ -17,11 +17,15 @@
 #define FRAMEWORKS_KITS_TAIHE_INCLUDE_METADATA_TAIHE_H
 
 #include "exif_metadata.h"
+#include "gif_metadata.h"
 #include "heifs_metadata.h"
+#include "jfif_metadata.h"
 #include "metadata.h"
 #include "ohos.multimedia.image.image.proj.hpp"
 #include "ohos.multimedia.image.image.impl.hpp"
+#include "png_metadata.h"
 #include "taihe/runtime.hpp"
+#include "tiff_exif_metadata.h"
 #include "webp_metadata.h"
 #include "avis_metadata.h"
 
@@ -98,6 +102,34 @@ public:
     WebPMetadataImpl();
     explicit WebPMetadataImpl(std::shared_ptr<OHOS::Media::WebPMetadata> metadata);
     ~WebPMetadataImpl();
+};
+
+class PngMetadataImpl : public MetadataImpl {
+public:
+    PngMetadataImpl();
+    explicit PngMetadataImpl(std::shared_ptr<OHOS::Media::PngMetadata> metadata);
+    ~PngMetadataImpl();
+};
+
+class JfifMetadataImpl : public MetadataImpl {
+public:
+    JfifMetadataImpl();
+    explicit JfifMetadataImpl(std::shared_ptr<OHOS::Media::JfifMetadata> metadata);
+    ~JfifMetadataImpl();
+};
+
+class TiffMetadataImpl : public MetadataImpl {
+public:
+    TiffMetadataImpl();
+    explicit TiffMetadataImpl(std::shared_ptr<OHOS::Media::TiffExifMetadata> metadata);
+    ~TiffMetadataImpl();
+};
+
+class GifMetadataImpl : public MetadataImpl {
+public:
+    GifMetadataImpl();
+    explicit GifMetadataImpl(std::shared_ptr<OHOS::Media::GifMetadata> metadata);
+    ~GifMetadataImpl();
 };
 
 class AvisMetadataImpl : public MetadataImpl {

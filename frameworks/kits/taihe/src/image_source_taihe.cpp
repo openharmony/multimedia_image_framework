@@ -97,6 +97,9 @@ struct ImageSourceTaiheContext {
     std::shared_ptr<OHOS::Media::ExifMetadata> rExifMetadata;
     std::shared_ptr<OHOS::Media::HeifsMetadata> rHeifsMetadata;
     std::shared_ptr<OHOS::Media::WebPMetadata> rWebPMetadata;
+    std::shared_ptr<OHOS::Media::PngMetadata> rPngMetadata;
+    std::shared_ptr<OHOS::Media::JfifMetadata> rJfifMetadata;
+    std::shared_ptr<OHOS::Media::GifMetadata> rGifMetadata;
     std::shared_ptr<OHOS::Media::AvisMetadata> rAvisMetadata;
     OHOS::Media::DecodingOptionsForThumbnail decodingOptsForThumbnail;
 };
@@ -1761,6 +1764,15 @@ OHOS::Media::MetadataType GetMetadataTypeByKey(const std::string &key)
         for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetWebPMetadataMap()) {
             mapping[type] = OHOS::Media::MetadataType::WEBP;
         }
+        for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetPngMetadataMap()) {
+            mapping[type] = OHOS::Media::MetadataType::PNG;
+        }
+        for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetJfifMetadataMap()) {
+            mapping[type] = OHOS::Media::MetadataType::JFIF;
+        }
+        for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetTiffMetadataMap()) {
+            mapping[type] = OHOS::Media::MetadataType::TIFF;
+        }
         for (const auto &[type, _] : OHOS::Media::ExifMetadata::GetAvisMetadataMap()) {
             mapping[type] = OHOS::Media::MetadataType::AVIS;
         }
@@ -1798,6 +1810,15 @@ static void ReadImageMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> &c
     }
     if (shouldReadType(OHOS::Media::MetadataType::WEBP)) {
         context->rWebPMetadata = context->rImageSource->GetWebPMetadata(context->index, errorCode);
+    }
+    if (shouldReadType(OHOS::Media::MetadataType::PNG)) {
+        (void)context->rImageSource->GetPngMetadata(context->rPngMetadata);
+    }
+    if (shouldReadType(OHOS::Media::MetadataType::JFIF)) {
+        (void)context->rImageSource->GetJfifMetadata(context->rJfifMetadata);
+    }
+    if (shouldReadType(OHOS::Media::MetadataType::GIF)) {
+        context->rGifMetadata = context->rImageSource->GetGifMetadata(context->index, errorCode);
     }
     if (shouldReadType(OHOS::Media::MetadataType::AVIS)) {
         context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
@@ -1862,6 +1883,18 @@ static void InitMetadataObjects(std::unique_ptr<ImageSourceTaiheContext> &contex
     }
     if (context->rWebPMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::WEBP)) {
         imageMetadata.webPMetadata.emplace(make_holder<WebPMetadataImpl, WebPMetadata>(context->rWebPMetadata));
+    }
+    if (context->rPngMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::PNG)) {
+        imageMetadata.pngMetadata.emplace(make_holder<PngMetadataImpl, PngMetadata>(context->rPngMetadata));
+    }
+    if (context->rJfifMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::JFIF)) {
+        imageMetadata.jfifMetadata.emplace(make_holder<JfifMetadataImpl, JfifMetadata>(context->rJfifMetadata));
+    }
+    if (ownedTypes.count(OHOS::Media::MetadataType::TIFF)) {
+        imageMetadata.tiffMetadata.emplace(make_holder<TiffMetadataImpl, TiffMetadata>());
+    }
+    if (context->rGifMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::GIF))  {
+        imageMetadata.gifMetadata.emplace(make_holder<GifMetadataImpl, GifMetadata>(context->rGifMetadata));
     }
     if (context->rAvisMetadata != nullptr && ownedTypes.count(OHOS::Media::MetadataType::AVIS)) {
         imageMetadata.avisMetadata.emplace(make_holder<AvisMetadataImpl, AvisMetadata>(context->rAvisMetadata));
@@ -1944,6 +1977,12 @@ static MetadataType ToTaiheMetadataType(OHOS::Media::MetadataType type)
             return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::WEBP));
         case OHOS::Media::MetadataType::HW_MAKER_NOTE:
             return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::HW_MAKER_NOTE));
+        case OHOS::Media::MetadataType::JFIF:
+            return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::JFIF));
+        case OHOS::Media::MetadataType::TIFF:
+            return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::TIFF));
+        case OHOS::Media::MetadataType::PNG:
+            return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::PNG));
         case OHOS::Media::MetadataType::AVIS:
             return MetadataType::from_value(static_cast<int32_t>(OHOS::Media::MetadataType::AVIS));
         default:
@@ -1955,10 +1994,12 @@ static const std::unordered_map<std::string_view, IntConverter> &GetIntConverter
 {
     static const std::unordered_map<std::string_view, IntConverter> converterMap = {
         // Bool values
-        {"HwMnoteIsXmageSupported",      [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
-        {"HwMnoteFrontCamera",           [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
-        {"HwMnoteCloudEnhancementMode",  [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
-        {"HwMnoteWindSnapshotMode",      [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"HwMnoteIsXmageSupported",         [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"HwMnoteFrontCamera",              [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"HwMnoteCloudEnhancementMode",     [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"HwMnoteWindSnapshotMode",         [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"JfifIsProgressive",               [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"GifHasGlobalColorMap",            [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
 
         // Enum values
         {"Orientation",                  [](int32_t v) {
@@ -1969,6 +2010,9 @@ static const std::unordered_map<std::string_view, IntConverter> &GetIntConverter
         }},
         {"HwMnoteFocusMode",                    [](int32_t v) {
             return MetadataValueType::make_type_enum_focusMode(FocusMode::from_value(v));
+        }},
+        {"TiffOrientation",                  [](int32_t v) {
+            return MetadataValueType::make_type_enum_orientation(Orientation::from_value(v));
         }},
     };
     return converterMap;
@@ -2133,6 +2177,12 @@ static const std::map<std::string, OHOS::Media::PropertyValueType> &GetMetadataK
             return OHOS::Media::ExifMetadata::GetDngMetadataMap();
         case OHOS::Media::MetadataType::WEBP:
             return OHOS::Media::ExifMetadata::GetWebPMetadataMap();
+        case OHOS::Media::MetadataType::PNG:
+            return OHOS::Media::ExifMetadata::GetPngMetadataMap();
+        case OHOS::Media::MetadataType::JFIF:
+            return OHOS::Media::ExifMetadata::GetJfifMetadataMap();
+        case OHOS::Media::MetadataType::TIFF:
+            return OHOS::Media::ExifMetadata::GetTiffMetadataMap();
         case OHOS::Media::MetadataType::AVIS:
             return OHOS::Media::ExifMetadata::GetAvisMetadataMap();
         default:

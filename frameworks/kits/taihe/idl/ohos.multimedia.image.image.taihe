@@ -435,6 +435,9 @@ enum MetadataType: i32 {
   DNG_METADATA = 16,
   WEBP_METADATA = 17,
   HW_MAKER_NOTE_METADATA = 18,
+  PNG_METADATA = 19,
+  JFIF_METADATA = 20,
+  TIFF_METADATA = 21,
   AVIS_METADATA = 23,
 }
 
@@ -447,11 +450,19 @@ enum FragmentMapPropertyKey: String {
 
 enum GifPropertyKey: String {
   GIF_DELAY_TIME = "GifDelayTime",
-  GIF_DISPOSAL_TYPE = "GifDisposalType"
+  GIF_DISPOSAL_TYPE = "GifDisposalType",
+  GIF_HAS_GLOBAL_COLOR_MAP = "GifHasGlobalColorMap",
+  GIF_CANVAS_WIDTH = "GifCanvasWidth",
+  GIF_CANVAS_HEIGHT = "GifCanvasHeight",
+  GIF_LOOP_COUNT = "GifLoopCount",
+ 	GIF_UNCLAMPED_DELAY_TIME = "GifUnclampedDelayTime"
 }
 
 enum HeifsPropertyKey: String {
-  HEIFS_DELAY_TIME = "HeifsDelayTime"
+  HEIFS_DELAY_TIME = "HeifsDelayTime",
+  HEIFS_UNCLAMPED_DELAY_TIME = "HeifsUnclampedDelayTime",
+ 	HEIFS_CANVAS_HEIGHT = "HeifsCanvasHeight",
+  HEIFS_CANVAS_WIDTH = "HeifsCanvasWidth"
 }
 
 enum DngPropertyKey: String {
@@ -552,6 +563,56 @@ enum WebPPropertyKey: String {
   DELAY_TIME = "WebPDelayTime",
   UNCLAMPED_DELAY_TIME = "WebPUnclampedDelayTime",
   LOOP_COUNT = "WebPLoopCount"
+}
+
+enum PngPropertyKey: String {
+  X_PIXELS_PER_METER = "PngXPixelsPerMeter",
+  MODIFICATION_TIME = "PngModificationTime",
+  SOFTWARE = "PngSoftware",
+  COPYRIGHT = "PngCopyright",
+  CREATION_TIME = "PngCreationTime",
+  SRGB_INTENT = "PngSRGBIntent",
+  AUTHOR = "PngAuthor",
+  INTERLACE_TYPE = "PngInterlaceType",
+  WARNING = "PngWarning",
+  Y_PIXELS_PER_METER = "PngYPixelsPerMeter",
+  GAMMA = "PngGamma",
+  CHROMATICITIES = "PngChromaticities",
+  DESCRIPTION = "PngDescription",
+  TITLE = "PngTitle",
+  COMMENT = "PngComment",
+  DISCLAIMER = "PngDisclaimer"
+}
+
+enum JfifPropertyKey: String {
+  DENSITY_UNIT = "JfifDensityUnit",
+  X_DENSITY = "JfifXDensity",
+  Y_DENSITY = "JfifYDensity",
+  VERSION = "JfifVersion",
+  IS_PROGRESSIVE = "JfifIsProgressive"
+}
+
+enum TiffPropertyKey: String {
+  DOCUMENT_NAME = "TiffDocumentName",
+  PHOTOMETRIC_INTERPRETATION = "TiffPhotometricInterpretation",
+  ORIENTATION = "TiffOrientation",
+  RESOLUTION_UNIT = "TiffResolutionUnit",
+  COPYRIGHT = "TiffCopyright",
+  DATE_TIME = "TiffDateTime",
+  IMAGE_DESCRIPTION = "TiffImageDescription",
+  Y_RESOLUTION = "TiffYResolution",
+  X_RESOLUTION = "TiffXResolution",
+  WHITE_POINT = "TiffWhitePoint",
+  TILE_LENGTH = "TiffTileLength",
+  TRANSFER_FUNCTION = "TiffTransferFunction",
+  TILE_WIDTH = "TiffTileWidth",
+  MAKE = "TiffMake",
+  MODEL = "TiffModel",
+  HOST_COMPUTER = "TiffHostComputer",
+  COMPRESSION = "TiffCompression",
+  SOFTWARE = "TiffSoftware",
+  PRIMARY_CHROMATICITIES = "TiffPrimaryChromaticities",
+  ARTIST = "TiffArtist"
 }
 
 enum AvisPropertyKey: String {
@@ -1345,6 +1406,9 @@ interface HeifsMetadata : Metadata {
 
   @!sts_inject_into_class("""
     heifsDelayTime?: int;
+    heifsCanvasHeight?: int;
+    heifsCanvasWidth?: int;
+    heifsUnclampedDelayTime?: int;
   """)
 }
 
@@ -1455,6 +1519,78 @@ interface WebPMetadata {
 }
 
 @class
+interface PngMetadata {
+  @!sts_inject_into_class("""
+    xPixelsPerMeter?: int;
+    software?: string;
+    disclaimer?: string;
+    description?: string;
+    copyright?: string;
+    interlaceType?: int;
+    comment?: string;
+    author?: string;
+    chromaticities?: double[];
+    creationTime?: string;
+    modificationTime?: string;
+    gamma?: double;
+    yPixelsPerMeter?: int;
+    sRGBIntent?: int;
+    title?: string;
+    warning?: string;
+  """)
+}
+
+@class
+interface JfifMetadata {
+  @!sts_inject_into_class("""
+    densityUnit?: int;
+    xDensity?: int;
+    yDensity?: int;
+    isProgressive?: boolean;
+    version?: int[];
+  """)
+}
+
+@class
+interface TiffMetadata {
+  @!sts_inject_into_class("""
+    primaryChromaticities?: double[];
+    tileWidth?: int;
+    tileLength?: int;
+    dateTime?: string;
+    make?: string;
+    photometricInterpretation?: int;
+    whitePoint?: double[];
+    documentName?: string;
+    imageDescription?: string;
+    software?: string;
+    xResolution?: double;
+    yResolution?: double;
+    hostComputer?: string;
+    transferFunction?: string;
+    artist?: string;
+    orientation?: Orientation;
+    model?: string;
+    resolutionUnit?: int;
+    compression?: int;
+    copyright?: string;
+  """)
+}
+
+@class
+interface GifMetadata {
+  @!sts_inject_into_class("""
+    delayTime?: int;
+    unclampedDelayTime?: int;
+    hasGlobalColorMap?: boolean;
+    loopCount?: int;
+    disposalType?: int;
+    canvasHeight?: int;
+    canvasWidth?: int;
+  """)
+}
+
+@class
 interface AvisMetadata {
   @!sts_inject_into_class("""
     delayTime?: int;
@@ -1467,6 +1603,10 @@ struct ImageMetadata {
   heifsMetadata: Optional<HeifsMetadata>;
   dngMetadata: Optional<DngMetadata>;
   webPMetadata: Optional<WebPMetadata>;
+  pngMetadata: Optional<PngMetadata>;
+  jfifMetadata: Optional<JfifMetadata>;
+  tiffMetadata: Optional<TiffMetadata>;
+  gifMetadata: Optional<GifMetadata>;
   avisMetadata: Optional<AvisMetadata>;
 }
 
@@ -1718,6 +1858,38 @@ interface ImageSource {
               break;
             }
             status = MetadataFieldHelper.setFieldViaReflection(webPMetadata, metadataValue.key, metadataValue.value);
+            break;
+          case image.MetadataType.PNG_METADATA:
+            const pngMetadata = imageMetadata.pngMetadata;
+            if (pngMetadata == undefined) {
+              console.info("[assembleImageMetadata] pngMetadata is undefined");
+              break;
+            }
+            status = MetadataFieldHelper.setFieldViaReflection(pngMetadata, metadataValue.key, metadataValue.value);
+            break;
+          case image.MetadataType.JFIF_METADATA:
+            const jfifMetadata = imageMetadata.jfifMetadata;
+            if (jfifMetadata == undefined) {
+              console.info("[assembleImageMetadata] jfifMetadata is undefined");
+              break;
+            }
+            status = MetadataFieldHelper.setFieldViaReflection(jfifMetadata, metadataValue.key, metadataValue.value);
+            break;
+          case image.MetadataType.TIFF_METADATA:
+            const tiffMetadata = imageMetadata.tiffMetadata;
+            if (tiffMetadata == undefined) {
+              console.info("[assembleImageMetadata] tiffMetadata is undefined");
+              break;
+            }
+            status = MetadataFieldHelper.setFieldViaReflection(tiffMetadata, metadataValue.key, metadataValue.value);
+            break;
+          case image.MetadataType.GIF_METADATA:
+            const gifMetadata = imageMetadata.gifMetadata;
+            if (gifMetadata == undefined) {
+              console.info("[assembleImageMetadata] gifMetadata is undefined");
+              break;
+            }
+            status = MetadataFieldHelper.setFieldViaReflection(gifMetadata, metadataValue.key, metadataValue.value);
             break;
           case image.MetadataType.AVIS_METADATA:
             const avisMetadata = imageMetadata.avisMetadata;
@@ -2035,6 +2207,18 @@ function DngMetadataCtor(): DngMetadata;
 
 @ctor("WebPMetadata")
 function WebPMetadataCtor(): WebPMetadata;
+
+@ctor("PngMetadata")
+function PngMetadataCtor(): PngMetadata;
+
+@ctor("JfifMetadata")
+function JfifMetadataCtor(): JfifMetadata;
+
+@ctor("TiffMetadata")
+function TiffMetadataCtor(): TiffMetadata;
+
+@ctor("GifMetadata")
+function GifMetadataCtor(): GifMetadata;
 
 @ctor("AvisMetadata")
 function AvisMetadataCtor(): AvisMetadata;

@@ -422,6 +422,42 @@ WebPMetadataImpl::WebPMetadataImpl(std::shared_ptr<OHOS::Media::WebPMetadata> me
 WebPMetadataImpl::~WebPMetadataImpl() = default;
 // --- End of WebpMetadata --- //
 
+// --- Begin of PngMetadata --- //
+PngMetadataImpl::PngMetadataImpl() : MetadataImpl() {}
+
+PngMetadataImpl::PngMetadataImpl(std::shared_ptr<OHOS::Media::PngMetadata> metadata)
+    : MetadataImpl(metadata) {}
+
+PngMetadataImpl::~PngMetadataImpl() = default;
+// --- End of PngMetadata --- //
+
+// --- Begin of JfifMetadata --- //
+JfifMetadataImpl::JfifMetadataImpl() : MetadataImpl() {}
+
+JfifMetadataImpl::JfifMetadataImpl(std::shared_ptr<OHOS::Media::JfifMetadata> metadata)
+    : MetadataImpl(metadata) {}
+
+JfifMetadataImpl::~JfifMetadataImpl() = default;
+// --- End of JfifMetadata --- //
+
+// --- Begin of TiffMetadata --- //
+TiffMetadataImpl::TiffMetadataImpl() : MetadataImpl() {}
+
+TiffMetadataImpl::TiffMetadataImpl(std::shared_ptr<OHOS::Media::TiffExifMetadata> metadata)
+    : MetadataImpl(metadata) {}
+
+TiffMetadataImpl::~TiffMetadataImpl() = default;
+// --- End of TiffMetadata --- //
+
+// --- Begin of GifMetadata --- //
+GifMetadataImpl::GifMetadataImpl() : MetadataImpl() {}
+
+GifMetadataImpl::GifMetadataImpl(std::shared_ptr<OHOS::Media::GifMetadata> metadata)
+    : MetadataImpl(metadata) {}
+
+GifMetadataImpl::~GifMetadataImpl() = default;
+// --- End of GifMetadata --- //
+
 // --- Begin of AvisMetadata --- //
 AvisMetadataImpl::AvisMetadataImpl() : MetadataImpl() {}
 
@@ -472,6 +508,26 @@ WebPMetadata WebPMetadataCtor()
     return make_holder<WebPMetadataImpl, WebPMetadata>();
 }
 
+PngMetadata PngMetadataCtor()
+{
+    return make_holder<PngMetadataImpl, PngMetadata>();
+}
+
+JfifMetadata JfifMetadataCtor()
+{
+    return make_holder<JfifMetadataImpl, JfifMetadata>();
+}
+
+TiffMetadata TiffMetadataCtor()
+{
+    return make_holder<TiffMetadataImpl, TiffMetadata>();
+}
+
+GifMetadata GifMetadataCtor()
+{
+    return make_holder<GifMetadataImpl, GifMetadata>();
+}
+
 AvisMetadata AvisMetadataCtor()
 {
     return make_holder<AvisMetadataImpl, AvisMetadata>();
@@ -488,4 +544,8 @@ TH_EXPORT_CPP_API_MakerNoteHuaweiMetadataCtor(MakerNoteHuaweiMetadataCtor);
 TH_EXPORT_CPP_API_HeifsMetadataCtor(HeifsMetadataCtor);
 TH_EXPORT_CPP_API_DngMetadataCtor(DngMetadataCtor);
 TH_EXPORT_CPP_API_WebPMetadataCtor(WebPMetadataCtor);
+TH_EXPORT_CPP_API_PngMetadataCtor(PngMetadataCtor);
+TH_EXPORT_CPP_API_JfifMetadataCtor(JfifMetadataCtor);
+TH_EXPORT_CPP_API_TiffMetadataCtor(TiffMetadataCtor);
+TH_EXPORT_CPP_API_GifMetadataCtor(GifMetadataCtor);
 TH_EXPORT_CPP_API_AvisMetadataCtor(AvisMetadataCtor);
