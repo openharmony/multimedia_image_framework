@@ -643,22 +643,6 @@ HWTEST_F(ImageReceiverTest, getSurfaceByIdTest001, TestSize.Level3)
 }
 
 /**
- * @tc.name: ReleaseReceiverTest001
- * @tc.desc: test ReleaseReceiver
- * @tc.type: FUNC
- */
-HWTEST_F(ImageReceiverTest, ReleaseReceiverTest001, TestSize.Level3)
-{
-    GTEST_LOG_(INFO) << "ImageReceiverTest: ReleaseReceiverTest001 start";
-    std::shared_ptr<ImageReceiver> imageReceiver;
-    imageReceiver = ImageReceiver::CreateImageReceiver(RECEIVER_TEST_WIDTH,
-        RECEIVER_TEST_HEIGHT, RECEIVER_TEST_FORMAT, RECEIVER_TEST_CAPACITY);
-    imageReceiver->ReleaseReceiver();
-    ASSERT_EQ(imageReceiver->iraContext_, nullptr);
-    GTEST_LOG_(INFO) << "ImageReceiverTest: ReleaseReceiverTest001 end";
-}
-
-/**
  * @tc.name: SaveBufferAsImageTest001
  * @tc.desc: test SaveBufferAsImage
  * @tc.type: FUNC

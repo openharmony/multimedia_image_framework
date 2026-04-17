@@ -79,7 +79,6 @@ public:
     };
     sptr<IConsumerSurface> GetCreatorSurface();
     static sptr<IConsumerSurface> getSurfaceById(std::string id);
-    void ReleaseCreator();
     static GSError OnBufferRelease(sptr<SurfaceBuffer> &buffer);
     static std::map<uint8_t*, std::weak_ptr<ImageCreator>> bufferCreatorMap_;
     static std::mutex creatorMutex_;

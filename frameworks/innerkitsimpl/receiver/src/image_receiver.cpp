@@ -327,11 +327,6 @@ sptr<Surface> ImageReceiver::GetReceiverSurface()
     return nullptr;
 }
 
-void ImageReceiver::ReleaseReceiver()
-{
-    ImageReceiver::~ImageReceiver();
-}
-
 std::shared_ptr<IBufferProcessor> ImageReceiver::GetBufferProcessor()
 {
     if (bufferProcessor_ == nullptr) {
