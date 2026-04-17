@@ -1369,10 +1369,10 @@ uint8_t ImageUtils::BytesToUint8(const uint8_t* bytes, uint32_t& offset, uint32_
 uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     uint16_t data = 0;
-    if (__builtin_add_overflow(offset, NUM_2, &offset)) {
+    if (offset > UINT32_MAX - NUM_2) {
         return data;
     }
-    if (bytes == nullptr || offset > size) {
+    if (bytes == nullptr || offset + NUM_2 > size) {
         return data;
     }
     if (isBigEndian) {
@@ -1388,10 +1388,10 @@ uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t si
 uint32_t ImageUtils::BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     uint32_t data = 0;
-    if (__builtin_add_overflow(offset, NUM_4, &offset)) {
+    if (offset > UINT32_MAX - NUM_4) {
         return data;
     }
-    if (bytes == nullptr || offset > size) {
+    if (bytes == nullptr || offset + NUM_4 > size) {
         return data;
     }
     if (isBigEndian) {
@@ -1409,10 +1409,10 @@ uint32_t ImageUtils::BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t si
 int32_t ImageUtils::BytesToInt32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     int32_t data = 0;
-    if (__builtin_add_overflow(offset, NUM_4, &offset)) {
+    if (offset > UINT32_MAX - NUM_4) {
         return data;
     }
-    if (bytes == nullptr || offset > size) {
+    if (bytes == nullptr || offset + NUM_4 > size) {
         return data;
     }
     if (isBigEndian) {
