@@ -1585,6 +1585,7 @@ const std::set<MetadataType> &ImageUtils::GetAllMetadataType()
         MetadataType::DNG,
         MetadataType::WEBP,
         MetadataType::HW_MAKER_NOTE,
+        MetadataType::AVIS,
     };
     return metadataTypes;
 }

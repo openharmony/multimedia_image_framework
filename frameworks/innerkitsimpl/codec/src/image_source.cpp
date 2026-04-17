@@ -2219,6 +2219,17 @@ void ImageSource::GetWebpPropertiesWithType(uint32_t index, std::vector<Metadata
     }
 }
 
+void ImageSource::GetAvisPropertiesWithType(uint32_t index, std::vector<MetadataValue> &result)
+{
+    for (const std::string& key : ImageKvMetadata::GetAvisMetadataKeys()) {
+        MetadataValue value;
+        uint32_t ret = GetAvisProperty(index, key, value);
+        if (ret == SUCCESS) {
+            result.push_back(value);
+        }
+    }
+}
+
 void ImageSource::AppendGifPropertiesWithType(std::vector<MetadataValue> &result, uint32_t &index)
 {
     for (const auto& [key, type] : ExifMetadata::GetGifMetadataMap()) {
@@ -2307,6 +2318,9 @@ std::vector<MetadataValue> ImageSource::GetAllPropertiesWithType(uint32_t index)
     std::vector<MetadataValue> result;
     if (TryGetAllGifPropertiesWithType(index, result)) {
         return result;
+    }
+    if (IsAvisImage()) {
+        GetAvisPropertiesWithType(index, result);
     }
 #if !defined(CROSS_PLATFORM)
     if (IsWebPImage()) {
@@ -2691,6 +2705,35 @@ uint32_t ImageSource::GetHeifsProperty(uint32_t index, const std::string &key, M
     return ret;
 }
 
+uint32_t ImageSource::GetAvisProperty(uint32_t index, const std::string &key, MetadataValue &value)
+{
+    value.key = key;
+    uint32_t errorCode = 0;
+    std::shared_ptr<AvisMetadata> avisMetadata = GetAvisMetadata(index, errorCode);
+    if (avisMetadata == nullptr || errorCode != SUCCESS) {
+        IMAGE_LOGE("Get avis metadata failed");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+    ImageMetadata::PropertyMapPtr propertiesPtr = avisMetadata->GetAllProperties();
+    if (!propertiesPtr) {
+        IMAGE_LOGE("Properties map pointer is null");
+        return ERR_IMAGE_SOURCE_DATA;
+    }
+
+    auto iter = ExifMetadata::GetAvisMetadataMap().find(key);
+    if (iter != ExifMetadata::GetAvisMetadataMap().end() && iter->second == PropertyValueType::INT) {
+        uint32_t u32num = 0;
+        errorCode = ParseUInt32Key(propertiesPtr, key, u32num);
+        IMAGE_LOGI("%{public}s errorCode:%{public}d", __func__, errorCode);
+        if (errorCode == SUCCESS) {
+            value.type = PropertyValueType::INT;
+            value.intArrayValue.emplace_back(u32num);
+        }
+        return errorCode;
+    }
+    return errorCode;
+}
+
 uint32_t ImageSource::GetImagePropertyByType(uint32_t index, const std::string &key, MetadataValue &value)
 {
     CHECK_ERROR_RETURN_RET(key.empty(), Media::ERR_IMAGE_DECODE_EXIF_UNSUPPORT);
@@ -2712,6 +2755,9 @@ uint32_t ImageSource::GetImagePropertyByType(uint32_t index, const std::string &
     }
     if (ImageKvMetadata::IsJfifMetadataKey(key)) {
         return GetJfifProperty(key, value);
+    }
+    if (ImageKvMetadata::IsAvisMetadataKey(key)) {
+        return GetAvisProperty(index, key, value);
     }
 #if !defined(CROSS_PLATFORM)
     if (IsDngImage()) {
@@ -7059,6 +7105,49 @@ uint32_t ImageSource::GetDngImagePropertyByDngSdk(const std::string &key, Metada
     return dngMetadata->GetExifProperty(value);
 }
 #endif
+
+std::shared_ptr<AvisMetadata> ImageSource::GetAvisMetadata(uint32_t index, uint32_t &errorCode)
+{
+    ImageInfo info;
+    CHECK_ERROR_RETURN_RET_LOG(GetImageInfo(info) != SUCCESS, nullptr,
+        "[%{public}s] GetImageInfo failed", __func__);
+    if (info.encodedFormat != IMAGE_AVIS_FORMAT) {
+        IMAGE_LOGD("[%{public}s] unsupport format: %{public}s", __func__, info.encodedFormat.c_str());
+        return nullptr;
+    }
+
+    auto avisMetadata = std::make_shared<AvisMetadata>();
+    if (avisMetadata == nullptr) {
+        IMAGE_LOGE("[%{public}s] make_shared avisMetadata failed", __func__);
+        return nullptr;
+    }
+
+    CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, nullptr, "[%{public}s] mainDecoder_ is nullptr", __func__);
+    bool ret = false;
+    int32_t delayTime = 0;
+    errorCode = mainDecoder_->GetImagePropertyInt(index, IMAGE_DELAY_TIME, delayTime);
+    if (errorCode == SUCCESS) {
+        ret = avisMetadata->SetValue(AVIS_METADATA_KEY_DELAY_TIME, std::to_string(delayTime));
+        CHECK_ERROR_RETURN_RET_LOG(!ret, nullptr, "[%{public}s] set delay time failed", __func__);
+    } else {
+        IMAGE_LOGE("[%{public}s] GetImagePropertyInt failed", __func__);
+        return nullptr;
+    }
+
+    metadatas_[MetadataType::AVIS] = avisMetadata;
+    errorCode = SUCCESS;
+    return avisMetadata;
+}
+
+bool ImageSource::IsAvisImage()
+{
+    ImageInfo info;
+    uint32_t ret = GetImageInfo(info);
+    bool cond = (ret != SUCCESS);
+    CHECK_ERROR_RETURN_RET_LOG(cond, false, "IsAvisImage GetImageInfo failed");
+    IMAGE_LOGD("IsAvisImage info.encodedFormat: %{public}s", info.encodedFormat.c_str());
+    return info.encodedFormat == IMAGE_AVIS_FORMAT;
+}
 
 uint32_t ImageSource::GetTiffImagePropertyByType(const std::string &key, MetadataValue &value)
 {

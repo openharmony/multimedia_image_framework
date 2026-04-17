@@ -46,6 +46,7 @@ public:
     static napi_value InitJfifMetadata(napi_env env, napi_value exports);
     static napi_value InitWebPMetadata(napi_env env, napi_value exports);
     static napi_value InitPngMetadata(napi_env env, napi_value exports);
+    static napi_value InitAvisMetadata(napi_env env, napi_value exports);
     static napi_value CreateMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata);
     static napi_value CreateExifMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata);
     static napi_value CreateMakerNoteMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata);
@@ -59,6 +60,7 @@ public:
     static napi_value CreateWebPMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata);
     static napi_value CreateTiffMetadata(napi_env env);
     static napi_value CreatePngMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata);
+    static napi_value CreateAvisMetadata(napi_env env, std::shared_ptr<ImageMetadata> metadata);
     std::shared_ptr<ImageMetadata> GetNativeMetadata()
     {
         return nativeMetadata_;
@@ -107,6 +109,7 @@ private:
     static thread_local napi_ref sJfifMetadataConstructor_;
     static thread_local napi_ref sWebpConstructor_;
     static thread_local napi_ref sPngConstructor_;
+    static thread_local napi_ref sAvisMetadataConstructor_;
     static thread_local std::shared_ptr<ImageMetadata> sMetadata_;
     std::shared_ptr<ImageMetadata> nativeMetadata_;
     napi_env env_ = nullptr;
