@@ -2281,6 +2281,9 @@ void ImageSource::GetJfifMetadataPropertiesWithType(std::vector<MetadataValue> &
     for (const std::string& key : ImageKvMetadata::GetJfifMetadataKeys()) {
         PropertyValueType type = (key == JFIF_METADATA_KEY_VERSION) ?
             PropertyValueType::INT_ARRAY : PropertyValueType::INT;
+        if (key == JFIF_METADATA_KEY_MAJOR_VERSION || key == JFIF_METADATA_KEY_MINOR_VERSION) {
+            continue;
+        }
         MetadataValue value{key, type};
         if (GetJfifProperty(key, value) == SUCCESS) {
             result.push_back(value);

@@ -1586,6 +1586,9 @@ const std::set<MetadataType> &ImageUtils::GetAllMetadataType()
         MetadataType::WEBP,
         MetadataType::HW_MAKER_NOTE,
         MetadataType::AVIS,
+        MetadataType::JFIF,
+        MetadataType::PNG,
+        MetadataType::TIFF,
     };
     return metadataTypes;
 }
