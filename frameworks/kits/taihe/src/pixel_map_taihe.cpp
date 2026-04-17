@@ -761,6 +761,10 @@ PixelMap PixelMapImpl::ExtractAlphaPixelMapSync()
     if (errCode == Media::IMAGE_RESULT_FORMAT_CONVERT_FAILED) {
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_DATA_CONVERSION_FAILED, "Failed to convert the pixels.");
         return make_holder<PixelMapImpl, PixelMap>();
+    } else if (errCode == Media::ERR_IMAGE_DECODE_FAILED) {
+        ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_DATA_CONVERSION_FAILED,
+            "Failed to convert the pixels: YUV formats are not supported.");
+        return make_holder<PixelMapImpl, PixelMap>();
     } else if (errCode != Media::SUCCESS || alphaPixelMap == nullptr) {
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Failed to extract the alpha channel. (" + std::to_string(errCode) + ")");

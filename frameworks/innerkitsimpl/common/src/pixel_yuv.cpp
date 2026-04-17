@@ -282,7 +282,10 @@ std::unique_ptr<AbsMemory> PixelYuv::CreateMemory(PixelFormat pixelFormat, std::
 
 void PixelYuv::rotate(float degrees)
 {
-    Rotate(degrees);
+    uint32_t errCode = Rotate(degrees);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuv::rotate failed, degrees: %{public}f, ret: %{public}u", degrees, errCode);
+    }
 }
 
 uint32_t PixelYuv::Rotate(float degrees)
@@ -412,7 +415,11 @@ bool PixelYuv::resizeForPicture(int32_t dstW, int32_t dstH)
 
 void PixelYuv::scale(float xAxis, float yAxis, const AntiAliasingOption &option)
 {
-    Scale(xAxis, yAxis, option);
+    uint32_t errCode = Scale(xAxis, yAxis, option);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuv::scale failed, xAxis: %{public}f, yAxis: %{public}f, ret: %{public}u",
+            xAxis, yAxis, errCode);
+    }
 }
 
 uint32_t PixelYuv::Scale(float xAxis, float yAxis, AntiAliasingOption option)
@@ -457,7 +464,15 @@ uint32_t PixelYuv::Scale(float xAxis, float yAxis, AntiAliasingOption option)
     return SUCCESS;
 }
 
-uint32_t PixelYuv::scale(int32_t dstW, int32_t dstH, AntiAliasingOption option)
+void PixelYuv::scale(int32_t dstW, int32_t dstH, const AntiAliasingOption &option)
+{
+    uint32_t errCode = Scale(dstW, dstH, option);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuv::scale failed, dstW: %{public}d, dstH: %{public}d, ret: %{public}u", dstW, dstH, errCode);
+    }
+}
+
+uint32_t PixelYuv::Scale(int32_t dstW, int32_t dstH, AntiAliasingOption option)
 {
     if (!IsYuvFormat()) {
         return ERR_IMAGE_DATA_UNSUPPORT;
@@ -498,7 +513,11 @@ uint32_t PixelYuv::scale(int32_t dstW, int32_t dstH, AntiAliasingOption option)
 
 void PixelYuv::flip(bool xAxis, bool yAxis)
 {
-    Flip(xAxis, yAxis);
+    uint32_t errCode = Flip(xAxis, yAxis);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuv::flip failed, xAxis: %{public}d, yAxis: %{public}d, ret: %{public}u",
+            xAxis, yAxis, errCode);
+    }
 }
 
 uint32_t PixelYuv::Flip(bool xAxis, bool yAxis)
@@ -736,7 +755,11 @@ uint32_t PixelYuv::ReadPixels(const uint64_t &bufferSize, uint8_t *dst)
 
 void PixelYuv::translate(float xAxis, float yAxis)
 {
-    Translate(xAxis, yAxis);
+    uint32_t errCode = Translate(xAxis, yAxis);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuv::translate failed, xAxis: %{public}f, yAxis: %{public}f, ret: %{public}u",
+            xAxis, yAxis, errCode);
+    }
 }
 
 uint32_t PixelYuv::Translate(float xAxis, float yAxis)

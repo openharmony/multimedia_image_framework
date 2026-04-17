@@ -161,7 +161,11 @@ void PixelYuvExt::scale(float xAxis, float yAxis)
 
 void PixelYuvExt::scale(float xAxis, float yAxis, const AntiAliasingOption &option)
 {
-    Scale(xAxis, yAxis, option);
+    uint32_t errCode = Scale(xAxis, yAxis, option);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuvExt::scale failed, xAxis: %{public}f, yAxis: %{public}f, ret: %{public}u",
+            xAxis, yAxis, errCode);
+    }
 }
 
 uint32_t PixelYuvExt::Scale(float xAxis, float yAxis, AntiAliasingOption option)
@@ -203,7 +207,16 @@ uint32_t PixelYuvExt::Scale(float xAxis, float yAxis, AntiAliasingOption option)
     return SUCCESS;
 }
 
-uint32_t PixelYuvExt::scale(int32_t dstW, int32_t dstH, AntiAliasingOption option)
+void PixelYuvExt::scale(int32_t dstW, int32_t dstH, const AntiAliasingOption &option)
+{
+    uint32_t errCode = Scale(dstW, dstH, option);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuvExt::scale failed, dstW: %{public}d, dstH: %{public}d, ret: %{public}u",
+            dstW, dstH, errCode);
+    }
+}
+
+uint32_t PixelYuvExt::Scale(int32_t dstW, int32_t dstH, AntiAliasingOption option)
 {
     ImageTrace imageTrace("PixelMap scale");
     IMAGE_LOGI("%{public}s (%{public}d, %{public}d)", __func__, dstW, dstH);
@@ -242,7 +255,10 @@ uint32_t PixelYuvExt::scale(int32_t dstW, int32_t dstH, AntiAliasingOption optio
 
 void PixelYuvExt::rotate(float degrees)
 {
-    Rotate(degrees);
+    uint32_t errCode = Rotate(degrees);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuvExt::rotate failed, degrees: %{public}f, ret: %{public}u", degrees, errCode);
+    }
 }
 
 uint32_t PixelYuvExt::Rotate(float degrees)
@@ -289,7 +305,11 @@ uint32_t PixelYuvExt::Rotate(float degrees)
 
 void PixelYuvExt::flip(bool xAxis, bool yAxis)
 {
-    Flip(xAxis, yAxis);
+    uint32_t errCode = Flip(xAxis, yAxis);
+    if (errCode != SUCCESS) {
+        IMAGE_LOGE("PixelYuvExt::flip failed, xAxis: %{public}d, yAxis: %{public}d, ret: %{public}u",
+            xAxis, yAxis, errCode);
+    }
 }
 
 uint32_t PixelYuvExt::Flip(bool xAxis, bool yAxis)
