@@ -65,19 +65,19 @@ toff_t TiffAccessorSeekProc(thandle_t handle, toff_t off, int whence)
     uint32_t fileSize = stream->GetStreamSize();
 
     if (whence == SEEK_SET) {
-        if (off < 0 || static_cast<uint64_t>(off) > UINT32_MAX) {
+        if (static_cast<uint64_t>(off) > UINT32_MAX) {
             return static_cast<toff_t>(-1);
         }
         newPos = static_cast<uint32_t>(off);
-    } else if (whence == SEEK_CUR && !ImageUtils::HasOverflowed(currentPos, static_cast<uint32_t>(off))) {
-        int64_t newPos64 = static_cast<int64_t>(currentPos) + off;
-        if (newPos64 < 0 || newPos64 > static_cast<int64_t>(UINT32_MAX)) {
+    } else if (whence == SEEK_CUR && !ImageUtils::HasOverflowed64(static_cast<uint64_t>(currentPos), off)) {
+        uint64_t newPos64 = static_cast<uint64_t>(currentPos) + off;
+        if (newPos64 > UINT32_MAX) {
             return static_cast<toff_t>(-1);
         }
         newPos = static_cast<uint32_t>(newPos64);
-    } else if (whence == SEEK_END && !ImageUtils::HasOverflowed(fileSize, static_cast<uint32_t>(off))) {
-        int64_t newPos64 = static_cast<int64_t>(fileSize) + off;
-        if (newPos64 < 0 || newPos64 > static_cast<int64_t>(UINT32_MAX)) {
+    } else if (whence == SEEK_END && !ImageUtils::HasOverflowed64(static_cast<uint64_t>(fileSize), off)) {
+        uint64_t newPos64 = static_cast<uint64_t>(fileSize) + off;
+        if (newPos64 > UINT32_MAX) {
             return static_cast<toff_t>(-1);
         }
         newPos = static_cast<uint32_t>(newPos64);
