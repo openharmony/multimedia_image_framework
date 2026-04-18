@@ -2281,7 +2281,7 @@ static void ApplyCropExec(napi_env env, void* data)
         return;
     }
 
-    context->status = context->rPixelMap->crop(context->area.region);
+    context->status = context->rPixelMap->Crop(context->area.region);
 
     if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
         CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION, "The PixelMap is locked.");

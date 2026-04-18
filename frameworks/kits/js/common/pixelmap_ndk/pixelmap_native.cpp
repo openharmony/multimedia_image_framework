@@ -1220,7 +1220,7 @@ Image_ErrorCode OH_PixelmapNative_ApplyCrop(OH_PixelmapNative *pixelmap, Image_R
         .width = static_cast<int32_t>(region->width),
         .height = static_cast<int32_t>(region->height)
     };
-    uint32_t status = pixelmap->GetInnerPixelmap()->crop(rect);
+    uint32_t status = pixelmap->GetInnerPixelmap()->Crop(rect);
     if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
         return IMAGE_UNSUPPORTED_OPERATION;
     } else if (status == ERR_IMAGE_INVALID_PARAMETER) {

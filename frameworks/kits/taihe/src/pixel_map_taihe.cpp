@@ -1056,7 +1056,7 @@ void PixelMapImpl::ApplyCropSync(::ohos::multimedia::image::image::Region const&
 
     Media::Rect rect = {region.x, region.y, region.size.width, region.size.height};
 
-    uint32_t status = nativePixelMap_->crop(rect);
+    uint32_t status = nativePixelMap_->Crop(rect);
     if (status == Media::ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
         ImageTaiheUtils::ThrowExceptionError(Media::ERR_MEDIA_UNSUPPORT_OPERATION, "The PixelMap is locked.");
     } else if (status == Media::ERR_IMAGE_INVALID_PARAMETER) {
