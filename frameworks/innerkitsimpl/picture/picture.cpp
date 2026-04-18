@@ -121,6 +121,19 @@ namespace {
         { CM_DISPLAY_BT2020_PQ, ColorManager::DISPLAY_BT2020_PQ },
     };
 #endif
+
+    constexpr CM_ColorSpaceInfo HDR_CAPTURE_HDR_COLORSPACE = {
+        .primaries = COLORPRIMARIES_BT2020,
+        .transfunc = TRANSFUNC_SRGB,
+        .matrix = MATRIX_BT2020,
+        .range = RANGE_FULL,
+    };
+    constexpr CM_ColorSpaceInfo HDR_CAPTURE_SDR_COLORSPACE = {
+        .primaries = COLORPRIMARIES_P3_D65,
+        .transfunc = TRANSFUNC_SRGB,
+        .matrix = MATRIX_BT601_N,
+        .range = RANGE_FULL,
+    };
 }
 const static uint64_t MAX_AUXILIARY_PICTURE_COUNT = 32;
 const static uint64_t MAX_PICTURE_META_TYPE_COUNT = 64;
@@ -384,7 +397,11 @@ sptr<SurfaceBuffer> CreateGainmapByHdrAndSdr(std::shared_ptr<PixelMap> &hdrPixel
     CHECK_ERROR_RETURN_RET_LOG(error != GSERROR_OK, nullptr,
         "HDR-IMAGE SurfaceBuffer Alloc failed, error : %{public}s", GSErrorStr(error).c_str());
     sptr<SurfaceBuffer> hdrSptr(reinterpret_cast<SurfaceBuffer*>(hdrPixelMap->GetFd()));
+    VpeUtils::SetSbMetadataType(hdrSptr, CM_IMAGE_HDR_VIVID_SINGLE);
+    MetadataHelper::SetColorSpaceInfo(hdrSptr, HDR_CAPTURE_HDR_COLORSPACE);
     sptr<SurfaceBuffer> sdrSptr(reinterpret_cast<SurfaceBuffer*>(sdrPixelMap->GetFd()));
+    VpeUtils::SetSbMetadataType(sdrSptr, CM_IMAGE_HDR_VIVID_DUAL);
+    MetadataHelper::SetColorSpaceInfo(sdrSptr, HDR_CAPTURE_SDR_COLORSPACE);
     VpeSurfaceBuffers buffers = {
         .sdr = sdrSptr,
         .gainmap = gainmapSptr,
