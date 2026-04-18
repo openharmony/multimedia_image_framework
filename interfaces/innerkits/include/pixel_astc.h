@@ -66,6 +66,7 @@ public:
     NATIVEEXPORT void flip(bool xAxis, bool yAxis) override;
     NATIVEEXPORT uint32_t Flip(bool xAxis, bool yAxis) override;
     NATIVEEXPORT uint32_t crop(const Rect &rect) override;
+    NATIVEEXPORT uint32_t Crop(const Rect &rect) override;
 
     // Config the pixel map parameter
     NATIVEEXPORT bool IsSameImage(const PixelMap &other) override;

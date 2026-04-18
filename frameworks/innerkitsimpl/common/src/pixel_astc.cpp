@@ -171,6 +171,11 @@ uint32_t PixelAstc::Flip(bool xAxis, bool yAxis)
 
 uint32_t PixelAstc::crop(const Rect &rect)
 {
+    return Crop(rect);
+}
+
+uint32_t PixelAstc::Crop(const Rect &rect)
+{
     ImageInfo imageInfo;
     GetImageInfo(imageInfo);
     if (rect.left >= 0 && rect.top >= 0 && rect.width > 0 && rect.height > 0 &&

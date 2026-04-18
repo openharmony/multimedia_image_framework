@@ -339,6 +339,15 @@ uint32_t PixelYuv::Rotate(float degrees)
 
 uint32_t PixelYuv::crop(const Rect &rect)
 {
+    uint32_t errCode = Crop(rect);
+    if (errCode == ERR_IMAGE_MALLOC_ABNORMAL) {
+        return ERR_IMAGE_CROP;
+    }
+    return errCode;
+}
+
+uint32_t PixelYuv::Crop(const Rect &rect)
+{
     int32_t rectSize = GetYSize(rect.width, rect.height);
     int32_t pixelSize = GetYSize(imageInfo_.size.width, imageInfo_.size.height);
     if (rect.top < 0 || rect.left < 0 || rectSize > pixelSize || rect.width <= 1 || rect.height <= 1 ||

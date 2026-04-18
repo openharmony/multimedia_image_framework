@@ -51,6 +51,7 @@ public:
     NATIVEEXPORT void rotate(float degrees) override;
     NATIVEEXPORT uint32_t Rotate(float degrees) override;
     NATIVEEXPORT uint32_t crop(const Rect &rect) override;
+    NATIVEEXPORT uint32_t Crop(const Rect &rect) override;
     NATIVEEXPORT void scale(float xAxis, float yAxis) override;
     NATIVEEXPORT void scale(float xAxis, float yAxis, const AntiAliasingOption &option) override;
     NATIVEEXPORT uint32_t Scale(float xAxis, float yAxis, AntiAliasingOption option) override;

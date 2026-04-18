@@ -496,8 +496,17 @@ public:
      * PixelMap crop.
      *
      * @param rect The area that has been cut off.
+     * @return The resulting status code (has less types of status code than Crop()).
      */
     NATIVEEXPORT virtual uint32_t crop(const Rect &rect);
+
+    /**
+     * Crops the PixelMap.
+     *
+     * @param rect The region to crop.
+     * @return The resulting status code (has more types of status code than crop()).
+     */
+    NATIVEEXPORT virtual uint32_t Crop(const Rect &rect);
 
     /**
      * Get pixelmap information.

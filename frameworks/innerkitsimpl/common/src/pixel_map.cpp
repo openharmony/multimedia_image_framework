@@ -4587,7 +4587,7 @@ void PixelMap::scale(float xAxis, float yAxis)
     }
     TransInfos infos;
     infos.matrix.setScale(xAxis, yAxis);
-    if (!ApplyAffineTransform(infos)) {
+    if (ApplyAffineTransform(infos) != SUCCESS) {
         IMAGE_LOGE("scale failed");
         return;
     }
@@ -4661,7 +4661,7 @@ bool PixelMap::resize(float xAxis, float yAxis)
     ImageTrace imageTrace("PixelMap resize");
     TransInfos infos;
     infos.matrix.setScale(xAxis, yAxis);
-    if (!ApplyAffineTransform(infos)) {
+    if (ApplyAffineTransform(infos) != SUCCESS) {
         IMAGE_LOGE("resize falied");
         return false;
     }
@@ -4745,6 +4745,14 @@ void PixelMap::CopySurfaceBufferInfo(void *data)
 }
 
 uint32_t PixelMap::crop(const Rect &rect)
+{
+    if (Crop(rect) != SUCCESS) {
+        return ERR_IMAGE_CROP;
+    }
+    return SUCCESS;
+}
+
+uint32_t PixelMap::Crop(const Rect &rect)
 {
     if (!modifiable_) {
         IMAGE_LOGE("[PixelMap] crop can't be performed: PixelMap is not modifiable");
