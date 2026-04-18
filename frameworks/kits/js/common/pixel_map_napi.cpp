@@ -139,6 +139,8 @@ struct PixelMapAsyncContext {
     std::shared_ptr<napi_value[]> argv = nullptr;
     size_t argc = 0;
     bool transformEnabled = false;
+    int32_t errCode = SUCCESS;
+    std::string errMsg;
 };
 using PixelMapAsyncContextPtr = std::unique_ptr<PixelMapAsyncContext>;
 std::shared_ptr<PixelMap> srcPixelMap = nullptr;
@@ -1025,6 +1027,7 @@ static void BuildContextError(napi_env env, napi_ref &error, const std::string e
 
 // Create a pending error with error code as number type, if error is absent (nullptr).
 // The error should be thrown at some later point after calling this function.
+// DO NOT use in Exec functions in async threads.
 static void CreatePendingErrorIfAbsent(napi_env env, napi_ref &error, const int32_t errCode, const std::string errMsg)
 {
     IMAGE_LOGE("%{public}s", errMsg.c_str());
@@ -1057,15 +1060,16 @@ static void EmptyResultEnhancedComplete(napi_env env, napi_status status, void* 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context == nullptr) {
         context = new PixelMapAsyncContext();
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The data is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The data is null.";
     }
 
     napi_value result = nullptr;
     napi_get_undefined(env, &result);
 
-    if (context->error != nullptr) {
+    if (context->errCode != SUCCESS) {
         context->status = ERROR;
+        CreatePendingErrorIfAbsent(env, context->error, context->errCode, context->errMsg);
     }
 
     CommonCallbackRoutine(env, context, result);
@@ -1076,18 +1080,19 @@ void PixelMapNapi::CreatePixelMapFromPixelsComplete(napi_env env, napi_status st
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context == nullptr) {
         context = new PixelMapAsyncContext();
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: The data is null.");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Internal error: The data is null.";
     }
 
     napi_value result = PixelMapNapi::CreatePixelMap(env, context->rPixelMap);
     if (result == nullptr || ImageNapiUtils::getType(env, result) == napi_undefined) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: Failed to create NAPI instance.");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Internal error: Failed to create NAPI instance.";
     }
 
-    if (context->error != nullptr) {
+    if (context->errCode != SUCCESS) {
         context->status = ERROR;
+        CreatePendingErrorIfAbsent(env, context->error, context->errCode, context->errMsg);
     }
 
     CommonCallbackRoutine(env, context, result);
@@ -1104,8 +1109,8 @@ static void CreatePixelMapFromPixelsExec(napi_env env, void* data)
     auto pixels = static_cast<uint8_t*>(context->colorsBuffer);
 
     if (ImageUtils::Is10Bit(context->opts.pixelFormat)) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_UNSUPPORTED_DATA_FORMAT,
-            "10-bit formats are not supported.");
+        context->errCode = ERR_IMAGE_UNSUPPORTED_DATA_FORMAT;
+        context->errMsg = "10-bit formats are not supported.";
         return;
     }
 
@@ -1113,16 +1118,18 @@ static void CreatePixelMapFromPixelsExec(napi_env env, void* data)
     context->rPixelMap = std::move(pixelMap);
 
     if (errCode == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid input values or buffer size not matching.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "Invalid parameter: Invalid input values or buffer size not matching.";
     } else if (errCode == ERR_IMAGE_DATA_ABNORMAL) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Input values are invalid or out of range causing internal configuration error.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg =
+            "Invalid parameter: Input values are invalid or out of range causing internal configuration error.";
     } else if (errCode == ERR_IMAGE_MALLOC_ABNORMAL) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_ALLOC_FAILED, "Failed to allocate memory.");
+        context->errCode = ERR_MEDIA_MEMORY_ALLOC_FAILED;
+        context->errMsg = "Failed to allocate memory.";
     } else if (errCode != SUCCESS || context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Failed to create PixelMap from pixels data.");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Failed to create PixelMap from pixels data.";
     }
 }
 
@@ -1218,11 +1225,15 @@ napi_value PixelMapNapi::CreatePixelMapFromPixelsSync(napi_env env, napi_callbac
     }
 
     CreatePixelMapFromPixelsExec(env, static_cast<void*>(context.get()));
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
+    }
 
     result = PixelMapNapi::CreatePixelMap(env, context->rPixelMap);
     if (result == nullptr || ImageNapiUtils::getType(env, result) == napi_undefined) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: Failed to create NAPI instance.");
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Internal error: Failed to create NAPI instance.", true);
     }
 
     if (context->error != nullptr) {
@@ -1232,7 +1243,7 @@ napi_value PixelMapNapi::CreatePixelMapFromPixelsSync(napi_env env, napi_callbac
     return result;
 }
 
-static void CreateEmptyPixelMapExec(napi_env env, void* data)
+static void CreateEmptyPixelMapExecSync(napi_env env, void* data)
 {
     if (data == nullptr) {
         IMAGE_LOGE("The data is null");
@@ -1242,7 +1253,8 @@ static void CreateEmptyPixelMapExec(napi_env env, void* data)
     auto context = static_cast<PixelMapAsyncContext*>(data);
 
     if (context->opts.size.width <= 0 || context->opts.size.height <= 0) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Invalid image size.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "Invalid image size.";
         return;
     }
 
@@ -1252,8 +1264,8 @@ static void CreateEmptyPixelMapExec(napi_env env, void* data)
     context->rPixelMap = PixelMap::Create(context->opts);
     
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Failed to allocate memory for the empty PixelMap.");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Failed to allocate memory for the empty PixelMap.";
     }
 }
 
@@ -1287,16 +1299,16 @@ napi_value PixelMapNapi::CreateEmptyPixelMap(napi_env env, napi_callback_info in
         return result;
     }
 
-    CreateEmptyPixelMapExec(env, static_cast<void*>(context.get()));
+    CreateEmptyPixelMapExecSync(env, static_cast<void*>(context.get()));
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
+    }
 
     result = PixelMapNapi::CreatePixelMap(env, context->rPixelMap);
     if (result == nullptr || ImageNapiUtils::getType(env, result) == napi_undefined) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: Failed to create NAPI instance.");
-    }
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Internal error: Failed to create NAPI instance.", true);
     }
     
     return result;
@@ -1311,8 +1323,8 @@ static void ReadAllPixelsToBufferExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
@@ -1320,13 +1332,14 @@ static void ReadAllPixelsToBufferExec(napi_env env, void* data)
         context->rPixelMap->ReadPixels(context->colorsBufferSize, static_cast<uint8_t*>(context->colorsBuffer));
     
     if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Buffer size is too small.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "Invalid parameter: Buffer size is too small.";
     } else if (context->status == ERR_IMAGE_READ_PIXELMAP_FAILED) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
+        context->errCode = ERR_MEDIA_MEMORY_COPY_FAILED;
+        context->errMsg = "Failed to copy the pixel data.";
     } else if (context->status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to read the pixel data. (" + std::to_string(context->status) + ")");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Failed to read the pixel data. (" + std::to_string(context->status) + ")";
     }
 }
 
@@ -1406,11 +1419,15 @@ napi_value PixelMapNapi::ReadAllPixelsToBufferSync(napi_env env, napi_callback_i
     status = napi_get_arraybuffer_info(env, argv[NUM_0], &(context->colorsBuffer), &(context->colorsBufferSize));
     if (!IMG_IS_OK(status)) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")");
+            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")", true);
         return result;
     }
     
     ReadAllPixelsToBufferExec(env, static_cast<void*>(context.get()));
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
+    }
 
     if (context->error != nullptr) {
         ImageNapiUtils::Throw(env, context->error);
@@ -1428,8 +1445,8 @@ static void ReadPixelsToAreaExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
@@ -1438,13 +1455,14 @@ static void ReadPixelsToAreaExec(napi_env env, void* data)
         area.size, area.offset, area.stride, area.region, static_cast<uint8_t*>(area.pixels));
     
     if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "Invalid parameter.";
     } else if (context->status == ERR_IMAGE_READ_PIXELMAP_FAILED) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED,
-            "Failed to copy the area pixel data.");
+        context->errCode = ERR_MEDIA_MEMORY_COPY_FAILED;
+        context->errMsg = "Failed to copy the area pixel data.";
     } else if (context->status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to read the area pixel data. (" + std::to_string(context->status) + ")");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Failed to read the area pixel data. (" + std::to_string(context->status) + ")";
     }
 }
 
@@ -1520,14 +1538,14 @@ napi_value PixelMapNapi::ReadPixelsToAreaSync(napi_env env, napi_callback_info i
     context->rPixelMap = context->nConstructor->nativePixelMap_;
 
     if (!parsePositionArea(env, argv[NUM_0], &(context->area))) {
-        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.");
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.", true);
         return result;
     }
     
     ReadPixelsToAreaExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -1542,8 +1560,8 @@ static void WriteAllPixelsFromBufferExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->wPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
@@ -1551,16 +1569,17 @@ static void WriteAllPixelsFromBufferExec(napi_env env, void* data)
         context->wPixelMap->WritePixels(static_cast<uint8_t*>(context->colorsBuffer), context->colorsBufferSize);
     
     if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION,
-            "The PixelMap is not editable or is locked.");
+        context->errCode = ERR_MEDIA_UNSUPPORT_OPERATION;
+        context->errMsg = "The PixelMap is not editable or is locked.";
     } else if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Buffer size is too small.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "Invalid parameter: Buffer size is too small.";
     } else if (context->status == ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED, "Failed to copy the pixel data.");
+        context->errCode = ERR_MEDIA_MEMORY_COPY_FAILED;
+        context->errMsg = "Failed to copy the pixel data.";
     } else if (context->status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to write the pixel data. (" + std::to_string(context->status) + ")");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Failed to write the pixel data. (" + std::to_string(context->status) + ")";
     }
 }
 
@@ -1640,14 +1659,14 @@ napi_value PixelMapNapi::WriteAllPixelsFromBufferSync(napi_env env, napi_callbac
     status = napi_get_arraybuffer_info(env, argv[NUM_0], &(context->colorsBuffer), &(context->colorsBufferSize));
     if (!IMG_IS_OK(status)) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")");
+            "Failed to get ArrayBuffer info. (" + std::to_string(status) + ")", true);
         return result;
     }
     
     WriteAllPixelsFromBufferExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -1662,8 +1681,8 @@ static void WritePixelsFromAreaExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->wPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
@@ -1672,16 +1691,17 @@ static void WritePixelsFromAreaExec(napi_env env, void* data)
         static_cast<uint8_t*>(area.pixels), area.size, area.offset, area.stride, area.region);
 
     if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION,
-            "The PixelMap is not editable or is locked.");
+        context->errCode = ERR_MEDIA_UNSUPPORT_OPERATION;
+        context->errMsg = "The PixelMap is not editable or is locked.";
     } else if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "Invalid parameter.";
     } else if (context->status == ERR_IMAGE_WRITE_PIXELMAP_FAILED) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_COPY_FAILED,
-            "Failed to copy the area pixel data.");
+        context->errCode = ERR_MEDIA_MEMORY_COPY_FAILED;
+        context->errMsg = "Failed to copy the area pixel data.";
     } else if (context->status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to write the area pixel data. (" + std::to_string(context->status) + ")");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Failed to write the area pixel data. (" + std::to_string(context->status) + ")";
     }
 }
 
@@ -1757,14 +1777,14 @@ napi_value PixelMapNapi::WritePixelsFromAreaSync(napi_env env, napi_callback_inf
     context->wPixelMap = context->nConstructor->nativePixelMap_;
 
     if (!parsePositionArea(env, argv[NUM_0], &(context->area))) {
-        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.");
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM, "Failed to parse PositionArea.", true);
         return result;
     }
     
     WritePixelsFromAreaExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -1775,18 +1795,19 @@ static void ExtractAlphaPixelMapComplete(napi_env env, napi_status status, void*
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context == nullptr) {
         context = new PixelMapAsyncContext();
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: The data is null.");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Internal error: The data is null.";
     }
 
     napi_value result = PixelMapNapi::CreatePixelMap(env, context->alphaMap);
     if (result == nullptr || ImageNapiUtils::getType(env, result) == napi_undefined) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: Failed to create NAPI instance.");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Internal error: Failed to create NAPI instance.";
     }
 
-    if (context->error != nullptr) {
+    if (context->errCode != SUCCESS) {
         context->status = ERROR;
+        CreatePendingErrorIfAbsent(env, context->error, context->errCode, context->errMsg);
     }
 
     CommonCallbackRoutine(env, context, result);
@@ -1808,14 +1829,14 @@ static void ExtractAlphaPixelMapExec(napi_env env, void* data)
     context->alphaMap = PixelMap::Create(*(context->rPixelMap), region, options, errCode);
     
     if (errCode == IMAGE_RESULT_FORMAT_CONVERT_FAILED) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_DATA_CONVERSION_FAILED,
-            "Failed to convert the pixels.");
+        context->errCode = ERR_MEDIA_DATA_CONVERSION_FAILED;
+        context->errMsg = "Failed to convert the pixels.";
     } else if (errCode == ERR_IMAGE_DECODE_FAILED) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_DATA_CONVERSION_FAILED,
-            "Failed to convert the pixels: YUV formats are not supported.");
+        context->errCode = ERR_MEDIA_DATA_CONVERSION_FAILED;
+        context->errMsg = "Failed to convert the pixels: YUV formats are not supported.";
     } else if (errCode != SUCCESS || context->alphaMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Failed to extract the alpha channel. (" + std::to_string(errCode) + ")");
+        context->errCode = ERR_IMAGE_CREATE_PIXELMAP_FAILED;
+        context->errMsg = "Failed to extract the alpha channel. (" + std::to_string(errCode) + ")";
     }
 }
 
@@ -1885,15 +1906,15 @@ napi_value PixelMapNapi::ExtractAlphaPixelMapSync(napi_env env, napi_callback_in
     context->rPixelMap = context->nConstructor->nativePixelMap_;
 
     ExtractAlphaPixelMapExec(env, static_cast<void*>(context.get()));
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
+    }
 
     result = PixelMapNapi::CreatePixelMap(env, context->alphaMap);
     if (result == nullptr || ImageNapiUtils::getType(env, result) == napi_undefined) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
-            "Internal error: Failed to create NAPI instance.");
-    }
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+        ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
+            "Internal error: Failed to create NAPI instance.", true);
     }
     
     return result;
@@ -1908,23 +1929,24 @@ static void SetOpacityExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
     context->status = context->rPixelMap->SetAlpha(static_cast<float>(context->alpha));
     if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION, "The PixelMap is locked.");
+        context->errCode = ERR_MEDIA_UNSUPPORT_OPERATION;
+        context->errMsg = "The PixelMap is locked.";
     } else if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_INVALID_PARAM,
-            "The specified opacity value is out of range.");
+        context->errCode = ERR_IMAGE_INVALID_PARAM;
+        context->errMsg = "The specified opacity value is out of range.";
     } else if (context->status == ERR_IMAGE_DATA_UNSUPPORT) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_UNSUPPORTED_DATA_FORMAT,
-            "The current alpha type is not supported.");
+        context->errCode = ERR_IMAGE_UNSUPPORTED_DATA_FORMAT;
+        context->errMsg = "The current alpha type is not supported.";
     } else if (context->status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to set the opacity. (" + std::to_string(context->status) + ")");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Failed to set the opacity. (" + std::to_string(context->status) + ")";
     }
 }
 
@@ -2002,30 +2024,33 @@ napi_value PixelMapNapi::SetOpacitySync(napi_env env, napi_callback_info info)
 
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->alpha)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 1st argument.");
+            "Invalid parameter: Invalid type for the 1st argument.", true);
     }
 
     SetOpacityExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
 }
 
-static void HandleAffineTransformReturnStatus(napi_env env, napi_ref &error, uint32_t status,
+static void HandleAffineTransformReturnStatus(uint32_t status, int32_t &errCode, std::string &errMsg,
     std::string transformType)
 {
     if (status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
-        CreatePendingErrorIfAbsent(env, error, ERR_MEDIA_UNSUPPORT_OPERATION, "The PixelMap is locked.");
+        errCode = ERR_MEDIA_UNSUPPORT_OPERATION;
+        errMsg = "The PixelMap is locked.";
     } else if (status == ERR_IMAGE_MALLOC_ABNORMAL) {
-        CreatePendingErrorIfAbsent(env, error, ERR_MEDIA_MEMORY_ALLOC_FAILED, "Failed to allocate memory.");
+        errCode = ERR_MEDIA_MEMORY_ALLOC_FAILED;
+        errMsg = "Failed to allocate memory.";
     } else if (status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, error, ERR_IMAGE_INVALID_PARAM, "Invalid parameter.");
+        errCode = ERR_IMAGE_INVALID_PARAM;
+        errMsg = "Invalid parameter.";
     } else if (status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to " + transformType + " the PixelMap. (" + std::to_string(status) + ")");
+        errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        errMsg = "Failed to " + transformType + " the PixelMap. (" + std::to_string(status) + ")";
     }
 }
 
@@ -2038,14 +2063,14 @@ static void ApplyScaleExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
     context->status = context->rPixelMap->Scale(static_cast<float>(context->xArg), static_cast<float>(context->yArg),
         context->antiAliasing);
-    HandleAffineTransformReturnStatus(env, context->error, context->status, "scale");
+    HandleAffineTransformReturnStatus(context->status, context->errCode, context->errMsg, "scale");
 }
 
 napi_value PixelMapNapi::ApplyScale(napi_env env, napi_callback_info info)
@@ -2132,23 +2157,23 @@ napi_value PixelMapNapi::ApplyScaleSync(napi_env env, napi_callback_info info)
 
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->xArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 1st argument.");
+            "Invalid parameter: Invalid type for the 1st argument.", true);
     }
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_1], &(context->yArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 2nd argument.");
+            "Invalid parameter: Invalid type for the 2nd argument.", true);
     }
     int32_t antiAliasing;
     if (!IMG_IS_OK(napi_get_value_int32(env, argv[NUM_2], &antiAliasing))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 3rd argument.");
+            "Invalid parameter: Invalid type for the 3rd argument.", true);
     }
     context->antiAliasing = ParseAntiAliasingOption(antiAliasing);
     
     ApplyScaleExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -2163,14 +2188,14 @@ static void ApplyTranslateExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
     context->status =
         context->rPixelMap->Translate(static_cast<float>(context->xArg), static_cast<float>(context->yArg));
-    HandleAffineTransformReturnStatus(env, context->error, context->status, "translate");
+    HandleAffineTransformReturnStatus(context->status, context->errCode, context->errMsg, "translate");
 }
 
 napi_value PixelMapNapi::ApplyTranslate(napi_env env, napi_callback_info info)
@@ -2251,17 +2276,17 @@ napi_value PixelMapNapi::ApplyTranslateSync(napi_env env, napi_callback_info inf
 
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->xArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 1st argument.");
+            "Invalid parameter: Invalid type for the 1st argument.", true);
     }
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_1], &(context->yArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 2nd argument.");
+            "Invalid parameter: Invalid type for the 2nd argument.", true);
     }
     
     ApplyTranslateExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -2276,23 +2301,25 @@ static void ApplyCropExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
     context->status = context->rPixelMap->Crop(context->area.region);
 
     if (context->status == ERR_IMAGE_PIXELMAP_NOT_ALLOW_MODIFY) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_UNSUPPORT_OPERATION, "The PixelMap is locked.");
+        context->errCode = ERR_MEDIA_UNSUPPORT_OPERATION;
+        context->errMsg = "The PixelMap is locked.";
     } else if (context->status == ERR_IMAGE_INVALID_PARAMETER) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_INVALID_REGION,
-            "The specified region is invalid or out of range.");
+        context->errCode = ERR_MEDIA_INVALID_REGION;
+        context->errMsg = "The specified region is invalid or out of range.";
     } else if (context->status == ERR_IMAGE_MALLOC_ABNORMAL) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_MEDIA_MEMORY_ALLOC_FAILED, "Failed to allocate memory.");
+        context->errCode = ERR_MEDIA_MEMORY_ALLOC_FAILED;
+        context->errMsg = "Failed to allocate memory.";
     } else if (context->status != SUCCESS) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Failed to crop the PixelMap. (" + std::to_string(context->status) + ")");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Failed to crop the PixelMap. (" + std::to_string(context->status) + ")";
     }
 }
 
@@ -2368,14 +2395,14 @@ napi_value PixelMapNapi::ApplyCropSync(napi_env env, napi_callback_info info)
     context->rPixelMap = context->nConstructor->nativePixelMap_;
 
     if (!parseRegion(env, argv[NUM_0], &(context->area.region))) {
-        ImageNapiUtils::ThrowExceptionError(env, ERR_MEDIA_INVALID_REGION, "The specified region is invalid.");
+        ImageNapiUtils::ThrowExceptionError(env, ERR_MEDIA_INVALID_REGION, "The specified region is invalid.", true);
         return result;
     }
     
     ApplyCropExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -2390,13 +2417,13 @@ static void ApplyRotateExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
     context->status = context->rPixelMap->Rotate(static_cast<float>(context->xArg));
-    HandleAffineTransformReturnStatus(env, context->error, context->status, "rotate");
+    HandleAffineTransformReturnStatus(context->status, context->errCode, context->errMsg, "rotate");
 }
 
 napi_value PixelMapNapi::ApplyRotate(napi_env env, napi_callback_info info)
@@ -2473,13 +2500,13 @@ napi_value PixelMapNapi::ApplyRotateSync(napi_env env, napi_callback_info info)
 
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->xArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 1st argument.");
+            "Invalid parameter: Invalid type for the 1st argument.", true);
     }
 
     ApplyRotateExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
@@ -2494,13 +2521,13 @@ static void ApplyFlipExec(napi_env env, void* data)
 
     auto context = static_cast<PixelMapAsyncContext*>(data);
     if (context->rPixelMap == nullptr) {
-        CreatePendingErrorIfAbsent(env, context->error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
-            "Internal error: The PixelMap instance is null.");
+        context->errCode = ERR_IMAGE_GET_IMAGE_DATA_FAILED;
+        context->errMsg = "Internal error: The PixelMap instance is null.";
         return;
     }
 
     context->status = context->rPixelMap->Flip(context->xBarg, context->yBarg);
-    HandleAffineTransformReturnStatus(env, context->error, context->status, "flip");
+    HandleAffineTransformReturnStatus(context->status, context->errCode, context->errMsg, "flip");
 }
 
 napi_value PixelMapNapi::ApplyFlip(napi_env env, napi_callback_info info)
@@ -2581,17 +2608,17 @@ napi_value PixelMapNapi::ApplyFlipSync(napi_env env, napi_callback_info info)
 
     if (!IMG_IS_OK(napi_get_value_bool(env, argv[NUM_0], &(context->xBarg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 1st argument.");
+            "Invalid parameter: Invalid type for the 1st argument.", true);
     }
     if (!IMG_IS_OK(napi_get_value_bool(env, argv[NUM_1], &(context->yBarg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
-            "Invalid parameter: Invalid type for the 2nd argument.");
+            "Invalid parameter: Invalid type for the 2nd argument.", true);
     }
     
     ApplyFlipExec(env, static_cast<void*>(context.get()));
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
+    if (context->errCode != SUCCESS) {
+        ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
+        return result;
     }
     
     return result;
