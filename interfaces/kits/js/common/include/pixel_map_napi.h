@@ -89,12 +89,15 @@ private:
     static napi_value GetIsEditable(napi_env env, napi_callback_info info);
     static napi_value GetIsStrideAlignment(napi_env env, napi_callback_info info);
 
-    /* stattic method */
+    // Static methods
+    static napi_value CreatePixelMapFromPixels(napi_env env, napi_callback_info info);
+    static napi_value CreatePixelMapFromPixelsSync(napi_env env, napi_callback_info info);
+    static napi_value CreateEmptyPixelMap(napi_env env, napi_callback_info info);
     static napi_value CreatePixelMap(napi_env env, napi_callback_info info);
     static napi_value CreatePremultipliedPixelMap(napi_env env, napi_callback_info info);
     static napi_value CreateUnpremultipliedPixelMap(napi_env env, napi_callback_info info);
-    /* stattic method */
     static napi_value CreatePixelMapSync(napi_env env, napi_callback_info info);
+    static void CreatePixelMapFromPixelsComplete(napi_env env, napi_status status, void* data);
     static void CreatePixelMapComplete(napi_env env, napi_status status, void *data);
     static napi_value Unmarshalling(napi_env env, napi_callback_info info);
     static void UnmarshallingComplete(napi_env env, napi_status status, void *data);
@@ -112,6 +115,14 @@ private:
         const std::string &tag, const std::uint32_t &code, const std::string &info);
 
     // methods
+    static napi_value ReadAllPixelsToBuffer(napi_env env, napi_callback_info info);
+    static napi_value ReadAllPixelsToBufferSync(napi_env env, napi_callback_info info);
+    static napi_value ReadPixelsToArea(napi_env env, napi_callback_info info);
+    static napi_value ReadPixelsToAreaSync(napi_env env, napi_callback_info info);
+    static napi_value WriteAllPixelsFromBuffer(napi_env env, napi_callback_info info);
+    static napi_value WriteAllPixelsFromBufferSync(napi_env env, napi_callback_info info);
+    static napi_value WritePixelsFromArea(napi_env env, napi_callback_info info);
+    static napi_value WritePixelsFromAreaSync(napi_env env, napi_callback_info info);
     static napi_value ReadPixelsToBuffer(napi_env env, napi_callback_info info);
     static napi_value ReadPixelsToBufferSync(napi_env env, napi_callback_info info);
     static napi_value ReadPixels(napi_env env, napi_callback_info info);
@@ -129,24 +140,37 @@ private:
     static napi_value SetAlphaAble(napi_env env, napi_callback_info info);
     static napi_value CreatePixelMapUsingAllocator(napi_env env, napi_callback_info info);
     static napi_value CreatePixelMapUsingAllocatorSync(napi_env env, napi_callback_info info);
+    static napi_value ExtractAlphaPixelMap(napi_env env, napi_callback_info info);
+    static napi_value ExtractAlphaPixelMapSync(napi_env env, napi_callback_info info);
     static napi_value CreateAlphaPixelmap(napi_env env, napi_callback_info info);
     static napi_value CreateAlphaPixelmapSync(napi_env env, napi_callback_info info);
     static napi_value GetDensity(napi_env env, napi_callback_info info);
     static napi_value SetDensity(napi_env env, napi_callback_info info);
     static napi_value Release(napi_env env, napi_callback_info info);
+    static napi_value SetOpacity(napi_env env, napi_callback_info info);
+    static napi_value SetOpacitySync(napi_env env, napi_callback_info info);
     static napi_value SetAlpha(napi_env env, napi_callback_info info);
     static napi_value SetAlphaSync(napi_env env, napi_callback_info info);
-
+    static napi_value ApplyScale(napi_env env, napi_callback_info info);
+    static napi_value ApplyScaleSync(napi_env env, napi_callback_info info);
     static napi_value Scale(napi_env env, napi_callback_info info);
     static napi_value ScaleSync(napi_env env, napi_callback_info info);
     static napi_value CreateScaledPixelMap(napi_env env, napi_callback_info info);
     static napi_value CreateScaledPixelMapSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyTranslate(napi_env env, napi_callback_info info);
+    static napi_value ApplyTranslateSync(napi_env env, napi_callback_info info);
     static napi_value Translate(napi_env env, napi_callback_info info);
     static napi_value TranslateSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyRotate(napi_env env, napi_callback_info info);
+    static napi_value ApplyRotateSync(napi_env env, napi_callback_info info);
     static napi_value Rotate(napi_env env, napi_callback_info info);
     static napi_value RotateSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyFlip(napi_env env, napi_callback_info info);
+    static napi_value ApplyFlipSync(napi_env env, napi_callback_info info);
     static napi_value Flip(napi_env env, napi_callback_info info);
     static napi_value FlipSync(napi_env env, napi_callback_info info);
+    static napi_value ApplyCrop(napi_env env, napi_callback_info info);
+    static napi_value ApplyCropSync(napi_env env, napi_callback_info info);
     static napi_value Crop(napi_env env, napi_callback_info info);
     static napi_value CropSync(napi_env env, napi_callback_info info);
     static napi_value ToSdr(napi_env env, napi_callback_info info);

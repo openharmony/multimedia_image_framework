@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <utility>
 #ifdef IMAGE_COLORSPACE_FLAG
 #include "color_space.h"
 #endif
@@ -69,7 +70,7 @@ struct InitializationOptions {
     AlphaType alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNKNOWN;
     ScaleMode scaleMode = ScaleMode::FIT_TARGET_SIZE;
     YUVConvertColorSpaceDetails convertColorSpace;
-    int32_t srcRowStride = 0;
+    int32_t srcRowStride = 0; // 0 means no padding, row stride equals to row bytes
     AllocatorType allocatorType = AllocatorType::DEFAULT;
     bool editable = false;
     bool useSourceIfMatch = false;
@@ -185,6 +186,20 @@ public:
      */
     NATIVEEXPORT static std::unique_ptr<PixelMap> Create(const uint32_t *colors, uint32_t colorLength,
         BUILD_PARAM &info, const InitializationOptions &opts, int &errorCode);
+
+    /**
+     * Creates a PixelMap from a raw pixel data buffer.
+     *
+     * @param pixels Pointer to the source pixel data buffer.
+     * @param byteSize Size of the source pixel data buffer in bytes.
+     * @param options Initialization options that describe the source buffer and destination PixelMap.
+     *                If InitializationOptions.pixelFormat is UNKNOWN, it will default to RGBA_8888.
+     *                If InitializationOptions.srcPixelFormat is UNKNOWN, it will default to BGRA_8888.
+     *                If InitializationOptions.alphaType is UNKNOWN, it will default to IMAGE_ALPHA_TYPE_PREMUL.
+     * @return A pair whose first value is the created PixelMap and whose second value is the result code.
+     */
+    NATIVEEXPORT static std::pair<std::unique_ptr<PixelMap>, int32_t> CreateFromPixels(
+        const uint8_t *pixels, uint32_t byteSize, const InitializationOptions &options);
 
     /**
      * Create a PixelMap through InitializationOptions.
@@ -411,6 +426,16 @@ public:
     NATIVEEXPORT virtual void scale(float xAxis, float yAxis, const AntiAliasingOption &option);
 
     /**
+     * Scales the PixelMap in the horizontal and/or vertical dimensions.
+     *
+     * @param xAxis The scale ratio of width.
+     * @param yAxis The scale ratio of height.
+     * @param option The anti-aliasing algorithm to be used.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Scale(float xAxis, float yAxis, AntiAliasingOption option);
+
+    /**
      * PixelMap zooming.
      *
      * @param xAxis X-axis scaling ratio.
@@ -427,11 +452,28 @@ public:
     NATIVEEXPORT virtual void translate(float xAxis, float yAxis);
 
     /**
+     * Repositions the PixelMap in the horizontal and/or vertical directions.
+     *
+     * @param xAxis The distance in pixels to move in the horizontal direction.
+     * @param yAxis The distance in pixels to move in the vertical direction.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Translate(float xAxis, float yAxis);
+
+    /**
      * PixelMap rotation.
      *
      * @param degrees rotation angle.
      */
     NATIVEEXPORT virtual void rotate(float degrees);
+
+    /**
+     * Rotates the PixelMap.
+     *
+     * @param degrees The rotation angle in degrees.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Rotate(float degrees);
 
     /**
      * PixelMap inversion.
@@ -442,11 +484,29 @@ public:
     NATIVEEXPORT virtual void flip(bool xAxis, bool yAxis);
 
     /**
+     * Flips the PixelMap in the horizontal and/or vertical directions.
+     *
+     * @param xAxis Whether to flip horizontally.
+     * @param yAxis Whether to flip vertically.
+     * @return The resulting status code.
+     */
+    NATIVEEXPORT virtual uint32_t Flip(bool xAxis, bool yAxis);
+
+    /**
      * PixelMap crop.
      *
      * @param rect The area that has been cut off.
+     * @return The resulting status code (has less types of status code than Crop()).
      */
     NATIVEEXPORT virtual uint32_t crop(const Rect &rect);
+
+    /**
+     * Crops the PixelMap.
+     *
+     * @param rect The region to crop.
+     * @return The resulting status code (has more types of status code than crop()).
+     */
+    NATIVEEXPORT virtual uint32_t Crop(const Rect &rect);
 
     /**
      * Get pixelmap information.
@@ -966,7 +1026,7 @@ protected:
     void WriteData(std::vector<uint8_t> &buff, const uint8_t *data,
         const int32_t &height, const int32_t &rowDataSize, const int32_t &rowStride) const;
     static bool ReadTlvAttr(std::vector<uint8_t>& buff, ImageInfo& info, std::unique_ptr<AbsMemory>& mem, int32_t& csm);
-    bool DoTranslation(TransInfos &infos, const AntiAliasingOption &option = AntiAliasingOption::NONE);
+    uint32_t ApplyAffineTransform(TransInfos &infos, AntiAliasingOption option = AntiAliasingOption::NONE);
     void UpdateImageInfo();
     static int32_t ConvertPixelAlpha(const void *srcPixels, const int32_t srcLength, const ImageInfo &srcInfo,
         void *dstPixels, const ImageInfo &dstInfo);

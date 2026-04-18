@@ -14,6 +14,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <memory>
 #include "pixelmap_native.h"
 #include "pixelmap_native_impl.h"
 #include "common_utils.h"
@@ -55,7 +56,7 @@ const int32_t FOUR = 4;
 const int32_t EIGHT = 8;
 const float PRIMARIES = 0.1;
 const int32_t VERSION_VALUE = 50;
-constexpr int32_t bufferSize = 256;
+constexpr int32_t BUFFER_SIZE = 256;
 static const std::string IMAGE_JPEG_PATH = "/data/local/tmp/image/test_jpeg_writeexifblob001.jpg";
 static const std::string IMAGE_JPEG_PATH_TEST = "/data/local/tmp/image/test.jpg";
 static const std::string IMAGE_JPEG_PATH_TEST_PICTURE = "/data/local/tmp/image/test_picture.jpg";
@@ -99,8 +100,8 @@ static bool CompareImageInfo(OH_Pixelmap_ImageInfo* srcImageInfo, OH_Pixelmap_Im
     OH_PixelmapImageInfo_GetAlphaType(dstImageInfo, &dstAlphaType);
     OH_PixelmapImageInfo_GetDynamicRange(dstImageInfo, &dstIsHdr);
 
-    return srcWidth == dstWidth && srcHeight == dstHeight && srcRowStride == dstRowStride
-        && srcPixelFormat == dstPixelFormat && srcAlphaType == dstAlphaType && srcIsHdr == dstIsHdr;
+    return srcWidth == dstWidth && srcHeight == dstHeight && srcRowStride == dstRowStride &&
+        srcPixelFormat == dstPixelFormat && srcAlphaType == dstAlphaType && srcIsHdr == dstIsHdr;
 }
 
 static void CreatePixelmapNative(OH_PixelmapNative** pixelmapNative,
@@ -111,7 +112,7 @@ static void CreatePixelmapNative(OH_PixelmapNative** pixelmapNative,
         return;
     }
 
-    char filePath[bufferSize];
+    char filePath[BUFFER_SIZE];
     if (strcpy_s(filePath, sizeof(filePath), realPath.c_str()) != EOK) {
         return;
     }
@@ -130,6 +131,61 @@ static void CreatePixelmapNative(OH_PixelmapNative** pixelmapNative,
         OH_ImageSourceNative_CreatePixelmapUsingAllocator(source, opts, allocator, &pixelmap);
     }
     *pixelmapNative = pixelmap;
+}
+
+struct PixelmapNativeTestCreateOptions {
+    uint32_t width = FOUR;
+    uint32_t height = FOUR;
+    int32_t pixelFormat = PIXEL_FORMAT_BGRA_8888;
+    int32_t alphaType = PIXELMAP_ALPHA_TYPE_PREMULTIPLIED;
+    bool editable = true;
+    bool modifiable = true;
+};
+
+static OH_PixelmapNative* CreateEmptyPixelmapNativeForTest(
+    const PixelmapNativeTestCreateOptions &options = PixelmapNativeTestCreateOptions())
+{
+    OH_Pixelmap_InitializationOptions *opts = nullptr;
+    if (OH_PixelmapInitializationOptions_Create(&opts) != IMAGE_SUCCESS) {
+        return nullptr;
+    }
+    if (OH_PixelmapInitializationOptions_SetWidth(opts, options.width) != IMAGE_SUCCESS ||
+        OH_PixelmapInitializationOptions_SetHeight(opts, options.height) != IMAGE_SUCCESS ||
+        OH_PixelmapInitializationOptions_SetPixelFormat(opts, options.pixelFormat) != IMAGE_SUCCESS ||
+        OH_PixelmapInitializationOptions_SetSrcPixelFormat(opts, options.pixelFormat) != IMAGE_SUCCESS ||
+        OH_PixelmapInitializationOptions_SetAlphaType(opts, options.alphaType) != IMAGE_SUCCESS ||
+        OH_PixelmapInitializationOptions_SetEditable(opts, options.editable) != IMAGE_SUCCESS) {
+        OH_PixelmapInitializationOptions_Release(opts);
+        return nullptr;
+    }
+
+    OH_PixelmapNative *pixelmap = nullptr;
+    Image_ErrorCode ret = OH_PixelmapNative_CreateEmptyPixelmap(opts, &pixelmap);
+    OH_PixelmapInitializationOptions_Release(opts);
+    if (ret != IMAGE_SUCCESS || pixelmap == nullptr || pixelmap->GetInnerPixelmap() == nullptr) {
+        return nullptr;
+    }
+
+    pixelmap->GetInnerPixelmap()->SetModifiable(options.modifiable);
+    return pixelmap;
+}
+
+static bool GetPixelmapNativeImageInfoForTest(OH_PixelmapNative *pixelmap, uint32_t &width, uint32_t &height,
+    int32_t *alphaType = nullptr)
+{
+    OH_Pixelmap_ImageInfo *imageInfo = nullptr;
+    if (OH_PixelmapImageInfo_Create(&imageInfo) != IMAGE_SUCCESS) {
+        return false;
+    }
+
+    bool success = OH_PixelmapNative_GetImageInfo(pixelmap, imageInfo) == IMAGE_SUCCESS &&
+        OH_PixelmapImageInfo_GetWidth(imageInfo, &width) == IMAGE_SUCCESS &&
+        OH_PixelmapImageInfo_GetHeight(imageInfo, &height) == IMAGE_SUCCESS;
+    if (success && alphaType != nullptr) {
+        success = OH_PixelmapImageInfo_GetAlphaType(imageInfo, alphaType) == IMAGE_SUCCESS;
+    }
+    OH_PixelmapImageInfo_Release(imageInfo);
+    return success;
 }
 
 /**
@@ -828,7 +884,7 @@ HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_SetMetadata, TestSize.Level3)
             return;
         }
     }
-    char filePath[bufferSize];
+    char filePath[BUFFER_SIZE];
     if (strcpy_s(filePath, sizeof(filePath), realPath.c_str()) != EOK) {
         return;
     }
@@ -1183,7 +1239,7 @@ static OH_ImageSourceNative *CreateImageSourceNative(std::string IMAGE_PATH)
     if (!ImageUtils::PathToRealPath(IMAGE_PATH.c_str(), realPath) || realPath.empty()) {
         return nullptr;
     }
-    char filePath[bufferSize];
+    char filePath[BUFFER_SIZE];
     if (strcpy_s(filePath, sizeof(filePath), realPath.c_str()) != EOK) {
         return nullptr;
     }
@@ -2355,6 +2411,468 @@ HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_Rotate_NegativeAngle, TestSize.Leve
     OH_PixelmapNative_Destroy(&pixelmap);
 
     GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_Rotate_NegativeAngle end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_SetOpacity_Success
+ * @tc.desc: Test OH_PixelmapNative_SetOpacity success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_SetOpacity_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_SetOpacity_Success start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_SetOpacity(pixelmap, 0.5f), IMAGE_SUCCESS);
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_SetOpacity_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_SetOpacity_Failure
+ * @tc.desc: Test OH_PixelmapNative_SetOpacity failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_SetOpacity_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_SetOpacity_Failure start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_SetOpacity(pixelmap, 0.0f), IMAGE_INVALID_PARAMETER);
+    EXPECT_EQ(OH_PixelmapNative_SetOpacity(nullptr, 0.5f), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_SetOpacity(releasedPixelmap, 0.5f), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_SetOpacity(unmodifiablePixelmap, 0.5f), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative *rgb565Pixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_RGB_565, PIXELMAP_ALPHA_TYPE_OPAQUE});
+    ASSERT_NE(rgb565Pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_SetOpacity(rgb565Pixelmap, 0.5f), IMAGE_UNSUPPORTED_DATA_FORMAT);
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+    OH_PixelmapNative_Destroy(&rgb565Pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_SetOpacity_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyScale_Success
+ * @tc.desc: Test OH_PixelmapNative_ApplyScale success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyScale_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScale_Success start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyScale(pixelmap, 2.0f, 2.0f), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(pixelmap, width, height));
+    EXPECT_EQ(width, static_cast<uint32_t>(EIGHT));
+    EXPECT_EQ(height, static_cast<uint32_t>(EIGHT));
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScale_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyScale_Failure
+ * @tc.desc: Test OH_PixelmapNative_ApplyScale failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyScale_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScale_Failure start";
+
+    EXPECT_EQ(OH_PixelmapNative_ApplyScale(nullptr, 2.0f, 2.0f), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ApplyScale(releasedPixelmap, 2.0f, 2.0f), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyScale(unmodifiablePixelmap, 2.0f, 2.0f), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScale_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyScaleWithAntiAliasing_Success
+ * @tc.desc: Test OH_PixelmapNative_ApplyScaleWithAntiAliasing success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyScaleWithAntiAliasing_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScaleWithAntiAliasing_Success start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyScaleWithAntiAliasing(pixelmap, 2.0f, 2.0f,
+        OH_PixelmapNative_AntiAliasing_HIGH), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(pixelmap, width, height));
+    EXPECT_EQ(width, static_cast<uint32_t>(EIGHT));
+    EXPECT_EQ(height, static_cast<uint32_t>(EIGHT));
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScaleWithAntiAliasing_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyScaleWithAntiAliasing_Failure
+ * @tc.desc: Test OH_PixelmapNative_ApplyScaleWithAntiAliasing failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyScaleWithAntiAliasing_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScaleWithAntiAliasing_Failure start";
+
+    EXPECT_EQ(OH_PixelmapNative_ApplyScaleWithAntiAliasing(nullptr, 2.0f, 2.0f,
+        OH_PixelmapNative_AntiAliasing_LOW), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ApplyScaleWithAntiAliasing(releasedPixelmap, 2.0f, 2.0f,
+        OH_PixelmapNative_AntiAliasing_LOW), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyScaleWithAntiAliasing(unmodifiablePixelmap, 2.0f, 2.0f,
+        OH_PixelmapNative_AntiAliasing_MEDIUM), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyScaleWithAntiAliasing_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyTranslate_Success
+ * @tc.desc: Test OH_PixelmapNative_ApplyTranslate success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyTranslate_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyTranslate_Success start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyTranslate(pixelmap, 1.0f, 2.0f), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(pixelmap, width, height));
+    EXPECT_EQ(width, static_cast<uint32_t>(FOUR + ONE));
+    EXPECT_EQ(height, static_cast<uint32_t>(FOUR + TWO));
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyTranslate_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyTranslate_Failure
+ * @tc.desc: Test OH_PixelmapNative_ApplyTranslate failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyTranslate_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyTranslate_Failure start";
+
+    EXPECT_EQ(OH_PixelmapNative_ApplyTranslate(nullptr, 1.0f, 2.0f), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ApplyTranslate(releasedPixelmap, 1.0f, 2.0f), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyTranslate(unmodifiablePixelmap, 1.0f, 2.0f), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyTranslate_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyRotate_Success
+ * @tc.desc: Test OH_PixelmapNative_ApplyRotate success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyRotate_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyRotate_Success start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest(
+        {TWO, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED});
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyRotate(pixelmap, 90.0f), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(pixelmap, width, height));
+    EXPECT_EQ(width, static_cast<uint32_t>(FOUR));
+    EXPECT_EQ(height, static_cast<uint32_t>(TWO));
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyRotate_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyRotate_Failure
+ * @tc.desc: Test OH_PixelmapNative_ApplyRotate failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyRotate_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyRotate_Failure start";
+
+    EXPECT_EQ(OH_PixelmapNative_ApplyRotate(nullptr, 90.0f), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ApplyRotate(releasedPixelmap, 90.0f), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyRotate(unmodifiablePixelmap, 90.0f), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyRotate_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyFlip_Success
+ * @tc.desc: Test OH_PixelmapNative_ApplyFlip success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyFlip_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyFlip_Success start";
+
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyFlip(pixelmap, true, false), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(pixelmap, width, height));
+    EXPECT_EQ(width, static_cast<uint32_t>(FOUR));
+    EXPECT_EQ(height, static_cast<uint32_t>(FOUR));
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyFlip_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyFlip_Failure
+ * @tc.desc: Test OH_PixelmapNative_ApplyFlip failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyFlip_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyFlip_Failure start";
+
+    EXPECT_EQ(OH_PixelmapNative_ApplyFlip(nullptr, true, false), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ApplyFlip(releasedPixelmap, true, false), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyFlip(unmodifiablePixelmap, true, false), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyFlip_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyCrop_Success
+ * @tc.desc: Test OH_PixelmapNative_ApplyCrop success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyCrop_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyCrop_Success start";
+
+    Image_Region region = {ONE, ONE, TWO, TWO};
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyCrop(pixelmap, &region), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(pixelmap, width, height));
+    EXPECT_EQ(width, static_cast<uint32_t>(TWO));
+    EXPECT_EQ(height, static_cast<uint32_t>(TWO));
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyCrop_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ApplyCrop_Failure
+ * @tc.desc: Test OH_PixelmapNative_ApplyCrop failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ApplyCrop_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyCrop_Failure start";
+
+    Image_Region region = {ONE, ONE, TWO, TWO};
+    OH_PixelmapNative *pixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(pixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyCrop(nullptr, &region), IMAGE_INVALID_PARAMETER);
+    EXPECT_EQ(OH_PixelmapNative_ApplyCrop(pixelmap, nullptr), IMAGE_INVALID_PARAMETER);
+
+    Image_Region invalidRegion = {THREE, THREE, TWO, TWO};
+    OH_PixelmapNative *invalidRegionPixelmap = CreateEmptyPixelmapNativeForTest();
+    ASSERT_NE(invalidRegionPixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyCrop(invalidRegionPixelmap, &invalidRegion), IMAGE_INVALID_REGION);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ApplyCrop(releasedPixelmap, &region), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *unmodifiablePixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED, true, false});
+    ASSERT_NE(unmodifiablePixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ApplyCrop(unmodifiablePixelmap, &region), IMAGE_UNSUPPORTED_OPERATION);
+
+    OH_PixelmapNative_Destroy(&pixelmap);
+    OH_PixelmapNative_Destroy(&invalidRegionPixelmap);
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&unmodifiablePixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ApplyCrop_Failure end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ConvertAlphaType_Success
+ * @tc.desc: Test OH_PixelmapNative_ConvertAlphaType success path. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ConvertAlphaType_Success, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ConvertAlphaType_Success start";
+
+    OH_PixelmapNative *srcPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
+    OH_PixelmapNative *dstPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
+    ASSERT_NE(srcPixelmap, nullptr);
+    ASSERT_NE(dstPixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(srcPixelmap, dstPixelmap, true), IMAGE_SUCCESS);
+
+    uint32_t width = 0;
+    uint32_t height = 0;
+    int32_t alphaType = PIXELMAP_ALPHA_TYPE_UNKNOWN;
+    ASSERT_TRUE(GetPixelmapNativeImageInfoForTest(dstPixelmap, width, height, &alphaType));
+    EXPECT_EQ(width, static_cast<uint32_t>(FOUR));
+    EXPECT_EQ(height, static_cast<uint32_t>(FOUR));
+    EXPECT_EQ(alphaType, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED);
+
+    OH_PixelmapNative_Destroy(&srcPixelmap);
+    OH_PixelmapNative_Destroy(&dstPixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ConvertAlphaType_Success end";
+}
+
+/**
+ * @tc.name: OH_PixelmapNative_ConvertAlphaType_Failure
+ * @tc.desc: Test OH_PixelmapNative_ConvertAlphaType failure paths. [AUTO-GENERATED]
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ConvertAlphaType_Failure, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ConvertAlphaType_Failure start";
+
+    OH_PixelmapNative *srcPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
+    OH_PixelmapNative *dstPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
+    ASSERT_NE(srcPixelmap, nullptr);
+    ASSERT_NE(dstPixelmap, nullptr);
+
+    EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(nullptr, dstPixelmap, true), IMAGE_INVALID_PARAMETER);
+    EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(srcPixelmap, nullptr, true), IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *releasedPixelmap = new OH_PixelmapNative(std::make_shared<PixelMap>());
+    ASSERT_NE(releasedPixelmap, nullptr);
+    ASSERT_EQ(OH_PixelmapNative_Release(releasedPixelmap), IMAGE_SUCCESS);
+    EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(releasedPixelmap, dstPixelmap, true), IMAGE_PIXELMAP_RELEASED);
+
+    OH_PixelmapNative *sameAlphaSrcPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED});
+    OH_PixelmapNative *sameAlphaDstPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED});
+    ASSERT_NE(sameAlphaSrcPixelmap, nullptr);
+    ASSERT_NE(sameAlphaDstPixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(sameAlphaSrcPixelmap, sameAlphaDstPixelmap, true),
+        IMAGE_INVALID_PARAMETER);
+
+    OH_PixelmapNative *formatMismatchSrcPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
+    OH_PixelmapNative *formatMismatchDstPixelmap = CreateEmptyPixelmapNativeForTest(
+        {FOUR, FOUR, PIXEL_FORMAT_RGBA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED});
+    ASSERT_NE(formatMismatchSrcPixelmap, nullptr);
+    ASSERT_NE(formatMismatchDstPixelmap, nullptr);
+    EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(formatMismatchSrcPixelmap, formatMismatchDstPixelmap, true),
+        IMAGE_UNSUPPORTED_DATA_FORMAT);
+
+    OH_PixelmapNative_Destroy(&srcPixelmap);
+    OH_PixelmapNative_Destroy(&dstPixelmap);
+    OH_PixelmapNative_Destroy(&releasedPixelmap);
+    OH_PixelmapNative_Destroy(&sameAlphaSrcPixelmap);
+    OH_PixelmapNative_Destroy(&sameAlphaDstPixelmap);
+    OH_PixelmapNative_Destroy(&formatMismatchSrcPixelmap);
+    OH_PixelmapNative_Destroy(&formatMismatchDstPixelmap);
+
+    GTEST_LOG_(INFO) << "PixelMapNdk2Test: OH_PixelmapNative_ConvertAlphaType_Failure end";
 }
 }
 }
