@@ -29,7 +29,7 @@ using namespace OHOS;
 class PixelMapImpl {
 public:
     PixelMapImpl();
-    explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions);
+    explicit PixelMapImpl(array_view<uint8_t> const& pixels, InitializationOptions const& etsOptions);
     explicit PixelMapImpl(array_view<uint8_t> const& colors, InitializationOptions const& etsOptions,
         AllocatorType const& allocatorType);
     explicit PixelMapImpl(InitializationOptions const& etsOptions);
@@ -46,6 +46,14 @@ public:
     ImageInfo GetImageInfoAsync();
     ImageInfo GetImageInfoPromise();
     ImageInfo GetImageInfoSync();
+    void ReadAllPixelsToBuffer(array_view<uint8_t> dst);
+    void ReadAllPixelsToBufferSync(array_view<uint8_t> dst);
+    void ReadPixelsToAreaWrapper(weak::PositionArea area, array_view<uint8_t> pixels);
+    void ReadPixelsToAreaSyncWrapper(weak::PositionArea area, array_view<uint8_t> pixels);
+    void WriteAllPixelsFromBuffer(array_view<uint8_t> src);
+    void WriteAllPixelsFromBufferSync(array_view<uint8_t> src);
+    void WritePixelsFromArea(weak::PositionArea area);
+    void WritePixelsFromAreaSync(weak::PositionArea area);
     void ReadPixelsToBufferAsync(array_view<uint8_t> dst);
     void ReadPixelsToBufferPromise(array_view<uint8_t> dst);
     void ReadPixelsToBufferSync(array_view<uint8_t> dst);
@@ -58,12 +66,16 @@ public:
     void WritePixelsAsync(weak::PositionArea area);
     void WritePixelsPromise(weak::PositionArea area);
     void WritePixelsSync(weak::PositionArea area);
+    PixelMap ExtractAlphaPixelMap();
+    PixelMap ExtractAlphaPixelMapSync();
     PixelMap CreateAlphaPixelmapAsync();
     PixelMap CreateAlphaPixelmapPromise();
     PixelMap CreateAlphaPixelmapSync();
     int32_t GetBytesNumberPerRow();
     int32_t GetPixelBytesNumber();
     int32_t GetDensity();
+    void ApplyScale(double x, double y, optional_view<AntiAliasingLevel> level);
+    void ApplyScaleSync(double x, double y, optional_view<AntiAliasingLevel> level);
     void ScaleAsync(double x, double y);
     void ScalePromise(double x, double y);
     void ScaleSync(double x, double y);
@@ -77,18 +89,28 @@ public:
     PixelMap CreateScaledPixelMapSync(double x, double y, optional_view<AntiAliasingLevel> level);
     PixelMap ClonePromise();
     PixelMap CloneSync();
+    void ApplyTranslate(double x, double y);
+    void ApplyTranslateSync(double x, double y);
     void TranslateAsync(double x, double y);
     void TranslatePromise(double x, double y);
     void TranslateSync(double x, double y);
+    void ApplyCrop(ohos::multimedia::image::image::Region const& region);
+    void ApplyCropSync(ohos::multimedia::image::image::Region const& region);
     void CropAsync(ohos::multimedia::image::image::Region const& region);
     void CropPromise(ohos::multimedia::image::image::Region const& region);
     void CropSync(ohos::multimedia::image::image::Region const& region);
+    void ApplyRotate(double angle);
+    void ApplyRotateSync(double angle);
     void RotateAsync(double angle);
     void RotatePromise(double angle);
     void RotateSync(double angle);
+    void ApplyFlip(bool horizontal, bool vertical);
+    void ApplyFlipSync(bool horizontal, bool vertical);
     void FlipAsync(bool horizontal, bool vertical);
     void FlipPromise(bool horizontal, bool vertical);
     void FlipSync(bool horizontal, bool vertical);
+    void SetOpacity(double value);
+    void SetOpacitySync(double value);
     void OpacityAsync(double rate);
     void OpacityPromise(double rate);
     void OpacitySync(double rate);
@@ -123,10 +145,11 @@ public:
 
 private:
     std::shared_ptr<OHOS::Media::PixelMap> nativePixelMap_ = nullptr;
-    bool Is10BitFormat(OHOS::Media::PixelFormat format);
+    void ReadAllPixelsToBufferImpl(array_view<uint8_t> const& dst);
+    void ReadPixelsToAreaWrapperImpl(weak::PositionArea const& area, array_view<uint8_t> const& pixels);
+    void WriteAllPixelsFromBufferImpl(array_view<uint8_t> const& src);
+    void WritePixelsFromAreaImpl(weak::PositionArea const& area);
     bool Is10BitYuvFormat(OHOS::Media::PixelFormat format);
-    void ParseInitializationOptions(InitializationOptions const& etsOptions,
-        OHOS::Media::InitializationOptions &options);
     void Release();
     int64_t timestamp_ = 0;
     int32_t captureId_ = 0;

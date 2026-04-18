@@ -33,6 +33,7 @@ enum PixelMapFormat: i32 {
   RGBA_1010102 = 10,
   YCBCR_P010 = 11,
   YCRCB_P010 = 12,
+  ALPHA_U8 = 15,
   ASTC_4x4 = 102
 }
 
@@ -673,6 +674,38 @@ interface PixelMap {
 
   GetImageInfoSync(): ImageInfo;
 
+  @promise
+  ReadAllPixelsToBuffer(dst: @arraybuffer Array<u8>): void;
+
+  ReadAllPixelsToBufferSync(dst: @arraybuffer Array<u8>): void;
+
+  // Performance workaround:
+  // Setter of an ArrayBuffer inside an interface (PositionArea.pixels) will copy the data instead of referencing it, but ArrayBuffer along will be referenced.
+  @!sts_inject_into_interface("""
+  readPixelsToArea(area: image.PositionArea): Promise<void> {
+    return this.readPixelsToAreaWrapper(area, area.pixels);
+  }
+
+  readPixelsToAreaSync(area: image.PositionArea): void {
+    return this.readPixelsToAreaSyncWrapper(area, area.pixels);
+  }
+  """)
+
+  @promise
+  ReadPixelsToAreaWrapper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
+
+  ReadPixelsToAreaSyncWrapper(area: PositionArea, pixels: @arraybuffer Array<u8>): void;
+
+  @promise
+  WriteAllPixelsFromBuffer(src: @arraybuffer Array<u8>): void;
+
+  WriteAllPixelsFromBufferSync(src: @arraybuffer Array<u8>): void;
+
+  @promise
+  WritePixelsFromArea(area: PositionArea): void;
+
+  WritePixelsFromAreaSync(area: PositionArea): void;
+
   @async @rename("readPixelsToBuffer")
   ReadPixelsToBufferAsync(dst: @arraybuffer Array<u8>): void;
 
@@ -705,6 +738,11 @@ interface PixelMap {
 
   WritePixelsSync(area: PositionArea): void;
 
+  @promise
+  ExtractAlphaPixelMap(): PixelMap;
+
+  ExtractAlphaPixelMapSync(): PixelMap;
+
   @async @rename("createAlphaPixelmap")
   CreateAlphaPixelmapAsync(): PixelMap;
 
@@ -718,6 +756,11 @@ interface PixelMap {
   GetPixelBytesNumber(): i32;
 
   GetDensity(): i32;
+
+  @promise
+  ApplyScale(x: f64, y: f64, level: Optional<AntiAliasingLevel>): void;
+
+  ApplyScaleSync(x: f64, y: f64, level: Optional<AntiAliasingLevel>): void;
 
   @async @rename("scale")
   ScaleAsync(x: f64, y: f64): void;
@@ -748,6 +791,11 @@ interface PixelMap {
 
   CloneSync(): PixelMap;
 
+  @promise
+  ApplyTranslate(x: f64, y: f64): void;
+
+  ApplyTranslateSync(x: f64, y: f64): void;
+
   @async @rename("translate")
   TranslateAsync(x: f64, y: f64): void;
 
@@ -755,6 +803,11 @@ interface PixelMap {
   TranslatePromise(x: f64, y: f64): void;
 
   TranslateSync(x: f64, y: f64): void;
+
+  @promise
+  ApplyCrop(region: Region): void;
+
+  ApplyCropSync(region: Region): void;
 
   @async @rename("crop")
   CropAsync(region: Region): void;
@@ -764,6 +817,11 @@ interface PixelMap {
 
   CropSync(region: Region): void;
 
+  @promise
+  ApplyRotate(angle: f64): void;
+
+  ApplyRotateSync(angle: f64): void;
+
   @async @rename("rotate")
   RotateAsync(angle: f64): void;
 
@@ -772,6 +830,11 @@ interface PixelMap {
 
   RotateSync(angle: f64): void;
 
+  @promise
+  ApplyFlip(horizontal: bool, vertical: bool): void;
+
+  ApplyFlipSync(horizontal: bool, vertical: bool): void;
+
   @async @rename("flip")
   FlipAsync(horizontal: bool, vertical: bool): void;
 
@@ -779,6 +842,11 @@ interface PixelMap {
   FlipPromise(horizontal: bool, vertical: bool): void;
 
   FlipSync(horizontal: bool, vertical: bool): void;
+
+  @promise
+  SetOpacity(value: f64): void;
+
+  SetOpacitySync(value: f64): void;
 
   @async @rename("opacity")
   OpacityAsync(rate: f64): void;
@@ -2125,7 +2193,14 @@ export function pixelMapTransferDynamic(input: Object): Any {
 }
 """)
 
-// global functions
+// Global functions
+
+@promise
+function CreatePixelMapFromPixels(pixels: @arraybuffer Array<u8>, options: InitializationOptions): PixelMap;
+
+function CreatePixelMapFromPixelsSync(pixels: @arraybuffer Array<u8>, options: InitializationOptions): PixelMap;
+
+function CreateEmptyPixelMap(options: InitializationOptions): PixelMap;
 
 @async @rename("createPixelMap")
 function CreatePixelMapAsync(colors: @arraybuffer Array<u8>, options: InitializationOptions): PixelMap;

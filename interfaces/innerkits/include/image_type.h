@@ -191,13 +191,14 @@ enum class PixelFormat : int32_t {
     RGB_888 = 5,
     ALPHA_8 = 6,
     RGBA_F16 = 7,
-    NV21 = 8,  // Each pixel is sorted on 3/2 bytes.
+    NV21 = 8,  // Each pixel is stored on 3/2 bytes.
     NV12 = 9,
     RGBA_1010102 = 10,
     YCBCR_P010 = 11, // NV12_P010
     YCRCB_P010 = 12, // NV21_P010
     RGBA_U16 = 13, // Interim format for ffmpeg and skia conversion
     YUV_400 = 14,
+    ALPHA_U8 = 15, // ALPHA_8 without 4-byte alignment
     EXTERNAL_MAX,
     INTERNAL_START = 100,
     CMYK = INTERNAL_START + 1,

@@ -57,11 +57,16 @@ public:
     }
 
     NATIVEEXPORT void scale(float xAxis, float yAxis) override;
+    NATIVEEXPORT uint32_t Scale(float xAxis, float yAxis, AntiAliasingOption option) override;
     NATIVEEXPORT bool resize(float xAxis, float yAxis) override;
     NATIVEEXPORT void translate(float xAxis, float yAxis) override;
+    NATIVEEXPORT uint32_t Translate(float xAxis, float yAxis) override;
     NATIVEEXPORT void rotate(float degrees) override;
+    NATIVEEXPORT uint32_t Rotate(float degrees) override;
     NATIVEEXPORT void flip(bool xAxis, bool yAxis) override;
+    NATIVEEXPORT uint32_t Flip(bool xAxis, bool yAxis) override;
     NATIVEEXPORT uint32_t crop(const Rect &rect) override;
+    NATIVEEXPORT uint32_t Crop(const Rect &rect) override;
 
     // Config the pixel map parameter
     NATIVEEXPORT bool IsSameImage(const PixelMap &other) override;
