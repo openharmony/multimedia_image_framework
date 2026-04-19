@@ -58,9 +58,9 @@ public:
     static std::set<std::string> GetGifMetadataKeys();
     static std::set<std::string> GetWebPMetadataKeys();
     static std::set<std::string> GetAvisMetadataKeys();
-    static std::set<std::string> GetJfifMetadataKeys();
-    static std::set<std::string> GetHeifsMetadataKeys();
-    static std::set<std::string> GetPngMetadataKeys();
+    static const std::set<std::string>& GetJfifMetadataKeys();
+    static const std::set<std::string>& GetHeifsMetadataKeys();
+    static const std::set<std::string>& GetPngMetadataKeys();
     virtual uint32_t GetBlob(uint32_t bufferSize, uint8_t *dst) override;
     virtual uint32_t SetBlob(const uint8_t *source, const uint32_t bufferSize) override;
     virtual uint32_t GetBlobSize() override;
