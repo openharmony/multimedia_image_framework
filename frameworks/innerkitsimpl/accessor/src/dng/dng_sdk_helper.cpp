@@ -272,7 +272,7 @@ uint32_t DngSdkHelper::GetImageRawData(ImagePlugin::InputDataStream* stream, std
         auto totalBytes = tmpSize * planes;
         CHECK_ERROR_RETURN_RET(SkImageInfo::ByteSizeOverflowed(totalBytes), ERR_IMAGE_DATA_UNSUPPORT);
         IMAGE_LOGD("Dng image info: width=%{public}u, height=%{public}u, planes=%{public}u, "
-            "pixelType=%{public}u, bytesPerSample=%{public}u, totalBytes=%{public}zu",
+            "pixelType=%{public}u, bytesPerSample=%{public}u, totalBytes=%{public}u",
             width, height, planes, pixelType, bytesPerSample, totalBytes);
         CHECK_ERROR_RETURN_RET(bytesPerSample == 0 || planes != 1, ERR_IMAGE_DATA_UNSUPPORT);
         data.clear();
