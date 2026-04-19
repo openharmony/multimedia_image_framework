@@ -381,10 +381,11 @@ FFI_EXPORT uint32_t FfiOHOSUpdateData(int64_t id, UpdateDataInfo info)
         return ERR_IMAGE_INIT_ABNORMAL;
     }
     uint8_t* buffer = info.data;
+    uint32_t lastSize = 0;
     if (info.offset < info.arrSize) {
         buffer = buffer + info.offset;
+        lastSize = static_cast<uint32_t>(info.arrSize - info.offset);
     }
-    uint32_t lastSize = info.arrSize - info.offset;
     uint32_t size = info.updateLen < lastSize ? info.updateLen : lastSize;
     uint32_t ret = instance->UpdateData(buffer, size, info.isCompleted);
     if (ret == 0) {

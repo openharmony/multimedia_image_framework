@@ -14,6 +14,8 @@
  */
 #include "image_impl.h"
 
+#include <cstring>
+
 #include "image_log.h"
 #include "media_errors.h"
 
@@ -143,15 +145,19 @@ uint32_t ImageImpl::GetComponent(int32_t componentType, CRetComponent& ret)
         IMAGE_LOGE("Invalid buffer");
         return ERR_IMAGE_INIT_ABNORMAL;
     }
-    int64_t len = static_cast<int64_t>(nativePtr->size);
+
+    if (nativePtr->size > static_cast<size_t>(INT32_MAX)) {
+        IMAGE_LOGE("Buffer size exceeds maximum limit");
+        return ERR_IMAGE_INIT_ABNORMAL;
+    }
+
+    size_t len = nativePtr->size;
     ret.byteBuffer = static_cast<uint8_t*>(malloc(len));
     if (ret.byteBuffer == nullptr) {
         IMAGE_LOGE("[ImageImpl] GetComponent failed to malloc.");
         return ERR_IMAGE_INIT_ABNORMAL;
     }
-    for (int i = 0; i < len; i++) {
-        ret.byteBuffer[i] = buffer[i];
-    }
+    memcpy_s(ret.byteBuffer, len, buffer, len);
     ret.bufSize = len;
     return SUCCESS;
 }
