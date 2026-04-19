@@ -355,17 +355,17 @@ std::set<std::string> ImageKvMetadata::GetAvisMetadataKeys()
     return AVIS_METADATA_KEYS;
 }
 
-std::set<std::string> ImageKvMetadata::GetJfifMetadataKeys()
+const std::set<std::string>& ImageKvMetadata::GetJfifMetadataKeys()
 {
     return JFIF_METADATA_KEYS;
 }
 
-std::set<std::string> ImageKvMetadata::GetHeifsMetadataKeys()
+const std::set<std::string>& ImageKvMetadata::GetHeifsMetadataKeys()
 {
     return HEIFS_METADATA_KEYS;
 }
 
-std::set<std::string> ImageKvMetadata::GetPngMetadataKeys()
+const std::set<std::string>& ImageKvMetadata::GetPngMetadataKeys()
 {
     return PNG_METADATA_KEYS;
 }
