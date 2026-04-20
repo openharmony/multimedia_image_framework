@@ -15,7 +15,6 @@
 
 #include "pixel_map.h"
 
-#include <inttypes.h>
 #ifdef EXT_PIXEL
 #include "pixel_yuv_ext.h"
 #endif
@@ -3446,7 +3445,8 @@ static bool CheckF16PixelMapBufferSize(const ImageInfo& imgInfo, PixelMemInfo& p
         uint64_t expectedBufferSizeAlign = static_cast<uint64_t>(imgInfo.size.height) * alignedWidth * RGBA_F16_BYTES;
         if (!ImageUtils::CheckBufferSizeIsValid(memBufSizeInt, expectedBufferSizeOrg, pixelMemInfo.allocatorType) &&
             !ImageUtils::CheckBufferSizeIsValid(memBufSizeInt, expectedBufferSizeAlign, pixelMemInfo.allocatorType)) {
-            IMAGE_LOGE("Invalid buffer size: memBufSize[%{public}d] mismatch expect[%{public}" PRIu64 "]/Align[%{public}" PRIu64 "]",
+            IMAGE_LOGE("Invalid buffer size: memBufSize[%{public}d] mismatch expect[%{public}" PRIu64 "]/
+                Align[%{public}" PRIu64 "]",
                 memBufSizeInt, expectedBufferSizeOrg, expectedBufferSizeAlign);
             return false;
         }
