@@ -1350,10 +1350,36 @@ std::string ImageUtils::GetPixelMapName(PixelMap* pixelMap)
     return pixelMapStr;
 }
 
+// BytesToUint8 function will modify the offset value.
+uint8_t ImageUtils::BytesToUint8(uint8_t* bytes, uint32_t& offset, uint32_t size)
+{
+    uint8_t data = 0;
+    if (bytes == nullptr || offset >= size || offset + NUM_1 > size) {
+        return data;
+    }
+    data = bytes[offset];
+    offset += NUM_1;
+    return data;
+}
+
+uint8_t ImageUtils::BytesToUint8(const uint8_t* bytes, uint32_t& offset, uint32_t size)
+{
+    uint8_t data = 0;
+    if (bytes == nullptr || offset >= size || offset + NUM_1 > size) {
+        return data;
+    }
+    data = bytes[offset];
+    offset += NUM_1;
+    return data;
+}
+
  // BytesToUint16 function will modify the offset value.
 uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     uint16_t data = 0;
+    if (offset > UINT32_MAX - NUM_2) {
+        return data;
+    }
     if (bytes == nullptr || offset + NUM_2 > size) {
         return data;
     }
@@ -1370,6 +1396,9 @@ uint16_t ImageUtils::BytesToUint16(uint8_t* bytes, uint32_t& offset, uint32_t si
 uint32_t ImageUtils::BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     uint32_t data = 0;
+    if (offset > UINT32_MAX - NUM_4) {
+        return data;
+    }
     if (bytes == nullptr || offset + NUM_4 > size) {
         return data;
     }
@@ -1388,6 +1417,9 @@ uint32_t ImageUtils::BytesToUint32(uint8_t* bytes, uint32_t& offset, uint32_t si
 int32_t ImageUtils::BytesToInt32(uint8_t* bytes, uint32_t& offset, uint32_t size, bool isBigEndian)
 {
     int32_t data = 0;
+    if (offset > UINT32_MAX - NUM_4) {
+        return data;
+    }
     if (bytes == nullptr || offset + NUM_4 > size) {
         return data;
     }

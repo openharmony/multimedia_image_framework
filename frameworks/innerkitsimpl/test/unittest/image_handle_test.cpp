@@ -184,5 +184,213 @@ HWTEST_F(ImageHandleTest, StartHandle009, TestSize.Level3)
     GTEST_LOG_(INFO) << "ImageHandle: StartHandle009 end";
 }
 
+/**
+ * @tc.name: StartHandle010
+ * @tc.desc: test CheckOptsSetDesiredRegion when desiredRegion.left is not zero
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle010, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle010 start";
+    DecodeOptions opts;
+    opts.desiredRegion.left = 10;
+    opts.desiredRegion.top = 0;
+    opts.desiredRegion.width = 0;
+    opts.desiredRegion.height = 0;
+    bool isValid = ImageHandle::GetInstance().CheckOptsSetDesiredRegion(opts);
+    ASSERT_EQ(isValid, true);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle010 end";
+}
+
+/**
+ * @tc.name: StartHandle011
+ * @tc.desc: test CheckOptsSetDesiredRegion when desiredRegion.top is not zero
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle011, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle011 start";
+    DecodeOptions opts;
+    opts.desiredRegion.left = 0;
+    opts.desiredRegion.top = 20;
+    opts.desiredRegion.width = 0;
+    opts.desiredRegion.height = 0;
+    bool isValid = ImageHandle::GetInstance().CheckOptsSetDesiredRegion(opts);
+    ASSERT_EQ(isValid, true);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle011 end";
+}
+
+/**
+ * @tc.name: StartHandle012
+ * @tc.desc: test CheckOptsSetDesiredRegion when desiredRegion.width is not zero
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle012, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle012 start";
+    DecodeOptions opts;
+    opts.desiredRegion.left = 0;
+    opts.desiredRegion.top = 0;
+    opts.desiredRegion.width = 100;
+    opts.desiredRegion.height = 0;
+    bool isValid = ImageHandle::GetInstance().CheckOptsSetDesiredRegion(opts);
+    ASSERT_EQ(isValid, true);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle012 end";
+}
+
+/**
+ * @tc.name: StartHandle013
+ * @tc.desc: test CheckOptsSetDesiredRegion when desiredRegion.height is not zero
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle013, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle013 start";
+    DecodeOptions opts;
+    opts.desiredRegion.left = 0;
+    opts.desiredRegion.top = 0;
+    opts.desiredRegion.width = 0;
+    opts.desiredRegion.height = 200;
+    bool isValid = ImageHandle::GetInstance().CheckOptsSetDesiredRegion(opts);
+    ASSERT_EQ(isValid, true);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle013 end";
+}
+
+/**
+ * @tc.name: StartHandle014
+ * @tc.desc: test CheckOptsSetDesiredRegion when all desiredRegion values are zero
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle014, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle014 start";
+    DecodeOptions opts;
+    opts.desiredRegion.left = 0;
+    opts.desiredRegion.top = 0;
+    opts.desiredRegion.width = 0;
+    opts.desiredRegion.height = 0;
+    bool isValid = ImageHandle::GetInstance().CheckOptsSetDesiredRegion(opts);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle014 end";
+}
+
+/**
+ * @tc.name: StartHandle015
+ * @tc.desc: test CheckOptsNeedOptimize when desiredRegion is set
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle015, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle015 start";
+    DecodeOptions opts;
+    opts.desiredSize.width = 0;
+    opts.desiredSize.height = 0;
+    opts.resolutionQuality = ResolutionQuality::UNKNOWN;
+    opts.desiredRegion.left = 10;
+    opts.desiredRegion.top = 10;
+    opts.desiredRegion.width = 100;
+    opts.desiredRegion.height = 100;
+    bool isValid = ImageHandle::GetInstance().CheckOptsNeedOptimize(opts);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle015 end";
+}
+
+/**
+ * @tc.name: StartHandle016
+ * @tc.desc: test CheckOptsNeedOptimize when resolutionQuality is MEDIUM
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle016, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle016 start";
+    DecodeOptions opts;
+    opts.desiredSize.width = 0;
+    opts.desiredSize.height = 0;
+    opts.resolutionQuality = ResolutionQuality::MEDIUM;
+    bool isValid = ImageHandle::GetInstance().CheckOptsNeedOptimize(opts);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle016 end";
+}
+
+/**
+ * @tc.name: StartHandle017
+ * @tc.desc: test CheckOptsNeedOptimize when resolutionQuality is HIGH
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle017, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle017 start";
+    DecodeOptions opts;
+    opts.desiredSize.width = 0;
+    opts.desiredSize.height = 0;
+    opts.resolutionQuality = ResolutionQuality::HIGH;
+    bool isValid = ImageHandle::GetInstance().CheckOptsNeedOptimize(opts);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle017 end";
+}
+
+/**
+ * @tc.name: StartHandle018
+ * @tc.desc: test CheckImageNeedResize when image size is smaller than threshold
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle018, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle018 start";
+    ImageInfo info;
+    info.size.width = 800;
+    info.size.height = 600;
+    bool isValid = ImageHandle::GetInstance().CheckImageNeedResize(info);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle018 end";
+}
+
+/**
+ * @tc.name: StartHandle019
+ * @tc.desc: test CheckImageNeedResize when width is smaller than threshold
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle019, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle019 start";
+    ImageInfo info;
+    info.size.width = 1000;
+    info.size.height = 2000;
+    bool isValid = ImageHandle::GetInstance().CheckImageNeedResize(info);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle019 end";
+}
+
+/**
+ * @tc.name: StartHandle020
+ * @tc.desc: test CheckImageNeedResize when height is smaller than threshold
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle020, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle020 start";
+    ImageInfo info;
+    info.size.width = 2000;
+    info.size.height = 1000;
+    bool isValid = ImageHandle::GetInstance().CheckImageNeedResize(info);
+    ASSERT_EQ(isValid, false);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle020 end";
+}
+
+/**
+ * @tc.name: StartHandle021
+ * @tc.desc: test CheckImageNeedResize when image size equals threshold
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageHandleTest, StartHandle021, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle021 start";
+    ImageInfo info;
+    info.size.width = 1080;
+    info.size.height = 1920;
+    bool isValid = ImageHandle::GetInstance().CheckImageNeedResize(info);
+    ASSERT_EQ(isValid, true);
+    GTEST_LOG_(INFO) << "ImageHandle: StartHandle021 end";
+}
 } // namespace Media
 } // namespace OHOS
