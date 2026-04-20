@@ -1044,6 +1044,7 @@ static bool IsValidUnwrapResult(napi_env env, napi_status status, PixelMapNapi* 
     if (!IMG_IS_OK(status) || instance == nullptr) {
         CreatePendingErrorIfAbsent(env, error, ERR_IMAGE_GET_IMAGE_DATA_FAILED,
             "Internal error: Failed to unwrap PixelMap instance. (" + std::to_string(status) + ")");
+        return false;
     }
     if (instance->GetPixelNapiInner() == nullptr) {
         CreatePendingErrorIfAbsent(env, error, ERR_IMAGE_PIXELMAP_RELEASED, "The PixelMap has been released.");
@@ -1235,10 +1236,6 @@ napi_value PixelMapNapi::CreatePixelMapFromPixelsSync(napi_env env, napi_callbac
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_CREATE_PIXELMAP_FAILED,
             "Internal error: Failed to create NAPI instance.", true);
     }
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
-    }
     
     return result;
 }
@@ -1426,11 +1423,6 @@ napi_value PixelMapNapi::ReadAllPixelsToBufferSync(napi_env env, napi_callback_i
     ReadAllPixelsToBufferExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
-    }
-
-    if (context->error != nullptr) {
-        ImageNapiUtils::Throw(env, context->error);
     }
     
     return result;
@@ -1545,7 +1537,6 @@ napi_value PixelMapNapi::ReadPixelsToAreaSync(napi_env env, napi_callback_info i
     ReadPixelsToAreaExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -1666,7 +1657,6 @@ napi_value PixelMapNapi::WriteAllPixelsFromBufferSync(napi_env env, napi_callbac
     WriteAllPixelsFromBufferExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -1784,7 +1774,6 @@ napi_value PixelMapNapi::WritePixelsFromAreaSync(napi_env env, napi_callback_inf
     WritePixelsFromAreaExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -2025,12 +2014,12 @@ napi_value PixelMapNapi::SetOpacitySync(napi_env env, napi_callback_info info)
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->alpha)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 1st argument.", true);
+        return result;
     }
 
     SetOpacityExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -2158,22 +2147,24 @@ napi_value PixelMapNapi::ApplyScaleSync(napi_env env, napi_callback_info info)
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->xArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 1st argument.", true);
+        return result;
     }
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_1], &(context->yArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 2nd argument.", true);
+        return result;
     }
-    int32_t antiAliasing;
-    if (!IMG_IS_OK(napi_get_value_int32(env, argv[NUM_2], &antiAliasing))) {
+    int32_t antiAliasing = 0;
+    if (argc == NUM_3 && !IMG_IS_OK(napi_get_value_int32(env, argv[NUM_2], &antiAliasing))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 3rd argument.", true);
+        return result;
     }
     context->antiAliasing = ParseAntiAliasingOption(antiAliasing);
     
     ApplyScaleExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -2277,16 +2268,17 @@ napi_value PixelMapNapi::ApplyTranslateSync(napi_env env, napi_callback_info inf
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->xArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 1st argument.", true);
+        return result;
     }
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_1], &(context->yArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 2nd argument.", true);
+        return result;
     }
     
     ApplyTranslateExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -2402,7 +2394,6 @@ napi_value PixelMapNapi::ApplyCropSync(napi_env env, napi_callback_info info)
     ApplyCropExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -2501,12 +2492,12 @@ napi_value PixelMapNapi::ApplyRotateSync(napi_env env, napi_callback_info info)
     if (!IMG_IS_OK(napi_get_value_double(env, argv[NUM_0], &(context->xArg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 1st argument.", true);
+        return result;
     }
 
     ApplyRotateExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
@@ -2609,16 +2600,17 @@ napi_value PixelMapNapi::ApplyFlipSync(napi_env env, napi_callback_info info)
     if (!IMG_IS_OK(napi_get_value_bool(env, argv[NUM_0], &(context->xBarg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 1st argument.", true);
+        return result;
     }
     if (!IMG_IS_OK(napi_get_value_bool(env, argv[NUM_1], &(context->yBarg)))) {
         ImageNapiUtils::ThrowExceptionError(env, ERR_IMAGE_INVALID_PARAM,
             "Invalid parameter: Invalid type for the 2nd argument.", true);
+        return result;
     }
     
     ApplyFlipExec(env, static_cast<void*>(context.get()));
     if (context->errCode != SUCCESS) {
         ImageNapiUtils::ThrowExceptionError(env, context->errCode, context->errMsg, true);
-        return result;
     }
     
     return result;
