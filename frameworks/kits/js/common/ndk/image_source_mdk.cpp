@@ -17,6 +17,11 @@
 
 #include "common_utils.h"
 #include "image_source_mdk_kits.h"
+
+#ifdef HISTOGRAM_MANAGEMENT_ENABLE
+#include "histogram_plugin_macros.h"
+#endif
+
 using namespace OHOS::Media;
 
 #ifdef __cplusplus
@@ -24,10 +29,27 @@ extern "C" {
 #endif
 
 const size_t SIZE_ZERO = 0;
+static constexpr int32_t CODE_BOUNDARY = 205;
+static constexpr int32_t BAD_PARAM_CODE = 1;
+static constexpr int32_t BASE_OFFSET = 2;
 struct ImageSourceNative_ {
     ImageSourceNapi* napi = nullptr;
     napi_env env = nullptr;
 };
+
+int32_t MapToErrCode(int32_t rawCode) {
+    if (rawCode == IMAGE_RESULT_SUCCESS) {
+        return IMAGE_RESULT_SUCCESS;
+    }
+    if (rawCode == IMAGE_RESULT_BAD_PARAMETER) {
+        return BAD_PARAM_CODE;
+    }
+    int32_t mappedCode = rawCode - IMAGE_RESULT_BASE + BASE_OFFSET;
+    if (mappedCode >= CODE_BOUNDARY) {
+        return CODE_BOUNDARY - 1;
+    }
+    return mappedCode;
+}
 
 MIDK_EXPORT
 ImageSourceNative* OH_ImageSource_InitNative(napi_env env, napi_value source)
@@ -49,12 +71,18 @@ MIDK_EXPORT
 int32_t OH_ImageSource_Create(napi_env env, struct OhosImageSource* src,
     struct OhosImageSourceOps* ops, napi_value *res)
 {
+#ifdef HISTOGRAM_MANAGEMENT_ENABLE
+    HISTOGRAM_BOOLEAN("ImageKits.OH_ImageSource_Create.ApiCall", true);
+#endif
     ImageSourceArgs args;
     args.inEnv = env;
     args.source = src;
     args.sourceOps = ops;
     args.outVal = res;
     auto ret = ImageSourceNativeCall(ENV_FUNC_IMAGE_SOURCE_CREATE, &args);
+#ifdef HISTOGRAM_MANAGEMENT_ENABLE
+    HISTOGRAM_ENUMERATION("ImageKits.OH_ImageSource_Create.ErrorCode", MapToErrCode(ret), CODE_BOUNDARY);
+#endif
     return ret;
 }
 
@@ -120,12 +148,18 @@ MIDK_EXPORT
 int32_t OH_ImageSource_CreateIncremental(napi_env env,
     struct OhosImageSource* source, struct OhosImageSourceOps* ops, napi_value *res)
 {
+#ifdef HISTOGRAM_MANAGEMENT_ENABLE
+    HISTOGRAM_BOOLEAN("ImageKits.OH_ImageSource_CreateIncremental.ApiCall", true);
+#endif
     ImageSourceArgs args;
     args.inEnv = env;
     args.source = source;
     args.sourceOps = ops;
     args.outVal = res;
     auto ret = ImageSourceNativeCall(ENV_FUNC_IMAGE_SOURCE_CREATE_INCREMENTAL, &args);
+#ifdef HISTOGRAM_MANAGEMENT_ENABLE
+    HISTOGRAM_ENUMERATION("ImageKits.OH_ImageSource_CreateIncremental.ErrorCode", MapToErrCode(ret), CODE_BOUNDARY);
+#endif
     return ret;
 }
 
