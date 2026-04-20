@@ -17,6 +17,13 @@ import("//foundation/multimedia/image_framework/ide/image_decode_config.gni")
 SEPARATOR = "/"
 BASE_DIR = "$SEPARATOR/foundation"
 
+declare_args() {
+  image_framework_histogram_enable = true
+  if (defined(global_parts_info) && !defined(global_parts_info.hiviewdfx_api_metrics)) {
+    image_framework_histogram_enable = false
+  }
+}
+
 config("native_public_config") {
   include_dirs = [
     "include",
@@ -93,6 +100,14 @@ ohos_shared_library("image_source_ndk") {
     "napi:ace_napi",
     "resource_management:librawfile",
   ]
+
+  if (image_framework_histogram_enable) {
+    external_deps += [
+      "api_metrics:histogrammanager",
+      "hilog:libhilog",
+    ]
+    defines += [ "HISTOGRAM_MANAGEMENT_ENABLE" ]
+  }
 
   innerapi_tags = [ "ndk" ]
   subsystem_name = "multimedia"
