@@ -21,12 +21,14 @@
 #include "tiffio.h"
 #include "buffer_source_stream.h"
 #include <memory>
+#endif
 
 namespace OHOS {
 namespace Media {
 
 class TiffExifMetadata : public ExifMetadata {
 public:
+#if defined(SUPPORT_LIBTIFF)
     TiffExifMetadata();
     TiffExifMetadata(ExifData* exifData, TIFF* tiffHandle,
                      std::shared_ptr<BufferSourceStream> bufferStream = nullptr);
@@ -45,10 +47,10 @@ public:
 private:
     TIFF* tiffHandle_;
     std::shared_ptr<BufferSourceStream> bufferStream_;
+#endif // defined(SUPPORT_LIBTIFF)
 };
 
 } // namespace Media
 } // namespace OHOS
 
-#endif // defined(SUPPORT_LIBTIFF)
 #endif // FRAMEWORKS_INNERKITSIMPL_ACCESSOR_INCLUDE_TIFF_EXIF_METADATA_H
