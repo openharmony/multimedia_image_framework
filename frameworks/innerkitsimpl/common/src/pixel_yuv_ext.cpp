@@ -329,9 +329,6 @@ uint32_t PixelYuvExt::Flip(bool xAxis, bool yAxis)
     YUVDataInfo yuvDataInfo;
     GetImageYUVInfo(yuvDataInfo);
 
-    int32_t width = imageInfo.size.width;
-    int32_t height = imageInfo.size.height;
-
     uint8_t *dst = nullptr;
     int32_t width = imageInfo.size.width;
     int32_t height = imageInfo.size.height;
