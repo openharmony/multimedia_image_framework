@@ -182,7 +182,7 @@ static bool GetPixelmapNativeImageInfoForTest(OH_PixelmapNative *pixelmap, uint3
         OH_PixelmapImageInfo_GetWidth(imageInfo, &width) == IMAGE_SUCCESS &&
         OH_PixelmapImageInfo_GetHeight(imageInfo, &height) == IMAGE_SUCCESS;
     if (success && alphaType != nullptr) {
-        success = OH_PixelmapImageInfo_GetAlphaType(imageInfo, alphaType) == IMAGE_SUCCESS;
+        success = OH_PixelmapImageInfo_GetAlphaMode(imageInfo, alphaType) == IMAGE_SUCCESS;
     }
     OH_PixelmapImageInfo_Release(imageInfo);
     return success;
@@ -2803,7 +2803,7 @@ HWTEST_F(PixelMapNdk2Test, OH_PixelmapNative_ConvertAlphaType_Success, TestSize.
     OH_PixelmapNative *srcPixelmap = CreateEmptyPixelmapNativeForTest(
         {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
     OH_PixelmapNative *dstPixelmap = CreateEmptyPixelmapNativeForTest(
-        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_UNPREMULTIPLIED});
+        {FOUR, FOUR, PIXEL_FORMAT_BGRA_8888, PIXELMAP_ALPHA_TYPE_PREMULTIPLIED});
     ASSERT_NE(srcPixelmap, nullptr);
     ASSERT_NE(dstPixelmap, nullptr);
     EXPECT_EQ(OH_PixelmapNative_ConvertAlphaType(srcPixelmap, dstPixelmap, true), IMAGE_SUCCESS);

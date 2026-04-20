@@ -336,18 +336,25 @@ static PixelFormat ResolveCreateFromPixelsSrcPixelFormat(const InitializationOpt
     return options.srcPixelFormat == PixelFormat::UNKNOWN ? PixelFormat::BGRA_8888 : options.srcPixelFormat;
 }
 
+static PixelFormat ResolveCreateFromPixelsDstPixelFormat(const InitializationOptions &options)
+{
+    return options.pixelFormat == PixelFormat::UNKNOWN ? PixelFormat::RGBA_8888 : options.pixelFormat;
+}
+
 static bool ValidateCreateFromPixelsOptions(const InitializationOptions &options, PixelFormat srcPixelFormat)
 {
+    PixelFormat dstPixelFormat = ResolveCreateFromPixelsDstPixelFormat(options);
     if (options.allocatorType == AllocatorType::DMA_ALLOC) {
         InitializationOptions opts = options;
+        opts.pixelFormat = dstPixelFormat;
         if (!ImageUtils::SetInitializationOptionDmaMem(opts)) {
             return false;
         }
     }
     if (!ImageUtils::PixelMapCreateCheckFormat(srcPixelFormat) ||
-        !ImageUtils::PixelMapCreateCheckFormat(options.pixelFormat)) {
+        !ImageUtils::PixelMapCreateCheckFormat(dstPixelFormat)) {
         IMAGE_LOGE("[CreateFromPixels] Check format failed, src format: %{public}d, dst format: %{public}d",
-            static_cast<uint32_t>(srcPixelFormat), static_cast<uint32_t>(options.pixelFormat));
+            static_cast<uint32_t>(srcPixelFormat), static_cast<uint32_t>(dstPixelFormat));
         return false;
     }
     if (options.size.width <= 0 || options.size.height <= 0 ||
@@ -403,9 +410,8 @@ static int64_t GetCreateFromPixelsRequiredByteSize(const InitializationOptions &
 }
 
 static bool ValidateCreateFromPixelsInput(const uint8_t *pixels, uint32_t byteSize,
-    const InitializationOptions &options)
+    const InitializationOptions &options, PixelFormat srcPixelFormat)
 {
-    PixelFormat srcPixelFormat = ResolveCreateFromPixelsSrcPixelFormat(options);
     if (!ValidateCreateFromPixelsOptions(options, srcPixelFormat)) {
         return false;
     }
@@ -627,20 +633,19 @@ pair<unique_ptr<PixelMap>, int32_t> PixelMap::CreateFromPixels(const uint8_t *pi
     const InitializationOptions &options)
 {
     int32_t errorCode = SUCCESS;
-    if (!ValidateCreateFromPixelsInput(pixels, byteSize, options)) {
+    PixelFormat srcPixelFormat = ResolveCreateFromPixelsSrcPixelFormat(options);
+    PixelFormat dstPixelFormat = ResolveCreateFromPixelsDstPixelFormat(options);
+    if (!ValidateCreateFromPixelsInput(pixels, byteSize, options, srcPixelFormat)) {
         return {nullptr, ERR_IMAGE_INVALID_PARAMETER};
     }
 
     unique_ptr<PixelMap> dstPixelMap;
-    if (!ChoosePixelmap(dstPixelMap, options.pixelFormat, errorCode)) {
+    if (!ChoosePixelmap(dstPixelMap, dstPixelFormat, errorCode)) {
         return {nullptr, errorCode};
     }
 
-    PixelFormat srcPixelFormat = ResolveCreateFromPixelsSrcPixelFormat(options);
     ImageInfo srcImageInfo =
         MakeImageInfo(options.size.width, options.size.height, srcPixelFormat, AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL);
-    PixelFormat dstPixelFormat =
-        options.pixelFormat == PixelFormat::UNKNOWN ? PixelFormat::RGBA_8888 : options.pixelFormat;
     AlphaType dstAlphaType = options.alphaType == AlphaType::IMAGE_ALPHA_TYPE_UNKNOWN ?
         AlphaType::IMAGE_ALPHA_TYPE_PREMUL : options.alphaType;
     dstAlphaType = ImageUtils::GetValidAlphaTypeByFormat(dstAlphaType, dstPixelFormat);
