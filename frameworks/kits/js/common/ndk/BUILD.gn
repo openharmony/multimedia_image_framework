@@ -90,6 +90,7 @@ ohos_shared_library("image_source_ndk") {
     debug = false
   }
 
+  defines = []
   sources = [ "image_source_mdk.cpp" ]
   public_configs = [ ":native_public_config" ]
   deps = [ "$image_subsystem/interfaces/kits/js/common:image" ]
