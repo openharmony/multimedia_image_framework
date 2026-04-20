@@ -26,6 +26,7 @@ constexpr uint8_t BIT_OFFSET_5 = 5;
 constexpr uint8_t BIT_OFFSET_6 = 6;
 constexpr uint8_t BIT_OFFSET_7 = 7;
 constexpr uint64_t AV1C_BOX_FIXED_SIZE = 12;
+constexpr uint64_t MAX_AV1C_CONFIG_OBUs_SIZE = 1024 * 1024;
 
 constexpr uint8_t AND_BITS_1 = (BASE_BIT << BIT_OFFSET_1) - BIT_OFFSET_1;
 constexpr uint8_t AND_BITS_2 = (BASE_BIT << BIT_OFFSET_2) - BIT_OFFSET_1;
@@ -103,6 +104,8 @@ heif_error HeifAv1CBox::ParseConfigOBUS(HeifStreamReader &reader)
     CHECK_ERROR_RETURN_RET_LOG(GetBoxSize() < AV1C_BOX_FIXED_SIZE, heif_error_invalid_av1c,
         "HeifAv1CBox is invalid, HeifAv1CBox size less than 12");
     uint64_t remainingSize = GetBoxSize() - AV1C_BOX_FIXED_SIZE;
+    CHECK_DEBUG_RETURN_RET_LOG(remainingSize > MAX_AV1C_CONFIG_OBUs_SIZE, heif_error_invalid_av1c,
+        "HeifAv1CBox configOBUs size exceeds limit");
     CHECK_DEBUG_RETURN_RET_LOG(remainingSize == 0, heif_error_ok, "HeifAv1CBox configOBUS is equal to zero.");
     configOBUs_.resize(remainingSize);
     CHECK_ERROR_RETURN_RET_LOG(!reader.ReadData(configOBUs_.data(), remainingSize), heif_error_eof,

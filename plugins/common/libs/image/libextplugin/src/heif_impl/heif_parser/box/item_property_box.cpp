@@ -19,6 +19,8 @@
 
 namespace {
     const uint8_t LARGE_PROPERTY_INDEX_FLAG = 1;
+    const uint32_t MAX_IPMA_ENTRY_NUM = 8192;
+    const uint8_t MAX_ASSOC_NUM = 128;
 }
 
 namespace OHOS {
@@ -92,6 +94,10 @@ heif_error HeifIpmaBox::ParseContent(HeifStreamReader &reader)
     ParseFullHeader(reader);
 
     uint32_t entryNum = reader.Read32();
+    if (entryNum > MAX_IPMA_ENTRY_NUM) {
+        reader.SetError(true);
+        return heif_error_invalid_property_index;
+    }
     for (uint32_t i = 0; i < entryNum && !reader.HasError() && !reader.IsAtEnd(); i++) {
         PropertyEntry entry;
         if (GetVersion() < HEIF_BOX_VERSION_ONE) {
@@ -101,6 +107,10 @@ heif_error HeifIpmaBox::ParseContent(HeifStreamReader &reader)
         }
 
         int assocNum = reader.Read8();
+        if (assocNum > MAX_ASSOC_NUM) {
+            reader.SetError(true);
+            return heif_error_invalid_property_index;
+        }
         for (int k = 0; k < assocNum; k++) {
             PropertyAssociation association;
             uint16_t index;

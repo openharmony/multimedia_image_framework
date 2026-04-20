@@ -17,6 +17,8 @@
 
 #include <algorithm>
 
+const uint16_t MAX_REFS_PER_ITEM = 1024;
+
 namespace OHOS {
 namespace ImagePlugin {
 void HeifIrefBox::ParseItemRef(HeifStreamReader &reader, Reference& ref)
@@ -24,6 +26,10 @@ void HeifIrefBox::ParseItemRef(HeifStreamReader &reader, Reference& ref)
     if (GetVersion() == HEIF_BOX_VERSION_ZERO) {
         ref.fromItemId = reader.Read16();
         int nRefs = reader.Read16();
+        if (nRefs > MAX_REFS_PER_ITEM) {
+            reader.SetError(true);
+            return;
+        }
         for (int i = 0; i < nRefs; i++) {
             ref.toItemIds.push_back(reader.Read16());
             if (reader.IsAtEnd()) {
@@ -33,6 +39,10 @@ void HeifIrefBox::ParseItemRef(HeifStreamReader &reader, Reference& ref)
     } else {
         ref.fromItemId = reader.Read32();
         int nRefs = reader.Read16();
+        if (nRefs > MAX_REFS_PER_ITEM) {
+            reader.SetError(true);
+            return;
+        }
         for (int i = 0; i < nRefs; i++) {
             ref.toItemIds.push_back(reader.Read32());
             if (reader.IsAtEnd()) {
