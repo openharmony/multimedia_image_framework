@@ -54,7 +54,7 @@ uint32_t ImageCreatorImpl::CjOn(std::string name, std::function<void()> callBack
     std::shared_ptr<CJImageCreatorReleaseListener> listener = std::make_shared<CJImageCreatorReleaseListener>();
     listener->name = name;
     listener->callBack = callBack;
-    imageCreator_->RegisterBufferReleaseListener((std::shared_ptr<SurfaceBufferReleaseListener>&)listener);
+    imageCreator_->RegisterBufferReleaseListener(std::static_pointer_cast<SurfaceBufferReleaseListener>(listener));
     return SUCCESS;
 }
 } // namespace Media

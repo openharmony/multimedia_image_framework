@@ -47,8 +47,10 @@ std::vector<std::pair<std::string, std::string>> MetadataImpl::GetAllProperties(
         return propertiesArray;
     }
     ImageMetadata::PropertyMapPtr allKey = nativeMetadata_->GetAllProperties();
-    for (const auto& entry : *allKey) {
-        propertiesArray.emplace_back(std::make_pair(entry.first, entry.second));
+    if (allKey != nullptr) {
+        for (const auto& entry : *allKey) {
+            propertiesArray.emplace_back(std::make_pair(entry.first, entry.second));
+        }
     }
     return propertiesArray;
 }
