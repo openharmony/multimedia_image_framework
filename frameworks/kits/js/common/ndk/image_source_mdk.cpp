@@ -37,7 +37,7 @@ struct ImageSourceNative_ {
     napi_env env = nullptr;
 };
 
-int32_t MapToErrCode(int32_t rawCode) 
+int32_t MapToErrCode(int32_t rawCode)
 {
     if (rawCode == IMAGE_RESULT_SUCCESS) {
         return IMAGE_RESULT_SUCCESS;
