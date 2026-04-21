@@ -296,8 +296,8 @@ public:
         MetadataType type, uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<ImageMetadata> GetMetadata(MetadataType type, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<FragmentMetadata> GetFragmentMetadata(uint32_t &errorCode);
-    NATIVEEXPORT std::shared_ptr<AvisMetadata> GetAvisMetadata(uint32_t index, uint32_t &errorCode);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    NATIVEEXPORT std::shared_ptr<AvisMetadata> GetAvisMetadata(uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<GifMetadata> GetGifMetadata(uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<HeifsMetadata> GetHeifsMetadata(uint32_t index, uint32_t &errorCode);
     NATIVEEXPORT std::shared_ptr<WebPMetadata> GetWebPMetadata(uint32_t index, uint32_t &errorCode);
