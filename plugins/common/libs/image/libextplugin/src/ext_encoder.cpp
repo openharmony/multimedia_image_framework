@@ -902,6 +902,12 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
         return SUCCESS;
     }
 
+    if (srcWidth <= 0 || srcHeight <= 0) {
+        IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize invalid image size (%{public}d, %{public}d)",
+            srcWidth, srcHeight);
+        return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
     float scaleX = static_cast<float>(maxWidth) / srcWidth;
     float scaleY = static_cast<float>(maxHeight) / srcHeight;
     float scale = std::min(scaleX, scaleY);
@@ -932,44 +938,26 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
 
 uint32_t ExtEncoder::ProcessBackgroundColor()
 {
-    if (IsFormatSupportTransparency(opts_.format)) {
-        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor format %{public}s supports transparency, skip",
-            opts_.format.c_str());
+    if (IsFormatSupportTransparency(opts_.format) || pixelmap_ == nullptr) {
         return SUCCESS;
-    }
-
-    if (pixelmap_ == nullptr) {
-        return ERR_IMAGE_DATA_ABNORMAL;
     }
 
     PixelFormat pixelFormat = pixelmap_->GetPixelFormat();
     AlphaType alphaType = pixelmap_->GetAlphaType();
-
     if (pixelFormat != PixelFormat::RGBA_8888 && pixelFormat != PixelFormat::BGRA_8888) {
-        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor pixel format %{public}d not RGBA/BGRA, skip",
-            static_cast<int32_t>(pixelFormat));
         return SUCCESS;
     }
-
     if (alphaType == AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
-        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor alpha type is OPAQUE, skip");
         return SUCCESS;
     }
-
-    IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor blending RGBA with background color 0x%{public}08X",
-        opts_.backgroundColor);
 
     uint8_t* pixels = const_cast<uint8_t*>(pixelmap_->GetPixels());
     if (pixels == nullptr) {
-        IMAGE_LOGE("ExtEncoder::ProcessBackgroundColor pixels is nullptr");
         return ERR_IMAGE_DATA_ABNORMAL;
     }
 
-    uint32_t width = pixelmap_->GetWidth();
-    uint32_t height = pixelmap_->GetHeight();
-    uint64_t rowStride = static_cast<uint64_t>(width * 4);
-
-#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    uint64_t rowStride = static_cast<uint64_t>(pixelmap_->GetWidth() * RGBA8888_PIXEL_BYTES);
+#if !defined(CROSS_PLATFORM)
     if (pixelmap_->GetAllocatorType() == AllocatorType::DMA_ALLOC) {
         SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*>(pixelmap_->GetFd());
         if (sbBuffer != nullptr) {
@@ -985,7 +973,6 @@ uint32_t ExtEncoder::ProcessBackgroundColor()
 
     SkBitmap bitmap;
     if (!bitmap.installPixels(skInfo, pixels, rowStride)) {
-        IMAGE_LOGE("ExtEncoder::ProcessBackgroundColor installPixels failed");
         return ERR_IMAGE_ENCODE_FAILED;
     }
 
@@ -993,19 +980,10 @@ uint32_t ExtEncoder::ProcessBackgroundColor()
     SkPaint paint;
     paint.setBlendMode(SkBlendMode::kSrcOver);
     canvas.saveLayer(nullptr, &paint);
-
-    uint8_t bgA = static_cast<uint8_t>((opts_.backgroundColor >> 24) & 0xFF);
-    uint8_t bgR = static_cast<uint8_t>((opts_.backgroundColor >> 16) & 0xFF);
-    uint8_t bgG = static_cast<uint8_t>((opts_.backgroundColor >> 8) & 0xFF);
-    uint8_t bgB = static_cast<uint8_t>(opts_.backgroundColor & 0xFF);
-    SkColor bgColor = SkColorSetARGB(bgA, bgR, bgG, bgB);
-    canvas.drawColor(bgColor);
-
-    sk_sp<SkImage> image = SkImages::RasterFromBitmap(bitmap);
-    canvas.drawImage(image, 0, 0);
+    canvas.drawColor(opts_.backgroundColor);
+    canvas.drawImage(SkImages::RasterFromBitmap(bitmap), 0, 0);
     canvas.restore();
 
-    IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor blend completed successfully");
     return SUCCESS;
 }
 
