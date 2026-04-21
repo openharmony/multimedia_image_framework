@@ -892,20 +892,19 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
 
     int32_t srcWidth = pixelmap_->GetWidth();
     int32_t srcHeight = pixelmap_->GetHeight();
+    if (srcWidth <= 0 || srcHeight <= 0) {
+        IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize invalid image size (%{public}d, %{public}d)",
+            srcWidth, srcHeight);
+        return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
     int32_t maxWidth = opts_.maxWidth > 0 ? opts_.maxWidth : srcWidth;
     int32_t maxHeight = opts_.maxHeight > 0 ? opts_.maxHeight : srcHeight;
-
     if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
         IMAGE_LOGD("ExtEncoder::ProcessMaxEncodeSize image size (%{public}d, %{public}d) "
             "within max bounds (%{public}d, %{public}d), no scaling needed",
             srcWidth, srcHeight, maxWidth, maxHeight);
         return SUCCESS;
-    }
-
-    if (srcWidth <= 0 || srcHeight <= 0) {
-        IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize invalid image size (%{public}d, %{public}d)",
-            srcWidth, srcHeight);
-        return ERR_IMAGE_INVALID_PARAMETER;
     }
 
     float scaleX = static_cast<float>(maxWidth) / srcWidth;
