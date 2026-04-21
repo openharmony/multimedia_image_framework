@@ -531,6 +531,22 @@ void ReadImageMetadataByTypeFuzzTest(const std::string& pathName)
     imageSource->GetFragmentPropertiesWithType(result);
 
     imageSource->GetWebpPropertiesWithType(0, result);
+
+    std::shared_ptr<PngMetadata> pngMetadata;
+    (void)imageSource->GetPngMetadata(pngMetadata);
+    imageSource->GetPngPropertiesWithType(result);
+
+    std::shared_ptr<JfifMetadata> jfifMetadata;
+    (void)imageSource->GetJfifMetadata(jfifMetadata);
+    imageSource->GetJfifMetadataPropertiesWithType(result);
+
+    uint32_t index = 0;
+    (void)imageSource->GetGifMetadata(0, errorCode);
+    imageSource->AppendGifPropertiesWithType(result, index);
+
+    imageSource->AppendTiffPropertiesForGetAll(result);
+
+    imageSource->GetHeifsPropertiesWithType(0, result);
 }
 }  // namespace Media
 }  // namespace OHOS
