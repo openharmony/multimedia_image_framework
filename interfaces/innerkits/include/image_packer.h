@@ -99,6 +99,35 @@ struct PackOption {
      * Currently, this parameter is only valid for the JPEG and HEIF format of the Picture.
      */
     int32_t maxEmbedThumbnailDimension = 0;
+
+    /**
+     * Background color for encoding RGBA images to formats that don't support transparency (e.g., JPEG, HEIF).
+     * When encoding RGBA format images to non-transparent formats, this color is used as the background.
+     * Format: 0xAARRGGBB, where AA is alpha, RR is red, GG is green, BB is blue.
+     * Default value: 0xFF000000 (black).
+     */
+    uint32_t backgroundColor = 0xFF000000;
+
+    /**
+     * Maximum encoding width. If the input image width exceeds this value,
+     * the image will be scaled down (maintaining aspect ratio) to fit.
+     * Default value: 0 (no limit).
+     */
+    int32_t maxWidth = 0;
+
+    /**
+     * Maximum encoding height. If the input image height exceeds this value,
+     * the image will be scaled down (maintaining aspect ratio) to fit.
+     * Default value: 0 (no limit).
+     */
+    int32_t maxHeight = 0;
+
+    /**
+     * Whether to remove GPS information from EXIF metadata during encoding.
+     * When set to true, GPS related EXIF tags will be removed before encoding.
+     * Default value: false.
+     */
+    bool removeGpsInfo = false;
 };
 
 class PackerStream;

@@ -353,6 +353,10 @@ void ImagePacker::CopyOptionsToPlugin(const PackOption &opts, PlEncodeOptions &p
     plOpts.desiredDynamicRange = opts.desiredDynamicRange;
     plOpts.isEditScene = opts.isEditScene;
     plOpts.maxEmbedThumbnailDimension = opts.maxEmbedThumbnailDimension;
+    plOpts.backgroundColor = opts.backgroundColor;
+    plOpts.maxWidth = opts.maxWidth;
+    plOpts.maxHeight = opts.maxHeight;
+    plOpts.removeGpsInfo = opts.removeGpsInfo;
 }
 
 void ImagePacker::FreeOldPackerStream()

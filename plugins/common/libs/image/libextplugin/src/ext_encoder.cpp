@@ -27,6 +27,8 @@
 #include "src/images/SkImageEncoderFns.h"
 #endif
 #include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
 #include "pixel_yuv.h"
 #include "pixel_yuv_ext.h"
 #include "pixel_yuv_utils.h"
@@ -75,6 +77,7 @@
 #include "buffer_packer_stream.h"
 #include "file_packer_stream.h"
 #include "memory_manager.h"
+#include "exif_metadata.h"
 #ifdef HEIF_HW_ENCODE_ENABLE
 #include "v2_1/icodec_image.h"
 #include "iremote_object.h"
@@ -552,16 +555,22 @@ uint32_t ExtEncoder::FinalizeEncode()
         ReportEncodeFault(0, 0, opts_.format, "Unsupported format:" + opts_.format);
         return ERR_IMAGE_INVALID_PARAMETER;
     }
+    encodeFormat_ = iter->second;
+
+    uint32_t processRet = ProcessEncodeControlParams();
+    if (processRet != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::FinalizeEncode ProcessEncodeControlParams failed %{public}u", processRet);
+        return processRet;
+    }
+
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     if (picture_ != nullptr) {
-        encodeFormat_ = iter->second;
         return EncodePicture();
     }
 #endif
     ImageInfo imageInfo;
     pixelmap_->GetImageInfo(imageInfo);
     imageDataStatistics.AddTitle(", width = %d, height =%d", imageInfo.size.width, imageInfo.size.height);
-    encodeFormat_ = iter->second;
     ExtWStream wStream(output_);
     return PixelmapEncode(wStream);
 }
@@ -829,6 +838,237 @@ void ExtEncoder::RecycleResources()
         memory->Release();
     }
     tmpMemoryList_.clear();
+    processedPixelmap_.reset();
+}
+
+bool ExtEncoder::IsFormatSupportTransparency(const std::string& format) const
+{
+    static const std::set<std::string> transparencyFormats = {
+        IMAGE_PNG_FORMAT,
+        IMAGE_WEBP_FORMAT,
+        IMAGE_GIF_FORMAT
+    };
+    return transparencyFormats.find(LowerStr(format)) != transparencyFormats.end();
+}
+
+uint32_t ExtEncoder::ProcessEncodeControlParams()
+{
+    uint32_t ret = SUCCESS;
+    if (pixelmap_ == nullptr) {
+        IMAGE_LOGD("ExtEncoder::ProcessEncodeControlParams pixelmap_ is nullptr, skip processing");
+        return SUCCESS;
+    }
+
+    ret = ProcessMaxEncodeSize();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams ProcessMaxEncodeSize failed %{public}u", ret);
+        return ret;
+    }
+
+    ret = ProcessBackgroundColor();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams ProcessBackgroundColor failed %{public}u", ret);
+        return ret;
+    }
+
+    ret = ProcessRemoveGpsInfo();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams ProcessRemoveGpsInfo failed %{public}u", ret);
+        return ret;
+    }
+
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessMaxEncodeSize()
+{
+    if (opts_.maxWidth <= 0 && opts_.maxHeight <= 0) {
+        return SUCCESS;
+    }
+
+    if (pixelmap_ == nullptr) {
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+
+    int32_t srcWidth = pixelmap_->GetWidth();
+    int32_t srcHeight = pixelmap_->GetHeight();
+    int32_t maxWidth = opts_.maxWidth > 0 ? opts_.maxWidth : srcWidth;
+    int32_t maxHeight = opts_.maxHeight > 0 ? opts_.maxHeight : srcHeight;
+
+    if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
+        IMAGE_LOGD("ExtEncoder::ProcessMaxEncodeSize image size (%{public}d, %{public}d) "
+            "within max bounds (%{public}d, %{public}d), no scaling needed",
+            srcWidth, srcHeight, maxWidth, maxHeight);
+        return SUCCESS;
+    }
+
+    float scaleX = static_cast<float>(maxWidth) / srcWidth;
+    float scaleY = static_cast<float>(maxHeight) / srcHeight;
+    float scale = std::min(scaleX, scaleY);
+
+    IMAGE_LOGI("ExtEncoder::ProcessMaxEncodeSize scaling image from (%{public}d, %{public}d) "
+        "to fit max size (%{public}d, %{public}d), scale=%{public}f",
+        srcWidth, srcHeight, maxWidth, maxHeight, scale);
+
+    int errorCode = SUCCESS;
+    processedPixelmap_ = pixelmap_->Clone(errorCode);
+    if (errorCode != SUCCESS || processedPixelmap_ == nullptr) {
+        IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize clone pixelmap failed, errorCode=%{public}d", errorCode);
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+
+    uint32_t scaleRet = processedPixelmap_->Scale(scale, scale, AntiAliasingOption::HIGH);
+    if (scaleRet != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize scale failed %{public}u", scaleRet);
+        processedPixelmap_.reset();
+        return scaleRet;
+    }
+
+    pixelmap_ = processedPixelmap_.get();
+    IMAGE_LOGI("ExtEncoder::ProcessMaxEncodeSize scaled to (%{public}d, %{public}d)",
+        pixelmap_->GetWidth(), pixelmap_->GetHeight());
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessBackgroundColor()
+{
+    if (IsFormatSupportTransparency(opts_.format)) {
+        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor format %{public}s supports transparency, skip",
+            opts_.format.c_str());
+        return SUCCESS;
+    }
+
+    if (pixelmap_ == nullptr) {
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+
+    PixelFormat pixelFormat = pixelmap_->GetPixelFormat();
+    AlphaType alphaType = pixelmap_->GetAlphaType();
+
+    if (pixelFormat != PixelFormat::RGBA_8888 && pixelFormat != PixelFormat::BGRA_8888) {
+        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor pixel format %{public}d not RGBA/BGRA, skip",
+            static_cast<int32_t>(pixelFormat));
+        return SUCCESS;
+    }
+
+    if (alphaType == AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
+        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor alpha type is OPAQUE, skip");
+        return SUCCESS;
+    }
+
+    IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor blending RGBA with background color 0x%{public}08X",
+        opts_.backgroundColor);
+
+    uint8_t* pixels = const_cast<uint8_t*>(pixelmap_->GetPixels());
+    if (pixels == nullptr) {
+        IMAGE_LOGE("ExtEncoder::ProcessBackgroundColor pixels is nullptr");
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+
+    uint32_t width = pixelmap_->GetWidth();
+    uint32_t height = pixelmap_->GetHeight();
+    uint64_t rowStride = static_cast<uint64_t>(width * 4);
+
+#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    if (pixelmap_->GetAllocatorType() == AllocatorType::DMA_ALLOC) {
+        SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*>(pixelmap_->GetFd());
+        if (sbBuffer != nullptr) {
+            rowStride = static_cast<uint64_t>(sbBuffer->GetStride());
+        }
+    }
+#endif
+
+    SkImageInfo skInfo = ToSkInfo(pixelmap_);
+    if (pixelFormat == PixelFormat::BGRA_8888) {
+        skInfo = skInfo.makeColorType(SkColorType::kBGRA_8888_SkColorType);
+    }
+
+    SkBitmap bitmap;
+    if (!bitmap.installPixels(skInfo, pixels, rowStride)) {
+        IMAGE_LOGE("ExtEncoder::ProcessBackgroundColor installPixels failed");
+        return ERR_IMAGE_ENCODE_FAILED;
+    }
+
+    SkCanvas canvas(bitmap);
+    SkPaint paint;
+    paint.setBlendMode(SkBlendMode::kSrcOver);
+    canvas.saveLayer(nullptr, &paint);
+
+    uint8_t bgA = static_cast<uint8_t>((opts_.backgroundColor >> 24) & 0xFF);
+    uint8_t bgR = static_cast<uint8_t>((opts_.backgroundColor >> 16) & 0xFF);
+    uint8_t bgG = static_cast<uint8_t>((opts_.backgroundColor >> 8) & 0xFF);
+    uint8_t bgB = static_cast<uint8_t>(opts_.backgroundColor & 0xFF);
+    SkColor bgColor = SkColorSetARGB(bgA, bgR, bgG, bgB);
+    canvas.drawColor(bgColor);
+
+    sk_sp<SkImage> image = SkImages::RasterFromBitmap(bitmap);
+    canvas.drawImage(image, 0, 0);
+    canvas.restore();
+
+    IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor blend completed successfully");
+    return SUCCESS;
+}
+
+static const std::vector<std::string> GPS_EXIF_KEYS = {
+    "GPSVersionID",
+    "GPSLatitudeRef",
+    "GPSLatitude",
+    "GPSLongitudeRef",
+    "GPSLongitude",
+    "GPSAltitudeRef",
+    "GPSAltitude",
+    "GPSTimeStamp",
+    "GPSSatellites",
+    "GPSStatus",
+    "GPSMeasureMode",
+    "GPSDOP",
+    "GPSSpeedRef",
+    "GPSSpeed",
+    "GPSTrackRef",
+    "GPSTrack",
+    "GPSImgDirectionRef",
+    "GPSImgDirection",
+    "GPSMapDatum",
+    "GPSDestLatitudeRef",
+    "GPSDestLatitude",
+    "GPSDestLongitudeRef",
+    "GPSDestLongitude",
+    "GPSDestBearingRef",
+    "GPSDestBearing",
+    "GPSDestDistanceRef",
+    "GPSDestDistance",
+    "GPSProcessingMethod",
+    "GPSAreaInformation",
+    "GPSDateStamp",
+    "GPSDifferential",
+    "GPSHPositioningError"
+};
+
+uint32_t ExtEncoder::ProcessRemoveGpsInfo()
+{
+    if (!opts_.removeGpsInfo) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo removeGpsInfo is false, skip");
+        return SUCCESS;
+    }
+
+    if (pixelmap_ == nullptr) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo pixelmap_ is nullptr, skip");
+        return SUCCESS;
+    }
+
+    std::shared_ptr<ExifMetadata> exifMetadata = pixelmap_->GetExifMetadata();
+    if (exifMetadata == nullptr) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo no EXIF metadata, skip");
+        return SUCCESS;
+    }
+
+    IMAGE_LOGI("ExtEncoder::ProcessRemoveGpsInfo removing GPS information from EXIF");
+
+    for (const std::string& gpsKey : GPS_EXIF_KEYS) {
+        exifMetadata->RemoveEntry(gpsKey);
+    }
+
+    return SUCCESS;
 }
 
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
