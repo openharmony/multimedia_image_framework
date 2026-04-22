@@ -799,7 +799,7 @@ static bool parsePackOptionOfMaxPackOption(napi_env env, napi_value root, PackOp
     if (GET_NODE_BY_NAME(maxPackOptionValue, "level", levelValue)) {
         int32_t level = 0;
         if (napi_get_value_int32(env, levelValue, &level) == napi_ok) {
-            opts->antiAliasingLevel = static_cast<AntiAliasingLevel>(level);
+            opts->antiAliasingLevel = static_cast<AntiAliasingOption>(level);
         }
     }
     IMAGE_LOGD("parsePackOptionOfMaxPackOption: width=%{public}d, height=%{public}d, level=%{public}d",
@@ -874,19 +874,17 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
     IMAGE_LOGD("parsePackOptions format:[%{public}s]", opts->format.c_str());
     opts->needsPackProperties = parseNeedsPackProperties(env, root);
     opts->maxEmbedThumbnailDimension = parseEmbedThumbnailMaxSize(env, root);
-    if (!parsePackOptionOfBackgroundColor(env, root, opts)) {
-        IMAGE_LOGE("Parse backgroundColor failed");
-        return false;
-    }
-    if (!parsePackOptionOfMaxPackOption(env, root, opts)) {
-        IMAGE_LOGE("Parse maxPackOption failed");
-        return false;
-    }
-    if (!parsePackOptionOfNeedPackGPS(env, root, opts)) {
-        IMAGE_LOGE("Parse needPackGPS failed");
-        return false;
-    }
     return parsePackOptionOfQuality(env, root, opts);
+}
+
+static bool parsePackOptionOfEncodeControlParams(napi_env env, napi_value root, PackOption* opts)
+{
+    if (!parsePackOptionOfBackgroundColor(env, root, opts) ||
+        !parsePackOptionOfMaxPackOption(env, root, opts) ||
+        !parsePackOptionOfNeedPackGPS(env, root, opts)) {
+        return false;
+    }
+    return true;
 }
 
 static int32_t ParserPackingArgumentType(napi_env env, napi_value argv)
@@ -1005,6 +1003,8 @@ static void ParserPackingArguments(napi_env env,
                 "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
         } else {
             BuildMsgOnError(context, parsePackOptions(env, argv[PARAM1], &(context->packOption)),
+                "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
+            BuildMsgOnError(context, parsePackOptionOfEncodeControlParams(env, argv[PARAM1], &(context->packOption)),
                 "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
             context->resultBufferSize = parseBufferSize(env, argv[PARAM1], context);
         }
@@ -1197,6 +1197,8 @@ static void ParserPackToFileArguments(napi_env env,
                 "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
         } else {
             BuildMsgOnError(context, parsePackOptions(env, argv[PARAM2], &(context->packOption)),
+                "PackOptions mismatch", ERR_IMAGE_INVALID_PARAMETER);
+            BuildMsgOnError(context, parsePackOptionOfEncodeControlParams(env, argv[PARAM2], &(context->packOption)),
                 "PackOptions mismatch", ERR_IMAGE_INVALID_PARAMETER);
         }
     }

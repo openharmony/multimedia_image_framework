@@ -892,7 +892,7 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
 
     int32_t srcWidth = pixelmap_->GetWidth();
     int32_t srcHeight = pixelmap_->GetHeight();
-    if (srcWidth <= 0 || srcHeight <= 0) {
+    if (srcWidth == 0 || srcHeight == 0) {
         IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize invalid image size (%{public}d, %{public}d)",
             srcWidth, srcHeight);
         return ERR_IMAGE_INVALID_PARAMETER;

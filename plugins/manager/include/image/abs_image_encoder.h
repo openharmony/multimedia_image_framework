@@ -42,7 +42,7 @@ struct PlEncodeOptions {
     uint32_t backgroundColor = 0;
     int32_t maxWidth = 0;
     int32_t maxHeight = 0;
-    AntiAliasingLevel antiAliasingLevel = AntiAliasingLevel::HIGH;
+    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::HIGH;
     bool needPackGPS = true;
 };
 
