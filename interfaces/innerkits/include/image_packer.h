@@ -122,9 +122,9 @@ struct PackOption {
 
     /**
      * Anti-aliasing level for scaling when maxPackOption is specified.
-     * Default value: AntiAliasingLevel::HIGH.
+     * Default value: AntiAliasingOption::HIGH.
      */
-    AntiAliasingLevel antiAliasingLevel = AntiAliasingLevel::HIGH;
+    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::HIGH;
 
     /**
      * Whether to pack GPS information in EXIF metadata during encoding.
