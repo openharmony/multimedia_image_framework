@@ -1511,7 +1511,7 @@ interface DngMetadata {
     baselineNoise?: double;
     baselineSharpness?: double;
     bayerGreenSplit?: int;
-    linearResponseLimit?: double[];
+    linearResponseLimit?: double;
     cameraSerialNumber?: string;
     lensInfo?: double[];
     chromaBlurRadius?: double;

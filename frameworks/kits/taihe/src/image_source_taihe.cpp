@@ -1859,7 +1859,7 @@ static void ReadImageMetadataProperties(std::unique_ptr<ImageSourceTaiheContext>
                 IMAGE_LOGE("%{public}s: errCode: %{public}u, exif key: %{public}s", __func__, status, keyStr.c_str());
             }
         }
-        context->status = (context->kValueTypeArray.size() == context->errMsgArray.size()) ?
+        context->status = (context->keyStrArray.size() == context->errMsgArray.size()) ?
             OHOS::Media::ERROR : OHOS::Media::SUCCESS;
     }
 }
@@ -1913,7 +1913,7 @@ static void CreateIntPropertyValue(const OHOS::Media::MetadataValue &metadataVal
 {
     if (!metadataValue.intArrayValue.empty()) {
         int64_t value = metadataValue.intArrayValue.front();
-        if (static_cast<int32_t>(value) > std::numeric_limits<int32_t>::max()) {
+        if (value > std::numeric_limits<int32_t>::max() || value < std::numeric_limits<int32_t>::min()) {
             IMAGE_LOGE("%{public}s: int value %{public}" PRId64 " is out of range", __func__, value);
             return;
         }
@@ -1998,6 +1998,7 @@ static const std::unordered_map<std::string_view, IntConverter> &GetIntConverter
         {"HwMnoteFrontCamera",              [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
         {"HwMnoteCloudEnhancementMode",     [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
         {"HwMnoteWindSnapshotMode",         [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
+        {"MakerNoteSafety",                 [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
         {"JfifIsProgressive",               [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
         {"GifHasGlobalColorMap",            [](int32_t v) { return MetadataValueType::make_type_bool(v != 0); }},
 
