@@ -751,6 +751,80 @@ static bool parsePackOptionOfQuality(napi_env env, napi_value root, PackOption* 
     return true;
 }
 
+static bool parsePackOptionOfBackgroundColor(napi_env env, napi_value root, PackOption* opts)
+{
+    napi_value tmpValue = nullptr;
+    if (!GET_NODE_BY_NAME(root, "backgroundColor", tmpValue)) {
+        IMAGE_LOGD("No backgroundColor in pack option, use default");
+        return true;
+    }
+    uint32_t backgroundColor = 0;
+    if (napi_get_value_uint32(env, tmpValue, &backgroundColor) != napi_ok) {
+        IMAGE_LOGE("Parse backgroundColor failed");
+        return false;
+    }
+    opts->backgroundColor = backgroundColor;
+    IMAGE_LOGD("parsePackOptionOfBackgroundColor: %{public}u", backgroundColor);
+    return true;
+}
+
+static bool parsePackOptionOfMaxPackOption(napi_env env, napi_value root, PackOption* opts)
+{
+    napi_value maxPackOptionValue = nullptr;
+    if (!GET_NODE_BY_NAME(root, "maxPackOption", maxPackOptionValue)) {
+        IMAGE_LOGD("No maxPackOption in pack option, use default");
+        return true;
+    }
+
+    napi_value sizeValue = nullptr;
+    if (!GET_NODE_BY_NAME(maxPackOptionValue, "size", sizeValue)) {
+        IMAGE_LOGD("No size in maxPackOption");
+        return true;
+    }
+
+    int32_t width = 0;
+    int32_t height = 0;
+    napi_value widthValue = nullptr;
+    napi_value heightValue = nullptr;
+    if (GET_NODE_BY_NAME(sizeValue, "width", widthValue)) {
+        napi_get_value_int32(env, widthValue, &width);
+    }
+    if (GET_NODE_BY_NAME(sizeValue, "height", heightValue)) {
+        napi_get_value_int32(env, heightValue, &height);
+    }
+    opts->maxWidth = width;
+    opts->maxHeight = height;
+
+    napi_value levelValue = nullptr;
+    if (GET_NODE_BY_NAME(maxPackOptionValue, "level", levelValue)) {
+        int32_t level = 0;
+        if (napi_get_value_int32(env, levelValue, &level) == napi_ok) {
+            opts->antiAliasingLevel = static_cast<AntiAliasingLevel>(level);
+        }
+    }
+    IMAGE_LOGD("parsePackOptionOfMaxPackOption: width=%{public}d, height=%{public}d, level=%{public}d",
+        opts->maxWidth, opts->maxHeight, static_cast<int32_t>(opts->antiAliasingLevel));
+    return true;
+}
+
+static bool parsePackOptionOfNeedPackGPS(napi_env env, napi_value root, PackOption* opts)
+{
+    napi_value tmpValue = nullptr;
+    if (!GET_NODE_BY_NAME(root, "needPackGPS", tmpValue)) {
+        IMAGE_LOGD("No needPackGPS in pack option, use default true");
+        opts->needPackGPS = true;
+        return true;
+    }
+    bool needPackGPS = true;
+    if (napi_get_value_bool(env, tmpValue, &needPackGPS) != napi_ok) {
+        IMAGE_LOGE("Parse needPackGPS failed");
+        return false;
+    }
+    opts->needPackGPS = needPackGPS;
+    IMAGE_LOGD("parsePackOptionOfNeedPackGPS: %{public}d", needPackGPS);
+    return true;
+}
+
 static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
 {
     napi_value tmpValue = nullptr;
@@ -800,6 +874,18 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
     IMAGE_LOGD("parsePackOptions format:[%{public}s]", opts->format.c_str());
     opts->needsPackProperties = parseNeedsPackProperties(env, root);
     opts->maxEmbedThumbnailDimension = parseEmbedThumbnailMaxSize(env, root);
+    if (!parsePackOptionOfBackgroundColor(env, root, opts)) {
+        IMAGE_LOGE("Parse backgroundColor failed");
+        return false;
+    }
+    if (!parsePackOptionOfMaxPackOption(env, root, opts)) {
+        IMAGE_LOGE("Parse maxPackOption failed");
+        return false;
+    }
+    if (!parsePackOptionOfNeedPackGPS(env, root, opts)) {
+        IMAGE_LOGE("Parse needPackGPS failed");
+        return false;
+    }
     return parsePackOptionOfQuality(env, root, opts);
 }
 

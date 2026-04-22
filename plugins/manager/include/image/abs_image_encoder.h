@@ -39,10 +39,11 @@ struct PlEncodeOptions {
     std::vector<uint16_t> delayTimes;
     std::vector<uint8_t> disposalTypes;
     int32_t maxEmbedThumbnailDimension = 0;
-    uint32_t backgroundColor = 0xFF000000;
+    uint32_t backgroundColor = 0;
     int32_t maxWidth = 0;
     int32_t maxHeight = 0;
-    bool removeGpsInfo = false;
+    AntiAliasingLevel antiAliasingLevel = AntiAliasingLevel::HIGH;
+    bool needPackGPS = true;
 };
 
 class AbsImageEncoder {
