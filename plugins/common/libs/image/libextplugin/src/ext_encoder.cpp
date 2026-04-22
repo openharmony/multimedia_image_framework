@@ -570,7 +570,7 @@ uint32_t ExtEncoder::FinalizeEncode()
 #endif
     ImageInfo imageInfo;
     pixelmap_->GetImageInfo(imageInfo);
-    imageDataStatistics.AddTitle(", width = %d, height =%d", imageInfo.size.width, imageInfo.size.height);
+    imageDataStatistics.AddTitle("width = %d, height =%d", imageInfo.size.width, imageInfo.size.height);
     ExtWStream wStream(output_);
     return PixelmapEncode(wStream);
 }
@@ -922,7 +922,7 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
         return ERR_IMAGE_DATA_ABNORMAL;
     }
 
-    uint32_t scaleRet = processedPixelmap_->Scale(scale, scale, AntiAliasingOption::HIGH);
+    uint32_t scaleRet = processedPixelmap_->Scale(scale, scale, opts_.antiAliasingLevel);
     if (scaleRet != SUCCESS) {
         IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize scale failed %{public}u", scaleRet);
         processedPixelmap_.reset();
@@ -937,8 +937,12 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
 
 uint32_t ExtEncoder::ProcessBackgroundColor()
 {
-    if (IsFormatSupportTransparency(opts_.format) || pixelmap_ == nullptr) {
+    if (IsFormatSupportTransparency(opts_.format)) {
         return SUCCESS;
+    }
+
+    if (pixelmap_ == nullptr) {
+        return ERR_IMAGE_DATA_ABNORMAL;
     }
 
     PixelFormat pixelFormat = pixelmap_->GetPixelFormat();
@@ -1023,8 +1027,8 @@ static const std::vector<std::string> GPS_EXIF_KEYS = {
 
 uint32_t ExtEncoder::ProcessRemoveGpsInfo()
 {
-    if (!opts_.removeGpsInfo) {
-        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo removeGpsInfo is false, skip");
+    if (opts_.needPackGPS) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo needPackGPS is true, keep GPS info");
         return SUCCESS;
     }
 

@@ -356,7 +356,8 @@ void ImagePacker::CopyOptionsToPlugin(const PackOption &opts, PlEncodeOptions &p
     plOpts.backgroundColor = opts.backgroundColor;
     plOpts.maxWidth = opts.maxWidth;
     plOpts.maxHeight = opts.maxHeight;
-    plOpts.removeGpsInfo = opts.removeGpsInfo;
+    plOpts.antiAliasingLevel = opts.antiAliasingLevel;
+    plOpts.needPackGPS = opts.needPackGPS;
 }
 
 void ImagePacker::FreeOldPackerStream()

@@ -103,31 +103,35 @@ struct PackOption {
     /**
      * Background color for encoding RGBA images to formats that don't support transparency (e.g., JPEG, HEIF).
      * When encoding RGBA format images to non-transparent formats, this color is used as the background.
-     * Format: 0xAARRGGBB, where AA is alpha, RR is red, GG is green, BB is blue.
-     * Default value: 0xFF000000 (black).
+     * Format: 0xRRGGBB, where RR is red, GG is green, BB is blue.
+     * Default value: 0 (no background color specified, use black).
      */
-    uint32_t backgroundColor = 0xFF000000;
+    uint32_t backgroundColor = 0;
 
     /**
-     * Maximum encoding width. If the input image width exceeds this value,
-     * the image will be scaled down (maintaining aspect ratio) to fit.
+     * Maximum encoding width for maxPackOption.
      * Default value: 0 (no limit).
      */
     int32_t maxWidth = 0;
 
     /**
-     * Maximum encoding height. If the input image height exceeds this value,
-     * the image will be scaled down (maintaining aspect ratio) to fit.
+     * Maximum encoding height for maxPackOption.
      * Default value: 0 (no limit).
      */
     int32_t maxHeight = 0;
 
     /**
-     * Whether to remove GPS information from EXIF metadata during encoding.
-     * When set to true, GPS related EXIF tags will be removed before encoding.
-     * Default value: false.
+     * Anti-aliasing level for scaling when maxPackOption is specified.
+     * Default value: AntiAliasingLevel::HIGH.
      */
-    bool removeGpsInfo = false;
+    AntiAliasingLevel antiAliasingLevel = AntiAliasingLevel::HIGH;
+
+    /**
+     * Whether to pack GPS information in EXIF metadata during encoding.
+     * When set to false, GPS related EXIF tags will be removed before encoding.
+     * Default value: true (keep GPS information).
+     */
+    bool needPackGPS = true;
 };
 
 class PackerStream;
