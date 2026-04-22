@@ -1914,7 +1914,7 @@ static void CreateIntPropertyValue(const OHOS::Media::MetadataValue &metadataVal
     if (!metadataValue.intArrayValue.empty()) {
         int64_t value = metadataValue.intArrayValue.front();
         if (static_cast<int32_t>(value) > std::numeric_limits<int32_t>::max()) {
-            IMAGE_LOGE("%{public}s: int value %{public}lld is out of range", __func__, value);
+            IMAGE_LOGE("%{public}s: int value %{public}" PRId64 " is out of range", __func__, value);
             return;
         }
         propValue.emplace_type_int(static_cast<int32_t>(value));
