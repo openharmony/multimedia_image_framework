@@ -140,6 +140,8 @@ private:
     uint32_t AssembleHeifAuxiliaryNoncodingMap(std::vector<HDI::Codec::Image::V2_1::ImageItem>& inputImgs,
         AuxiliaryPictureType auxType);
     uint32_t AssembleHeifUnrefocusMap(std::vector<HDI::Codec::Image::V2_1::ImageItem>& inputImgs);
+    uint32_t AssembleHeifUltraPhotoMap(AuxiliaryPictureType auxType,
+        std::vector<HDI::Codec::Image::V2_1::ImageItem>& inputImgs);
     uint32_t AssembleHeifFragmentMap(std::vector<HDI::Codec::Image::V2_1::ImageItem>& inputImgs);
     uint32_t AssembleHeifAuxiliaryPicture(std::vector<HDI::Codec::Image::V2_1::ImageItem>& inputImgs,
         std::vector<HDI::Codec::Image::V2_1::ItemRef>& refs);

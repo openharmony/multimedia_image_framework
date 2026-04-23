@@ -347,13 +347,15 @@ typedef enum {
      * Fragment metadata.
      */
     FRAGMENT_METADATA = 2,
-    /*
-    * Xtstyle metadata.
-    */
+
+    /**
+     * Xtstyle metadata.
+     */
     XTSTYLE_METADATA = 3,
-    /*
-    * RfDataB metadata.
-    */
+
+    /**
+     * RfDataB metadata.
+     */
     RFDATAB_METADATA = 4,
 
     /**
@@ -361,7 +363,38 @@ typedef enum {
      *
      * @since 20
      */
-    GIF_METADATA = 5
+    GIF_METADATA = 5,
+
+    /**
+     * XDRAW4K metadata.
+     */
+
+    XDRAW4K_METADATA = 8,
+
+    /**
+     * PRIVATE metadata.
+     */
+    PRIVATE_METADATA = 9,
+
+    /**
+     * RfDataN metadata.
+     */
+    RFDATAN_METADATA = 10,
+
+    /**
+     * RfDataS metadata.
+     */
+    RFDATAS_METADATA = 11,
+
+    /**
+     * HDRSnap metadata.
+     */
+    HDRSNAP_METADATA = 12,
+
+    /**
+     * DfxData metadata.
+     */
+    DFXDATA_METADATA = 13,
 } Image_MetadataType;
 
 /**
