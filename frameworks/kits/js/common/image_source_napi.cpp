@@ -3603,8 +3603,8 @@ static void ReadImageMetadataExecute(napi_env env, void *data)
     context->rImageHeifsMetadata = CreateNullHeifsMetadata();
     context->rWebPMetadata = CreateNullWebPMetadata();
     context->rJfifMetadata = CreateNullJfifMetadata();
-    context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
     errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
     context->rFragmentMetadata = context->rImageSource->GetFragmentMetadata(errorCode);
     context->rGifMetadata = context->rImageSource->GetGifMetadata(context->index, errorCode);
@@ -4128,8 +4128,8 @@ static void ReadImageMetadataByTypeExecute(napi_env env, void *data)
     context->rImageHeifsMetadata = CreateNullHeifsMetadata();
     context->rWebPMetadata = CreateNullWebPMetadata();
     context->rJfifMetadata = CreateNullJfifMetadata();
-    context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    context->rAvisMetadata = context->rImageSource->GetAvisMetadata(context->index, errorCode);
     errorCode = context->rImageSource->GetPngMetadata(context->rPngMetadata);
     context->rFragmentMetadata = context->rImageSource->GetFragmentMetadata(errorCode);
     context->rGifMetadata = context->rImageSource->GetGifMetadata(context->index, errorCode);
