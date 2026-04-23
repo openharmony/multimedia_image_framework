@@ -343,6 +343,11 @@ bool SutDecSoManager::LoadSutDecSo()
 }
 #endif
 
+struct JpegExtendInfo {
+    std::vector<SingleJpegImage> auxiliaryPictures;
+    std::vector<SingleBlobMetadata> blobMetadatas;
+};
+
 const auto KEY_SIZE = 2;
 const static std::string DEFAULT_EXIF_VALUE = "default_exif_value";
 const static std::map<std::string, uint32_t> ORIENTATION_INT_MAP = {
@@ -6154,8 +6159,10 @@ static void DecodeJpegAuxiliaryPictures(JpegExtendInfo &extendInfo, std::set<Aux
         }
         auto auxDecoder = createDecoder(*auxStream, errorCode);
         uint32_t auxErrorCode = ERROR;
+        AuxiliaryPictureDecodeInfo auxDecodeInfo;
+        auxDecodeInfo.type = auxInfo.auxType;
         auto auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
-            mainPictureInfo, auxInfo.auxType, auxStream, auxDecoder, auxErrorCode);
+            mainPictureInfo, auxStream, auxDecoder, auxErrorCode, auxDecodeInfo);
         if (auxPicture != nullptr && auxPicture->GetContentPixel() != nullptr) {
             AuxiliaryPictureInfo auxPictureInfo = auxPicture->GetAuxiliaryPictureInfo();
             auxPictureInfo.jpegTagName = auxInfo.auxTagName;
