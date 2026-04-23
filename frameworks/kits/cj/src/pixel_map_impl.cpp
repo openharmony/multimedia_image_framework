@@ -491,7 +491,6 @@ static FormatType TypeFormat(PixelFormat& pixelForamt)
         case PixelFormat::BGRA_8888:
         case PixelFormat::RGB_888:
         case PixelFormat::RGBA_F16:
-        case PixelFormat::ALPHA_F16:
         case PixelFormat::RGBA_1010102: {
             return FormatType::RGB;
         }

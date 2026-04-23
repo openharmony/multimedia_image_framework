@@ -173,12 +173,13 @@ static std::vector<struct ImageEnum> sPixelMapFormatMap = {
     {"RGB_888", 5, ""},
     {"ALPHA_8", 6, ""},
     {"RGBA_F16", 7, ""},
-    {"ALPHA_F16", 15, ""},
     {"NV21", 8, ""},
     {"NV12", 9, ""},
     {"RGBA_1010102", 10, ""},
     {"YCBCR_P010", 11, ""},
     {"YCRCB_P010", 12, ""},
+    {"ALPHA_U8", 15, ""},
+    {"ALPHA_F16", 16, ""},
     {"ASTC_4x4", 102, ""},
 };
 static std::vector<struct ImageEnum> sPropertyKeyMap = {
