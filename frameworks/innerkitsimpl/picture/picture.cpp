@@ -444,7 +444,7 @@ static std::shared_ptr<PixelMap> DeepCopyPixelMap(const std::shared_ptr<PixelMap
         VpeUtils::CopySurfaceBufferInfo(sourceSurfaceBuffer, dstSurfaceBuffer);
         PixelFormat format = SbFormat2PixelFormat(sourceSurfaceBuffer->GetFormat());
         if (IsYuvFormat(format)) {
-            SetYuvDataInfo(tmpPixelMap, sourceSurfaceBuffer);
+            ImageUtils::SetYuvDataInfo(tmpPixelMap, sourceSurfaceBuffer);
         }
     }
     std::shared_ptr<PixelMap> dstPixelMap = std::move(tmpPixelMap);
