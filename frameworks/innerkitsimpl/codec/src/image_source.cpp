@@ -6133,7 +6133,7 @@ static JpegExtendInfo ParsingJpegExtendInfo(uint8_t *stream, uint32_t streamSize
     return result;
 }
 
-static void DecodeJpegAuxiliaryPictures(JpegExtendInfo &extendInfo, std::set<AuxiliaryPictureType> &auxTypes, 
+static void DecodeJpegAuxiliaryPictures(JpegExtendInfo &extendInfo, std::set<AuxiliaryPictureType> &auxTypes,
     MainPictureInfo &mainPictureInfo, std::unique_ptr<Picture> &picture, uint32_t &errorCode, StreamInfo &streamInfo,
     const std::function<std::unique_ptr<AbsImageDecoder>(InputDataStream&, uint32_t&)> &createDecoder)
 {

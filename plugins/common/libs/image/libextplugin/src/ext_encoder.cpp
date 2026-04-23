@@ -1372,7 +1372,7 @@ uint32_t ExtEncoder::AssembleHeifAuxiliaryPicture(std::vector<ImageItem>& inputI
         if (AssembleHeifUltraPhotoMap(type, inputImgs) == SUCCESS) {
             AssembleAuxiliaryRefItem(type, refs);
         } else {
-            IMAGE_LOGE("%{public}s %{public}s assemble fail", 
+            IMAGE_LOGE("%{public}s %{public}s assemble fail",
                 __func__, HEIF_AUX_PIC_INFO_MAPPING.at(type).itemName.c_str());
         }
     }
