@@ -156,6 +156,11 @@ struct ASTCInfo {
     Size blockFootprint;
 };
 
+struct JpegExtendInfo {
+    std::vector<SingleJpegImage> auxiliaryPictures;
+    std::vector<SingleBlobMetadata> blobMetadatas;
+};
+
 class SourceStream;
 enum class ImageHdrType;
 struct HdrMetadata;
