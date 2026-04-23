@@ -20,6 +20,7 @@
 #include "image_type.h"
 #include "image_utils.h"
 #include "media_errors.h"
+#include "pixel_convert.h"
 #include "pixel_map.h"
 #include "pixel_convert_adapter.h"
 #include "securec.h"
@@ -493,6 +494,54 @@ static std::pair<std::unique_ptr<PixelMap>, int32_t> CreateTransformApiPixelMap(
     opts.pixelFormat = format;
     opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
     return PixelMap::CreateFromPixels(pixels.data(), static_cast<uint32_t>(pixels.size()), opts);
+}
+
+static std::unique_ptr<PixelMap> CreateAlphaF16PixelMap(int32_t width, int32_t height, bool editable = true)
+{
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.pixelFormat = PixelFormat::ALPHA_F16;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+    opts.editable = editable;
+    return PixelMap::Create(opts);
+}
+
+static bool FillAlphaF16PixelMap(PixelMap &pixelMap, const uint8_t *alphaValues, int32_t count)
+{
+    for (int32_t i = 0; i < count; ++i) {
+        Position pos = { i % pixelMap.GetWidth(), i / pixelMap.GetWidth() };
+        if (pixelMap.WritePixel(pos, static_cast<uint32_t>(alphaValues[i]) << ARGB_A_SHIFT) != SUCCESS) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static uint8_t GetPixelMapAlpha(PixelMap &pixelMap, int32_t x, int32_t y)
+{
+    uint32_t color = 0;
+    if (pixelMap.ReadPixel({ x, y }, color) != SUCCESS) {
+        return 0;
+    }
+    return static_cast<uint8_t>((color >> ARGB_A_SHIFT) & ARGB_MASK);
+}
+
+static bool CompareAlphaF16Pixels(PixelMap &pixelMap1, PixelMap &pixelMap2)
+{
+    if (pixelMap1.GetWidth() != pixelMap2.GetWidth() || pixelMap1.GetHeight() != pixelMap2.GetHeight()) {
+        return false;
+    }
+    for (int32_t y = 0; y < pixelMap1.GetHeight(); ++y) {
+        for (int32_t x = 0; x < pixelMap1.GetWidth(); ++x) {
+            const uint16_t *src = pixelMap1.GetPixel16(x, y);
+            const uint16_t *dst = pixelMap2.GetPixel16(x, y);
+            if (src == nullptr || dst == nullptr || *src != *dst) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 /**
@@ -4375,14 +4424,624 @@ HWTEST_F(PixelMapTest, ConvertFromAstcPixelMapTest, TestSize.Level3)
     uint32_t errorCode = 0;
     auto result = PixelMap::ConvertFromAstc(pixelMap.get(), errorCode, PixelFormat::RGBA_8888);
     ASSERT_EQ(errorCode, 0);
+    result = PixelMap::ConvertFromAstc(pixelMap.get(), errorCode, PixelFormat::ALPHA_F16);
+    ASSERT_EQ(errorCode, 0);
+    ASSERT_NE(result, nullptr);
+    EXPECT_EQ(result->GetPixelFormat(), PixelFormat::ALPHA_F16);
     for (int i = 0; i < static_cast<int>(PixelFormat::EXTERNAL_MAX); i++) {
-        if (i == 3) {
+        if (i == 3 || i == static_cast<int>(PixelFormat::ALPHA_F16)) {
             continue;
         }
         result = PixelMap::ConvertFromAstc(pixelMap.get(), errorCode, static_cast<PixelFormat>(i));
         EXPECT_NE(errorCode, 0);
     }
     GTEST_LOG_(INFO) << "PixelMapTest: ConvertFromAstcPixelMapTest end";
+}
+
+/**
+ * @tc.name: CreateColorsToAlphaF16Test001
+ * @tc.desc: Test Create(colors, ...) converts BGRA alpha channel into ALPHA_F16.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateColorsToAlphaF16Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsToAlphaF16Test001 start";
+    constexpr int32_t width = 2;
+    constexpr int32_t height = 2;
+    constexpr uint32_t colorLength = width * height * ARGB_8888_BYTES;
+    uint8_t buffer[colorLength] = {
+        0x00, 0x00, 0x00, 0x12,
+        0x00, 0x00, 0x00, 0x34,
+        0x00, 0x00, 0x00, 0x56,
+        0x00, 0x00, 0x00, 0x78
+    };
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.srcPixelFormat = PixelFormat::BGRA_8888;
+    opts.pixelFormat = PixelFormat::ALPHA_F16;
+    std::unique_ptr<PixelMap> pixelMap1 = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    std::unique_ptr<PixelMap> pixelMap2 = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, 0, width,
+        opts);
+    std::unique_ptr<PixelMap> pixelMap3 = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, 0, width,
+        opts, true);
+    BUILD_PARAM buildParam;
+    buildParam.offset_ = 0;
+    buildParam.width_ = width;
+    buildParam.flag_ = true;
+    int32_t errorCode = 0;
+    std::unique_ptr<PixelMap> pixelMap4 = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength,
+        buildParam, opts, errorCode);
+
+    ASSERT_NE(pixelMap1, nullptr);
+    ASSERT_NE(pixelMap2, nullptr);
+    ASSERT_NE(pixelMap3, nullptr);
+    ASSERT_NE(pixelMap4, nullptr);
+    EXPECT_EQ(errorCode, SUCCESS);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap1, *pixelMap2));
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap1, *pixelMap3));
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap1, *pixelMap4));
+
+    PixelMap *pixelMaps[] = { pixelMap1.get(), pixelMap2.get(), pixelMap3.get(), pixelMap4.get() };
+    for (auto *pixelMap : pixelMaps) {
+        uint32_t dst = 0;
+        EXPECT_EQ(pixelMap->ReadPixel({0, 0}, dst), SUCCESS);
+        EXPECT_EQ((dst >> ARGB_A_SHIFT) & ARGB_MASK, 0x12);
+        EXPECT_EQ(pixelMap->ReadPixel({1, 1}, dst), SUCCESS);
+        EXPECT_EQ((dst >> ARGB_A_SHIFT) & ARGB_MASK, 0x78);
+    }
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsToAlphaF16Test001 end";
+}
+
+/**
+ * @tc.name: CreateColorsAlphaF16ToYUVTest001
+ * @tc.desc: Test Create(colors, ...) keeps ALPHA_F16 to NV12/NV21 conversion aligned with ALPHA_8 behavior.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateColorsAlphaF16ToYUVTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToYUVTest001 start";
+    constexpr int32_t width = 2;
+    constexpr int32_t height = 2;
+    constexpr uint32_t colorLength = width * height * 2;
+    uint8_t buffer[colorLength] = {0};
+    const uint8_t alphaValues[width * height] = {0x10, 0x40, 0x80, 0xFF};
+    for (int32_t i = 0; i < width * height; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        buffer[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        buffer[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.srcPixelFormat = PixelFormat::ALPHA_F16;
+
+    opts.pixelFormat = PixelFormat::NV12;
+    std::unique_ptr<PixelMap> nv12PixelMap = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    ASSERT_NE(nv12PixelMap, nullptr);
+    EXPECT_EQ(nv12PixelMap->GetPixelFormat(), PixelFormat::NV12);
+    EXPECT_NE(nv12PixelMap->GetPixels(), nullptr);
+
+    opts.pixelFormat = PixelFormat::NV21;
+    std::unique_ptr<PixelMap> nv21PixelMap = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    EXPECT_EQ(nv21PixelMap->GetPixelFormat(), PixelFormat::NV21);
+    EXPECT_NE(nv21PixelMap->GetPixels(), nullptr);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToYUVTest001 end";
+}
+
+/**
+ * @tc.name: CreateColorsAlphaF16ToP010Test001
+ * @tc.desc: Test Create(colors, ...) keeps ALPHA_F16 to YCBCR_P010/YCRCB_P010 conversion available.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateColorsAlphaF16ToP010Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToP010Test001 start";
+    constexpr int32_t width = 2;
+    constexpr int32_t height = 2;
+    constexpr uint32_t colorLength = width * height * 2;
+    uint8_t buffer[colorLength] = {0};
+    const uint8_t alphaValues[width * height] = {0x11, 0x33, 0x77, 0xFF};
+    for (int32_t i = 0; i < width * height; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        buffer[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        buffer[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.srcPixelFormat = PixelFormat::ALPHA_F16;
+
+    opts.pixelFormat = PixelFormat::YCBCR_P010;
+    std::unique_ptr<PixelMap> ycbcrP010PixelMap =
+        PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    ASSERT_NE(ycbcrP010PixelMap, nullptr);
+    EXPECT_EQ(ycbcrP010PixelMap->GetPixelFormat(), PixelFormat::YCBCR_P010);
+    EXPECT_NE(ycbcrP010PixelMap->GetPixels(), nullptr);
+
+    opts.pixelFormat = PixelFormat::YCRCB_P010;
+    std::unique_ptr<PixelMap> ycrcbP010PixelMap =
+        PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    ASSERT_NE(ycrcbP010PixelMap, nullptr);
+    EXPECT_EQ(ycrcbP010PixelMap->GetPixelFormat(), PixelFormat::YCRCB_P010);
+    EXPECT_NE(ycrcbP010PixelMap->GetPixels(), nullptr);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToP010Test001 end";
+}
+
+/**
+ * @tc.name: CreateColorsAlphaF16WithOffsetStrideTest001
+ * @tc.desc: Test Create(colors, offset, stride, ...) keeps ALPHA_F16 to YUV/P010 conversion available.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateColorsAlphaF16WithOffsetStrideTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16WithOffsetStrideTest001 start";
+    constexpr int32_t width = 2;
+    constexpr int32_t height = 2;
+    constexpr int32_t offset = 0;
+    constexpr int32_t stride = width;
+    constexpr uint32_t colorLength = width * height * 2;
+    uint8_t buffer[colorLength] = {0};
+    const uint8_t alphaValues[width * height] = {0x10, 0x20, 0x90, 0xF0};
+    for (int32_t i = 0; i < width * height; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        buffer[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        buffer[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.srcPixelFormat = PixelFormat::ALPHA_F16;
+
+    opts.pixelFormat = PixelFormat::NV12;
+    std::unique_ptr<PixelMap> nv12PixelMap =
+        PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, offset, stride, opts);
+    ASSERT_NE(nv12PixelMap, nullptr);
+    EXPECT_EQ(nv12PixelMap->GetPixelFormat(), PixelFormat::NV12);
+
+    opts.pixelFormat = PixelFormat::YCBCR_P010;
+    std::unique_ptr<PixelMap> ycbcrP010PixelMap =
+        PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, offset, stride, opts);
+    ASSERT_NE(ycbcrP010PixelMap, nullptr);
+    EXPECT_EQ(ycbcrP010PixelMap->GetPixelFormat(), PixelFormat::YCBCR_P010);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16WithOffsetStrideTest001 end";
+}
+
+/**
+ * @tc.name: CreateColorsAlphaF16ToYUVOddWidthTest001
+ * @tc.desc: Test Create(colors, ...) rejects ALPHA_F16 to NV12/NV21 conversion when width is odd.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateColorsAlphaF16ToYUVOddWidthTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToYUVOddWidthTest001 start";
+    constexpr int32_t width = 1;
+    constexpr int32_t height = 2;
+    constexpr uint32_t colorLength = width * height * 2;
+    uint8_t buffer[colorLength] = {0x00, 0x48, 0x00, 0x58};
+
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.srcPixelFormat = PixelFormat::ALPHA_F16;
+
+    opts.pixelFormat = PixelFormat::NV12;
+    std::unique_ptr<PixelMap> nv12PixelMap = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    EXPECT_EQ(nv12PixelMap, nullptr);
+
+    opts.pixelFormat = PixelFormat::NV21;
+    std::unique_ptr<PixelMap> nv21PixelMap = PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    EXPECT_EQ(nv21PixelMap, nullptr);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToYUVOddWidthTest001 end";
+}
+
+/**
+ * @tc.name: CreateColorsAlphaF16ToP010OddHeightTest001
+ * @tc.desc: Test Create(colors, ...) rejects ALPHA_F16 to P010 conversion when height is odd.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateColorsAlphaF16ToP010OddHeightTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToP010OddHeightTest001 start";
+    constexpr int32_t width = 2;
+    constexpr int32_t height = 1;
+    constexpr uint32_t colorLength = width * height * 2;
+    uint8_t buffer[colorLength] = {0x00, 0x48, 0x00, 0x58};
+
+    InitializationOptions opts;
+    opts.size.width = width;
+    opts.size.height = height;
+    opts.srcPixelFormat = PixelFormat::ALPHA_F16;
+
+    opts.pixelFormat = PixelFormat::YCBCR_P010;
+    std::unique_ptr<PixelMap> ycbcrP010PixelMap =
+        PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    EXPECT_EQ(ycbcrP010PixelMap, nullptr);
+
+    opts.pixelFormat = PixelFormat::YCRCB_P010;
+    std::unique_ptr<PixelMap> ycrcbP010PixelMap =
+        PixelMap::Create(reinterpret_cast<uint32_t *>(buffer), colorLength, opts);
+    EXPECT_EQ(ycrcbP010PixelMap, nullptr);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateColorsAlphaF16ToP010OddHeightTest001 end";
+}
+
+/**
+ * @tc.name: CreateCropConvertAlphaF16Test001
+ * @tc.desc: Test Create(source, rect, ...) crops and converts ALPHA_F16.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateCropConvertAlphaF16Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateCropConvertAlphaF16Test001 start";
+    std::unique_ptr<PixelMap> srcPixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(srcPixelMap, nullptr);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 0}, 0x12000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({1, 0}, 0x34000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 1}, 0x56000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({1, 1}, 0x78000000), SUCCESS);
+
+    InitializationOptions fullOpts;
+    fullOpts.size.width = 2;
+    fullOpts.size.height = 2;
+    fullOpts.pixelFormat = PixelFormat::BGRA_8888;
+    fullOpts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+    std::unique_ptr<PixelMap> fullPixelMap = PixelMap::Create(*srcPixelMap, fullOpts);
+    ASSERT_NE(fullPixelMap, nullptr);
+    EXPECT_EQ(GetPixelMapAlpha(*fullPixelMap, 0, 0), 0x12);
+    EXPECT_EQ(GetPixelMapAlpha(*fullPixelMap, 1, 1), 0x78);
+
+    InitializationOptions dstOpts;
+    dstOpts.size.width = 1;
+    dstOpts.size.height = 2;
+    dstOpts.pixelFormat = PixelFormat::BGRA_8888;
+    dstOpts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+    Rect rect = {1, 0, 1, 2};
+    std::unique_ptr<PixelMap> dstPixelMap = PixelMap::Create(*srcPixelMap, rect, dstOpts);
+    ASSERT_NE(dstPixelMap, nullptr);
+    EXPECT_EQ(dstPixelMap->GetPixelFormat(), PixelFormat::BGRA_8888);
+
+    uint32_t dst = 0;
+    EXPECT_EQ(dstPixelMap->ReadPixel({0, 0}, dst), SUCCESS);
+    EXPECT_EQ((dst >> ARGB_A_SHIFT) & ARGB_MASK, 0x34);
+    EXPECT_EQ(dstPixelMap->ReadPixel({0, 1}, dst), SUCCESS);
+    EXPECT_EQ((dst >> ARGB_A_SHIFT) & ARGB_MASK, 0x78);
+
+    int32_t errorCode = -1;
+    std::unique_ptr<PixelMap> dstPixelMap2 = PixelMap::Create(*srcPixelMap, rect, dstOpts, errorCode);
+    ASSERT_NE(dstPixelMap2, nullptr);
+    EXPECT_EQ(errorCode, SUCCESS);
+    EXPECT_EQ(GetPixelMapAlpha(*dstPixelMap2, 0, 0), 0x34);
+    EXPECT_EQ(GetPixelMapAlpha(*dstPixelMap2, 0, 1), 0x78);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateCropConvertAlphaF16Test001 end";
+}
+
+/**
+ * @tc.name: CreateSourceAlphaF16ToYUVAndP010Test001
+ * @tc.desc: Test Create(source, ...) keeps ALPHA_F16 to YUV/P010 conversion aligned across target formats.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateSourceAlphaF16ToYUVAndP010Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateSourceAlphaF16ToYUVAndP010Test001 start";
+    std::unique_ptr<PixelMap> srcPixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(srcPixelMap, nullptr);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 0}, 0x10000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({1, 0}, 0x40000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 1}, 0x80000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({1, 1}, 0xF0000000), SUCCESS);
+
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+
+    opts.pixelFormat = PixelFormat::NV12;
+    std::unique_ptr<PixelMap> nv12PixelMap = PixelMap::Create(*srcPixelMap, opts);
+    ASSERT_NE(nv12PixelMap, nullptr);
+    EXPECT_EQ(nv12PixelMap->GetPixelFormat(), PixelFormat::NV12);
+
+    opts.pixelFormat = PixelFormat::NV21;
+    std::unique_ptr<PixelMap> nv21PixelMap = PixelMap::Create(*srcPixelMap, opts);
+    ASSERT_NE(nv21PixelMap, nullptr);
+    EXPECT_EQ(nv21PixelMap->GetPixelFormat(), PixelFormat::NV21);
+
+    opts.pixelFormat = PixelFormat::YCBCR_P010;
+    std::unique_ptr<PixelMap> ycbcrP010PixelMap = PixelMap::Create(*srcPixelMap, opts);
+    ASSERT_NE(ycbcrP010PixelMap, nullptr);
+    EXPECT_EQ(ycbcrP010PixelMap->GetPixelFormat(), PixelFormat::YCBCR_P010);
+
+    opts.pixelFormat = PixelFormat::YCRCB_P010;
+    std::unique_ptr<PixelMap> ycrcbP010PixelMap = PixelMap::Create(*srcPixelMap, opts);
+    ASSERT_NE(ycrcbP010PixelMap, nullptr);
+    EXPECT_EQ(ycrcbP010PixelMap->GetPixelFormat(), PixelFormat::YCRCB_P010);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateSourceAlphaF16ToYUVAndP010Test001 end";
+}
+
+/**
+ * @tc.name: CreateSourceCropAlphaF16ToP010Test001
+ * @tc.desc: Test Create(source, rect, opts, errorCode) keeps ALPHA_F16 crop-to-P010 conversion available.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateSourceCropAlphaF16ToP010Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateSourceCropAlphaF16ToP010Test001 start";
+    std::unique_ptr<PixelMap> srcPixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(srcPixelMap, nullptr);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 0}, 0x12000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({1, 0}, 0x34000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 1}, 0x56000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({1, 1}, 0x78000000), SUCCESS);
+
+    Rect rect = {0, 0, 2, 2};
+    InitializationOptions opts;
+    opts.size.width = 2;
+    opts.size.height = 2;
+
+    int32_t errorCode = -1;
+    opts.pixelFormat = PixelFormat::YCBCR_P010;
+    std::unique_ptr<PixelMap> ycbcrP010PixelMap = PixelMap::Create(*srcPixelMap, rect, opts, errorCode);
+    ASSERT_NE(ycbcrP010PixelMap, nullptr);
+    EXPECT_EQ(errorCode, SUCCESS);
+    EXPECT_EQ(ycbcrP010PixelMap->GetPixelFormat(), PixelFormat::YCBCR_P010);
+
+    errorCode = -1;
+    opts.pixelFormat = PixelFormat::YCRCB_P010;
+    std::unique_ptr<PixelMap> ycrcbP010PixelMap = PixelMap::Create(*srcPixelMap, rect, opts, errorCode);
+    ASSERT_NE(ycrcbP010PixelMap, nullptr);
+    EXPECT_EQ(errorCode, SUCCESS);
+    EXPECT_EQ(ycrcbP010PixelMap->GetPixelFormat(), PixelFormat::YCRCB_P010);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateSourceCropAlphaF16ToP010Test001 end";
+}
+
+/**
+ * @tc.name: CreateSourceAlphaF16ToYUVOddWidthTest001
+ * @tc.desc: Test Create(source, ...) rejects ALPHA_F16 to NV12 conversion when width is odd.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, CreateSourceAlphaF16ToYUVOddWidthTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateSourceAlphaF16ToYUVOddWidthTest001 start";
+    std::unique_ptr<PixelMap> srcPixelMap = CreateAlphaF16PixelMap(1, 2);
+    ASSERT_NE(srcPixelMap, nullptr);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 0}, 0x12000000), SUCCESS);
+    EXPECT_EQ(srcPixelMap->WritePixel({0, 1}, 0x78000000), SUCCESS);
+
+    InitializationOptions opts;
+    opts.size.width = 1;
+    opts.size.height = 2;
+    opts.pixelFormat = PixelFormat::NV12;
+
+    std::unique_ptr<PixelMap> dstPixelMap = PixelMap::Create(*srcPixelMap, opts);
+    EXPECT_EQ(dstPixelMap, nullptr);
+    GTEST_LOG_(INFO) << "PixelMapTest: CreateSourceAlphaF16ToYUVOddWidthTest001 end";
+}
+
+/**
+ * @tc.name: ScaleAlphaF16WithSLRTest001
+ * @tc.desc: Test scale with SLR option falls back for ALPHA_F16.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, ScaleAlphaF16WithSLRTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleAlphaF16WithSLRTest001 start";
+    std::unique_ptr<PixelMap> pixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(pixelMap, nullptr);
+    EXPECT_EQ(pixelMap->WritePixel({0, 0}, 0x7F000000), SUCCESS);
+    pixelMap->scale(2.0f, 2.0f, AntiAliasingOption::SLR);
+    EXPECT_EQ(pixelMap->GetWidth(), 4);
+    EXPECT_EQ(pixelMap->GetHeight(), 4);
+    EXPECT_EQ(pixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    GTEST_LOG_(INFO) << "PixelMapTest: ScaleAlphaF16WithSLRTest001 end";
+}
+
+/**
+ * @tc.name: AlphaF16PublicApiReadWriteAndMetaTest001
+ * @tc.desc: Test ALPHA_F16 meta, read/write, reset and alpha-format public APIs.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, AlphaF16PublicApiReadWriteAndMetaTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: AlphaF16PublicApiReadWriteAndMetaTest001 start";
+    uint8_t alphaValues[4] = {0x12, 0x34, 0x56, 0x78};
+    std::unique_ptr<PixelMap> pixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(pixelMap, nullptr);
+    ASSERT_TRUE(FillAlphaF16PixelMap(*pixelMap, alphaValues, 4));
+
+    EXPECT_EQ(pixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    EXPECT_EQ(pixelMap->GetPixelBytes(), 2);
+    EXPECT_EQ(pixelMap->GetRowBytes(), 4);
+    EXPECT_EQ(pixelMap->GetByteCount(), 8);
+    EXPECT_NE(pixelMap->GetPixel(0, 0), nullptr);
+    ASSERT_NE(pixelMap->GetPixel16(1, 1), nullptr);
+    EXPECT_TRUE(*pixelMap->GetPixel16(1, 1) != 0);
+
+    uint32_t color = 0;
+    EXPECT_TRUE(pixelMap->GetARGB32Color(1, 0, color));
+    EXPECT_EQ((color >> ARGB_A_SHIFT) & ARGB_MASK, 0x34);
+    EXPECT_EQ(GetPixelMapAlpha(*pixelMap, 0, 1), 0x56);
+
+    ImageInfo imageInfo;
+    pixelMap->GetImageInfo(imageInfo);
+    EXPECT_EQ(PixelMap::GetRGBxRowDataSize(imageInfo), 4);
+    EXPECT_EQ(PixelMap::GetRGBxByteCount(imageInfo), 8);
+    EXPECT_EQ(PixelMap::GetAllocatedByteCount(imageInfo), 8);
+
+    uint32_t argb[4] = {0};
+    EXPECT_EQ(pixelMap->ReadARGBPixels(sizeof(argb), reinterpret_cast<uint8_t *>(argb)), SUCCESS);
+    EXPECT_EQ((argb[2] >> ARGB_A_SHIFT) & ARGB_MASK, 0x56);
+
+    uint8_t readRow[8] = {0};
+    RWPixelsOptions readOpts;
+    readOpts.pixels = readRow;
+    readOpts.bufferSize = sizeof(readRow);
+    readOpts.stride = sizeof(readRow);
+    readOpts.region = {0, 1, 2, 1};
+    readOpts.pixelFormat = PixelFormat::BGRA_8888;
+    EXPECT_EQ(pixelMap->ReadPixels(readOpts), SUCCESS);
+    EXPECT_EQ(readRow[3], 0x56);
+    EXPECT_EQ(readRow[7], 0x78);
+
+    std::unique_ptr<uint8_t[]> rawPixels = std::make_unique<uint8_t[]>(pixelMap->GetByteCount());
+    ASSERT_NE(rawPixels, nullptr);
+    EXPECT_EQ(pixelMap->ReadPixels(pixelMap->GetByteCount(), rawPixels.get()), SUCCESS);
+    std::unique_ptr<PixelMap> rawCopyPixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(rawCopyPixelMap, nullptr);
+    EXPECT_EQ(rawCopyPixelMap->WritePixels(rawPixels.get(), pixelMap->GetByteCount()), SUCCESS);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *rawCopyPixelMap));
+
+    uint8_t writeRow[8] = {0x00, 0x00, 0x00, 0x9A, 0x00, 0x00, 0x00, 0xBC};
+    std::unique_ptr<PixelMap> writePixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(writePixelMap, nullptr);
+    RWPixelsOptions writeOpts;
+    writeOpts.pixels = writeRow;
+    writeOpts.bufferSize = sizeof(writeRow);
+    writeOpts.stride = sizeof(writeRow);
+    writeOpts.region = {0, 0, 2, 1};
+    writeOpts.pixelFormat = PixelFormat::BGRA_8888;
+    EXPECT_EQ(writePixelMap->WritePixels(writeOpts), SUCCESS);
+    EXPECT_EQ(GetPixelMapAlpha(*writePixelMap, 0, 0), 0x9A);
+    EXPECT_EQ(GetPixelMapAlpha(*writePixelMap, 1, 0), 0xBC);
+
+    uint8_t writeRow2[8] = {0x00, 0x00, 0x00, 0x21, 0x00, 0x00, 0x00, 0x43};
+    Rect region = {0, 1, 2, 1};
+    EXPECT_EQ(writePixelMap->WritePixels(writeRow2, sizeof(writeRow2), 0, sizeof(writeRow2), region), SUCCESS);
+    EXPECT_EQ(GetPixelMapAlpha(*writePixelMap, 0, 1), 0x21);
+    EXPECT_EQ(GetPixelMapAlpha(*writePixelMap, 1, 1), 0x43);
+
+    EXPECT_TRUE(writePixelMap->WritePixels(0x44000000));
+    EXPECT_EQ(GetPixelMapAlpha(*writePixelMap, 0, 0), 0x44);
+    EXPECT_EQ(writePixelMap->SetAlpha(0.5f), SUCCESS);
+    EXPECT_EQ(GetPixelMapAlpha(*writePixelMap, 1, 1), 128);
+
+    PixelMap alphaInfoPixelMap;
+    ImageInfo alphaInfo;
+    alphaInfo.size.width = 3;
+    alphaInfo.size.height = 1;
+    alphaInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    alphaInfo.colorSpace = ColorSpace::SRGB;
+    alphaInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+    EXPECT_EQ(alphaInfoPixelMap.SetImageInfo(alphaInfo), SUCCESS);
+    EXPECT_EQ(alphaInfoPixelMap.GetPixelBytes(), 2);
+    EXPECT_EQ(alphaInfoPixelMap.GetRowBytes(), 6);
+    EXPECT_EQ(alphaInfoPixelMap.SetImageInfo(alphaInfo, true), SUCCESS);
+
+    std::unique_ptr<PixelMap> alphaFormatPixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(alphaFormatPixelMap, nullptr);
+    EXPECT_EQ(pixelMap->ConvertAlphaFormat(*alphaFormatPixelMap, true), SUCCESS);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *alphaFormatPixelMap));
+
+    EXPECT_TRUE(writePixelMap->SetAlphaType(AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL));
+    EXPECT_EQ(writePixelMap->GetAlphaType(), AlphaType::IMAGE_ALPHA_TYPE_PREMUL);
+    Size newSize = {1, 2};
+    EXPECT_EQ(writePixelMap->ResetConfig(newSize, PixelFormat::ALPHA_F16), SUCCESS);
+    EXPECT_EQ(writePixelMap->GetWidth(), 1);
+    EXPECT_EQ(writePixelMap->GetHeight(), 2);
+    EXPECT_EQ(writePixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    GTEST_LOG_(INFO) << "PixelMapTest: AlphaF16PublicApiReadWriteAndMetaTest001 end";
+}
+
+/**
+ * @tc.name: AlphaF16PublicApiTransformTest001
+ * @tc.desc: Test ALPHA_F16 transform public APIs.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, AlphaF16PublicApiTransformTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: AlphaF16PublicApiTransformTest001 start";
+    std::unique_ptr<PixelMap> scalePixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(scalePixelMap, nullptr);
+    scalePixelMap->scale(2.0f, 2.0f);
+    EXPECT_EQ(scalePixelMap->GetWidth(), 4);
+    EXPECT_EQ(scalePixelMap->GetHeight(), 4);
+    EXPECT_EQ(scalePixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+
+    std::unique_ptr<PixelMap> resizePixelMap = CreateAlphaF16PixelMap(4, 4);
+    ASSERT_NE(resizePixelMap, nullptr);
+    EXPECT_TRUE(resizePixelMap->resize(0.5f, 0.5f));
+    EXPECT_EQ(resizePixelMap->GetWidth(), 2);
+    EXPECT_EQ(resizePixelMap->GetHeight(), 2);
+
+    std::unique_ptr<PixelMap> translatePixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(translatePixelMap, nullptr);
+    translatePixelMap->translate(1.0f, 1.0f);
+    EXPECT_EQ(translatePixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    EXPECT_EQ(translatePixelMap->GetPixelBytes(), 2);
+    EXPECT_GT(translatePixelMap->GetWidth(), 0);
+    EXPECT_GT(translatePixelMap->GetHeight(), 0);
+
+    std::unique_ptr<PixelMap> rotatePixelMap = CreateAlphaF16PixelMap(2, 3);
+    ASSERT_NE(rotatePixelMap, nullptr);
+    rotatePixelMap->rotate(90.0f);
+    EXPECT_EQ(rotatePixelMap->GetWidth(), 3);
+    EXPECT_EQ(rotatePixelMap->GetHeight(), 2);
+
+    std::unique_ptr<PixelMap> flipPixelMap = CreateAlphaF16PixelMap(2, 3);
+    ASSERT_NE(flipPixelMap, nullptr);
+    flipPixelMap->flip(true, false);
+    EXPECT_EQ(flipPixelMap->GetWidth(), 2);
+    EXPECT_EQ(flipPixelMap->GetHeight(), 3);
+
+    std::unique_ptr<PixelMap> cropPixelMap = CreateAlphaF16PixelMap(2, 3);
+    ASSERT_NE(cropPixelMap, nullptr);
+    Rect rect = {0, 0, 1, 2};
+    EXPECT_EQ(cropPixelMap->crop(rect), SUCCESS);
+    EXPECT_EQ(cropPixelMap->GetWidth(), 1);
+    EXPECT_EQ(cropPixelMap->GetHeight(), 2);
+    EXPECT_EQ(cropPixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    GTEST_LOG_(INFO) << "PixelMapTest: AlphaF16PublicApiTransformTest001 end";
+}
+
+/**
+ * @tc.name: AlphaF16PublicApiSerializeAndCloneTest001
+ * @tc.desc: Test ALPHA_F16 clone, parcel and TLV public APIs.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelMapTest, AlphaF16PublicApiSerializeAndCloneTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelMapTest: AlphaF16PublicApiSerializeAndCloneTest001 start";
+    uint8_t alphaValues[4] = {0x11, 0x33, 0x55, 0x77};
+    std::unique_ptr<PixelMap> pixelMap = CreateAlphaF16PixelMap(2, 2);
+    ASSERT_NE(pixelMap, nullptr);
+    ASSERT_TRUE(FillAlphaF16PixelMap(*pixelMap, alphaValues, 4));
+
+    int32_t errorCode = 0;
+    std::unique_ptr<PixelMap> clonePixelMap = pixelMap->Clone(errorCode);
+    ASSERT_NE(clonePixelMap, nullptr);
+    EXPECT_EQ(errorCode, SUCCESS);
+    EXPECT_EQ(clonePixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *clonePixelMap));
+
+    Parcel parcel1;
+    ASSERT_TRUE(pixelMap->Marshalling(parcel1));
+    std::unique_ptr<PixelMap> unmarshallingPixelMap(PixelMap::Unmarshalling(parcel1));
+    ASSERT_NE(unmarshallingPixelMap, nullptr);
+    EXPECT_EQ(unmarshallingPixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *unmarshallingPixelMap));
+
+    Parcel parcel2;
+    ASSERT_TRUE(pixelMap->Marshalling(parcel2));
+    PIXEL_MAP_ERR error;
+    std::unique_ptr<PixelMap> unmarshallingPixelMap2(PixelMap::Unmarshalling(parcel2, error, nullptr, false));
+    ASSERT_NE(unmarshallingPixelMap2, nullptr);
+    EXPECT_EQ(error.errorCode, 0U);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *unmarshallingPixelMap2));
+
+    Parcel parcel3;
+    ASSERT_TRUE(pixelMap->Marshalling(parcel3));
+    std::unique_ptr<PixelMap> unmarshallingPixelMap3(PixelMap::UnmarshallingWithIsDisplay(parcel3, nullptr, false));
+    ASSERT_NE(unmarshallingPixelMap3, nullptr);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *unmarshallingPixelMap3));
+
+    std::vector<uint8_t> buff;
+    ASSERT_TRUE(pixelMap->EncodeTlv(buff));
+    std::unique_ptr<PixelMap> tlvPixelMap(PixelMap::DecodeTlv(buff));
+    ASSERT_NE(tlvPixelMap, nullptr);
+    EXPECT_EQ(tlvPixelMap->GetPixelFormat(), PixelFormat::ALPHA_F16);
+    EXPECT_TRUE(CompareAlphaF16Pixels(*pixelMap, *tlvPixelMap));
+    GTEST_LOG_(INFO) << "PixelMapTest: AlphaF16PublicApiSerializeAndCloneTest001 end";
 }
 
 /**
@@ -4675,6 +5334,8 @@ HWTEST_F(PixelMapTest, SetInitializationOptionAboutAllocator001, TestSize.Level3
     opts.size.height = 512; // 512:height
     EXPECT_EQ(true, ImageUtils::SetInitializationOptionAutoMem(opts));
     opts.pixelFormat = PixelFormat::RGBA_8888;
+    EXPECT_EQ(true, ImageUtils::SetInitializationOptionDmaMem(opts));
+    opts.pixelFormat = PixelFormat::ALPHA_F16;
     EXPECT_EQ(true, ImageUtils::SetInitializationOptionDmaMem(opts));
     opts.pixelFormat = PixelFormat::NV12;
     EXPECT_EQ(false, ImageUtils::SetInitializationOptionDmaMem(opts));

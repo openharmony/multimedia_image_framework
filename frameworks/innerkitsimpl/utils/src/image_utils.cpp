@@ -90,6 +90,7 @@ using namespace HDI::Display::Graphic::Common::V1_0;
 #endif
 
 constexpr int32_t ALPHA8_BYTES = 1;
+constexpr int32_t ALPHAF16_BYTES = 2;
 constexpr int32_t RGB565_BYTES = 2;
 constexpr int32_t RGB888_BYTES = 3;
 constexpr int32_t ARGB8888_BYTES = 4;
@@ -294,6 +295,9 @@ int32_t ImageUtils::GetPixelBytes(const PixelFormat &pixelFormat)
         case PixelFormat::ALPHA_U8:
             pixelBytes = ALPHA8_BYTES;
             break;
+        case PixelFormat::ALPHA_F16:
+            pixelBytes = ALPHAF16_BYTES;
+            break;
         case PixelFormat::RGB_888:
             pixelBytes = RGB888_BYTES;
             break;
@@ -481,6 +485,12 @@ AlphaType ImageUtils::GetValidAlphaTypeByFormat(const AlphaType &dstType, const 
             }
             break;
         }
+        case PixelFormat::ALPHA_F16: {
+            if (dstType != AlphaType::IMAGE_ALPHA_TYPE_PREMUL) {
+                return AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+            }
+            break;
+        }
         case PixelFormat::RGB_888:
         case PixelFormat::RGB_565: {
             if (dstType != AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
@@ -510,7 +520,7 @@ AllocatorType ImageUtils::GetPixelMapAllocatorType(const Size &size, const Pixel
 {
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     return IsSizeSupportDma(size) && (preferDma || (IsWidthAligned(size.width) && IsFormatSupportDma(format))) &&
-        (format == PixelFormat::RGBA_8888 || Is10Bit(format)) ?
+        (format == PixelFormat::RGBA_8888 || format == PixelFormat::ALPHA_F16 || Is10Bit(format)) ?
         AllocatorType::DMA_ALLOC : AllocatorType::SHARE_MEM_ALLOC;
 #else
     return AllocatorType::HEAP_ALLOC;
@@ -578,12 +588,12 @@ bool ImageUtils::IsRGBX(PixelFormat format)
     return format == PixelFormat::ARGB_8888 || format == PixelFormat::RGB_565 ||
         format == PixelFormat::RGBA_8888 || format == PixelFormat::BGRA_8888 ||
         format == PixelFormat::RGB_888 || format == PixelFormat::ALPHA_8 ||
-        format == PixelFormat::ALPHA_U8 ||
+        format == PixelFormat::ALPHA_U8 || format == PixelFormat::ALPHA_F16 ||
         format == PixelFormat::RGBA_F16 || format == PixelFormat::RGBA_1010102 ||
         format == PixelFormat::RGBA_U16 || format == PixelFormat::UNKNOWN;
 }
 
-bool ImageUtils::IsAlpha(PixelFormat format)
+bool ImageUtils::IsAlpha8(PixelFormat format)
 {
     return format == PixelFormat::ALPHA_8 || format == PixelFormat::ALPHA_U8;
 }
@@ -630,7 +640,7 @@ bool ImageUtils::IsSizeSupportDma(const Size &size)
 
 bool ImageUtils::IsFormatSupportDma(const PixelFormat &format)
 {
-    return format == PixelFormat::UNKNOWN || format == PixelFormat::RGBA_8888;
+    return format == PixelFormat::UNKNOWN || format == PixelFormat::RGBA_8888 || format == PixelFormat::ALPHA_F16;
 }
 
 bool ImageUtils::Is10Bit(const PixelFormat &format)
@@ -1071,7 +1081,8 @@ ColorManager::ColorSpaceName ImageUtils::SbCMColorSpaceType2ColorSpaceName(
 static bool IsAlphaFormat(PixelFormat format)
 {
     return format == PixelFormat::RGBA_8888 || format == PixelFormat::BGRA_8888 ||
-        format == PixelFormat::RGBA_1010102 || format == PixelFormat::RGBA_F16;
+        format == PixelFormat::RGBA_1010102 || format == PixelFormat::RGBA_F16 ||
+        format == PixelFormat::ALPHA_F16;
 }
 
 PixelFormat ImageUtils::SbFormat2PixelFormat(int32_t sbFormat)
@@ -1235,6 +1246,7 @@ bool ImageUtils::SetInitializationOptionDmaMem(InitializationOptions &option)
 {
     switch (option.pixelFormat) {
         case PixelFormat::RGB_565:
+        case PixelFormat::ALPHA_F16:
         case PixelFormat::RGBA_8888:
         case PixelFormat::BGRA_8888:
         case PixelFormat::RGBA_F16:
@@ -2253,10 +2265,12 @@ bool ImageUtils::CheckPixelsInput(PixelMap* pixelMap, const RWPixelsOptions &opt
             rect.top, rect.height, pixelMap->GetHeight());
         return false;
     }
-    uint32_t regionStride = static_cast<uint32_t>(rect.width) * NUM_4;  // bytes count, need multiply by 4
-    if (opts.pixelFormat == PixelFormat::RGB_888) {
-        regionStride = static_cast<uint32_t>(rect.width) * NUM_3;  // bytes count, need multiply by 3
+    int32_t pixelBytes = ImageUtils::GetPixelBytes(opts.pixelFormat);
+    if (pixelBytes <= 0) {
+        IMAGE_LOGE("checkPixelsInput invalid pixel format: %{public}d", opts.pixelFormat);
+        return false;
     }
+    uint32_t regionStride = static_cast<uint32_t>(rect.width) * static_cast<uint32_t>(pixelBytes);
     if (opts.stride < regionStride) {
         IMAGE_LOGE("checkPixelsInput stride(%{public}d) < width*4 (%{public}d).", opts.stride, regionStride);
         return false;
@@ -2510,6 +2524,9 @@ bool ImageUtils::CalcRGBStride(PixelFormat format, uint32_t width, int &stride)
             break;
         case PixelFormat::RGBA_F16:
             pixelBytes = RGBA_F16_BYTES;
+            break;
+        case PixelFormat::ALPHA_F16:
+            pixelBytes = ALPHAF16_BYTES;
             break;
         case PixelFormat::RGB_888:
             pixelBytes = RGB888_BYTES;

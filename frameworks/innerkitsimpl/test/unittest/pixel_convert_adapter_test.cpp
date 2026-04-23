@@ -21,8 +21,10 @@
 #include "image_type.h"
 #include "image_utils.h"
 #include "media_errors.h"
+#include "pixel_convert.h"
 #include "pixel_convert_adapter.h"
 #include "pixel_map.h"
+#include "pixel_map_utils.h"
 #include "pixel_yuv_utils.h"
 
 using namespace testing::ext;
@@ -50,6 +52,11 @@ public:
     PixelConvertAdapterTest() {}
     ~PixelConvertAdapterTest() {}
 };
+
+static float AlphaF16ToFloatForTest(const uint8_t *pixel)
+{
+    return HalfToFloat(U8ToU16(*(pixel + 1), *pixel));
+}
 
 /**
  * @tc.name: PixelConvertAdapterTest001
@@ -548,6 +555,87 @@ HWTEST_F(PixelConvertAdapterTest, YUV420ToRGB888SuccessTest001, TestSize.Level3)
     free(rgbData);
     GTEST_LOG_(INFO) << "PixelConvertAdapterTest: YUV420ToRGB888SuccessTest001 end";
 }
-}
+
+/**
+ * @tc.name: ReadPixelsConvertAlphaF16Test001
+ * @tc.desc: Test ReadPixelsConvert crops BGRA_8888 pixels into ALPHA_F16 payload.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertAdapterTest, ReadPixelsConvertAlphaF16Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertAdapterTest: ReadPixelsConvertAlphaF16Test001 start";
+    ImageInfo srcInfo;
+    srcInfo.size.width = 3;
+    srcInfo.size.height = 2;
+    srcInfo.pixelFormat = PixelFormat::BGRA_8888;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+    srcInfo.colorSpace = ColorSpace::SRGB;
+
+    ImageInfo dstInfo;
+    dstInfo.size.width = 2;
+    dstInfo.size.height = 1;
+    dstInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+    dstInfo.colorSpace = ColorSpace::SRGB;
+
+    std::vector<uint32_t> srcPixels = {
+        0x11000000, 0x22000000, 0x33000000,
+        0x44000000, 0x55000000, 0x66000000,
+    };
+    std::vector<uint8_t> dstPixels(dstInfo.size.width * dstInfo.size.height * 2, 0);
+    Position srcPos = {1, 1};
+
+    bool result = PixelConvertAdapter::ReadPixelsConvert(srcPixels.data(), srcPos,
+        srcInfo.size.width * BYTES_PER_PIXEL_4, srcInfo, dstPixels.data(), dstInfo.size.width * 2, dstInfo);
+
+    ASSERT_TRUE(result);
+    EXPECT_NEAR(AlphaF16ToFloatForTest(dstPixels.data()), 85.0f, 1.0f);
+    EXPECT_NEAR(AlphaF16ToFloatForTest(dstPixels.data() + 2), 102.0f, 1.0f);
+    GTEST_LOG_(INFO) << "PixelConvertAdapterTest: ReadPixelsConvertAlphaF16Test001 end";
 }
 
+/**
+ * @tc.name: WritePixelsConvertAlphaF16Test001
+ * @tc.desc: Test WritePixelsConvert writes ALPHA_F16 source into BGRA_8888 destination region.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertAdapterTest, WritePixelsConvertAlphaF16Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertAdapterTest: WritePixelsConvertAlphaF16Test001 start";
+    ImageInfo srcInfo;
+    srcInfo.size.width = 2;
+    srcInfo.size.height = 1;
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+    srcInfo.colorSpace = ColorSpace::SRGB;
+
+    ImageInfo dstInfo;
+    dstInfo.size.width = 3;
+    dstInfo.size.height = 2;
+    dstInfo.pixelFormat = PixelFormat::BGRA_8888;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+    dstInfo.colorSpace = ColorSpace::SRGB;
+
+    std::vector<uint8_t> srcPixels(srcInfo.size.width * srcInfo.size.height * 2, 0);
+    uint16_t lowAlpha = FloatToHalf(17.0f);
+    uint16_t highAlpha = FloatToHalf(238.0f);
+    srcPixels[0] = static_cast<uint8_t>(lowAlpha & 0xFF);
+    srcPixels[1] = static_cast<uint8_t>((lowAlpha >> 8) & 0xFF);
+    srcPixels[2] = static_cast<uint8_t>(highAlpha & 0xFF);
+    srcPixels[3] = static_cast<uint8_t>((highAlpha >> 8) & 0xFF);
+
+    std::vector<uint32_t> dstPixels(dstInfo.size.width * dstInfo.size.height, 0);
+    Position dstPos = {1, 1};
+
+    bool result = PixelConvertAdapter::WritePixelsConvert(srcPixels.data(), srcInfo.size.width * 2, srcInfo,
+        dstPixels.data(), dstPos, dstInfo.size.width * BYTES_PER_PIXEL_4, dstInfo);
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(GetColorComp(dstPixels[4], BGRA32_A_SHIFT), 17);
+    EXPECT_EQ(GetColorComp(dstPixels[5], BGRA32_A_SHIFT), 238);
+    EXPECT_EQ(GetColorComp(dstPixels[4], BGRA32_R_SHIFT), 0);
+    EXPECT_EQ(GetColorComp(dstPixels[5], BGRA32_R_SHIFT), 0);
+    GTEST_LOG_(INFO) << "PixelConvertAdapterTest: WritePixelsConvertAlphaF16Test001 end";
+}
+}
+}
