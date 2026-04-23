@@ -6161,7 +6161,7 @@ static void DecodeJpegAuxiliaryPictures(JpegExtendInfo &extendInfo, std::set<Aux
         uint32_t auxErrorCode = ERROR;
         auxDecodeInfo.type = auxInfo.auxType;
         auto auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
- 	             mainPictureInfo, auxInfo.auxType, auxStream, auxDecoder, auxErrorCode);
+            mainPictureInfo, auxInfo.auxType, auxStream, auxDecoder, auxErrorCode);
         if (auxPicture != nullptr && auxPicture->GetContentPixel() != nullptr) {
             AuxiliaryPictureInfo auxPictureInfo = auxPicture->GetAuxiliaryPictureInfo();
             auxPictureInfo.jpegTagName = auxInfo.auxTagName;
