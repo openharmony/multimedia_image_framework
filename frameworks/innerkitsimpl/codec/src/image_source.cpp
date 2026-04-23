@@ -246,11 +246,6 @@ struct SutInInfo {
     int32_t sutBytes;
 };
 
-struct JpegExtendInfo {
-    std::vector<SingleJpegImage> auxiliaryPictures;
-    std::vector<SingleBlobMetadata> blobMetadatas;
-};
-
 using GetSuperCompressAstcSize = size_t (*)(const uint8_t *, size_t);
 using SuperDecompressTexture = bool (*)(const SutInInfo &, AstcOutInfo &);
 using IsSut = bool (*)(const uint8_t *, size_t);
