@@ -32,6 +32,7 @@ struct PlEncodeOptions {
     uint32_t numberHint = 1;
     EncodeDynamicRange desiredDynamicRange = EncodeDynamicRange::AUTO;
     bool needsPackProperties = false;
+    bool needsPackDfxData = false;
     // now default is edit scence
     bool isEditScene = true;
     uint16_t loop = 0;

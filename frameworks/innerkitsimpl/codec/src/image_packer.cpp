@@ -349,6 +349,7 @@ void ImagePacker::CopyOptionsToPlugin(const PackOption &opts, PlEncodeOptions &p
     plOpts.format = opts.format;
     plOpts.disposalTypes = opts.disposalTypes;
     plOpts.needsPackProperties = opts.needsPackProperties;
+    plOpts.needsPackDfxData = opts.needsPackDfxData;
     plOpts.desiredDynamicRange = opts.desiredDynamicRange;
     plOpts.isEditScene = opts.isEditScene;
     plOpts.maxEmbedThumbnailDimension = opts.maxEmbedThumbnailDimension;

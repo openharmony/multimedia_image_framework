@@ -881,10 +881,10 @@ void ImageUtils::DumpData(const char* data, const size_t& totalSize,
     std::string fileName = FILE_DIR_IN_THE_SANDBOX + GetLocalTime() + "_imageId" + std::to_string(imageId) +
         "_data_total" + std::to_string(totalSize) + "." + fileSuffix;
     if (SUCCESS != SaveDataToFile(fileName, data, totalSize)) {
-        IMAGE_LOGI("ImageUtils::DumpDataIfDumpEnabled failed");
+        IMAGE_LOGI("ImageUtils::DumpData failed");
         return;
     }
-    IMAGE_LOGI("ImageUtils::DumpDataIfDumpEnabled success, path = %{public}s", fileName.c_str());
+    IMAGE_LOGI("ImageUtils::DumpData success, path = %{public}s", fileName.c_str());
 }
 
 void ImageUtils::DumpDataIfDumpEnabled(const char* data, const size_t& totalSize,
@@ -1587,17 +1587,15 @@ bool ImageUtils::IsAuxiliaryPictureTypeSupported(AuxiliaryPictureType type)
 bool ImageUtils::IsAuxiliaryPictureEncoded(AuxiliaryPictureType type)
 {
     return AuxiliaryPictureType::GAINMAP == type || AuxiliaryPictureType::UNREFOCUS_MAP == type ||
-        AuxiliaryPictureType::FRAGMENT_MAP == type;
+        AuxiliaryPictureType::FRAGMENT_MAP == type || AuxiliaryPictureType::SNAP_MAP == type ||
+        AuxiliaryPictureType::SNAP_GAINMAP == type || AuxiliaryPictureType::PAN_MAP== type ||
+        AuxiliaryPictureType::PAN_GAINMAP == type;
 }
 
 bool ImageUtils::IsMetadataTypeSupported(MetadataType metadataType)
 {
-    if (metadataType == MetadataType::EXIF || metadataType == MetadataType::FRAGMENT ||
-        metadataType == MetadataType::XTSTYLE || metadataType == MetadataType::RFDATAB) {
-        return true;
-    } else {
-        return false;
-    }
+    auto metaTypes = GetAllMetadataType();
+    return (metaTypes.find(metadataType) != metaTypes.end());
 }
 
 const std::set<AuxiliaryPictureType> &ImageUtils::GetAllAuxiliaryPictureType()
@@ -1608,6 +1606,10 @@ const std::set<AuxiliaryPictureType> &ImageUtils::GetAllAuxiliaryPictureType()
         AuxiliaryPictureType::UNREFOCUS_MAP,
         AuxiliaryPictureType::LINEAR_MAP,
         AuxiliaryPictureType::FRAGMENT_MAP,
+        AuxiliaryPictureType::SNAP_MAP,
+        AuxiliaryPictureType::SNAP_GAINMAP,
+        AuxiliaryPictureType::PAN_MAP,
+        AuxiliaryPictureType::PAN_GAINMAP,
     };
     return auxTypes;
 }
@@ -1621,6 +1623,13 @@ const std::set<MetadataType> &ImageUtils::GetAllMetadataType()
         MetadataType::RFDATAB,
         MetadataType::GIF,
         MetadataType::STDATA,
+        MetadataType::RESMAP,
+        MetadataType::XDRAW4K,
+        MetadataType::PRIVATE,
+        MetadataType::RFDATAN,
+        MetadataType::RFDATAS,
+        MetadataType::HDRSNAP,
+        MetadataType::DFXDATA,
         MetadataType::HEIFS,
         MetadataType::DNG,
         MetadataType::WEBP,
