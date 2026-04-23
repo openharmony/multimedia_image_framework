@@ -38,8 +38,9 @@ public:
         std::unique_ptr<AbsImageDecoder> &extDecoder, uint32_t &errorCode,
         const AuxiliaryPictureDecodeInfo& auxiliaryPictureDecodeInfo);
     static std::shared_ptr<AuxiliaryPicture> GenerateJpegAuxiliaryPicture(
-        const MainPictureInfo &mainInfo, AuxiliaryPictureType type, std::unique_ptr<InputDataStream> &auxStream,
-        std::unique_ptr<AbsImageDecoder> &extDecoder, uint32_t &errorCode);
+        const MainPictureInfo &mainInfo, std::unique_ptr<InputDataStream> &auxStream,
+        std::unique_ptr<AbsImageDecoder> &extDecoder, uint32_t &errorCode,
+        const AuxiliaryPictureDecodeInfo& auxiliaryPictureDecodeInfo);
     static std::shared_ptr<ImageMetadata> MakeFragmentMetadata(Rect fragmentRect);
     static ImageInfo MakeImageInfo(const Size &size, PixelFormat format, AlphaType alphaType,
         ColorSpace colorSpace, const std::string &encodedFormat);
