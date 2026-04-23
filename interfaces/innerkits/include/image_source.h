@@ -32,6 +32,7 @@
 #include "jfif_metadata.h"
 #include "peer_listener.h"
 #include "pixel_map.h"
+#include "jpeg_mpf_parser.h"
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
 #include "picture.h"
 #endif

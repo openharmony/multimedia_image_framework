@@ -6695,9 +6695,17 @@ static std::shared_ptr<FragmentMetadata> ParseJpegFragmentMetadata(std::unique_p
     return std::static_pointer_cast<FragmentMetadata>(fragmentMetadata);
 }
 
+static JpegExtendInfo JpegImageCheckAndUnpack(StreamInfo &streamInfo, ImageHdrType hdrType)
+{
+    JpegExtendInfo extendInfo;
+    std::set<AuxiliaryPictureType> auxTypes = ImageUtils::GetAllAuxiliaryPictureType();
+    extendInfo = ParsingJpegExtendInfo(
+        streamInfo.GetCurrentAddress(), streamInfo.GetCurrentSize(), auxTypes, hdrType);
+    return extendInfo;
+}
+
 uint32_t ImageSource::CreateFragmentMetadataByImageSource(ImageInfo info)
 {
-    IMAGE_LOGD("CreateFragmentMetadataByImageSource IN");
     if (info.encodedFormat == IMAGE_JPEG_FORMAT) {
         StreamInfo streamInfo;
         if (!CheckJpegSourceStream(streamInfo) || streamInfo.buffer == nullptr || streamInfo.GetCurrentSize() == 0) {
@@ -6705,15 +6713,14 @@ uint32_t ImageSource::CreateFragmentMetadataByImageSource(ImageInfo info)
             return ERR_IMAGE_SOURCE_DATA;
         }
         std::shared_ptr<SingleJpegImage> fragmentPicture;
-        JpegMpfParser jpegMpfParser;
-        if (!jpegMpfParser.ParsingAuxiliaryPictures(streamInfo.GetCurrentAddress(),
-            streamInfo.GetCurrentSize(), false)) {
-            IMAGE_LOGE("JpegMpfParser parse auxiliary pictures failed!");
-            jpegMpfParser.images_.clear();
+        if (!ParseHdrType()) {
+            return ERR_DMA_DATA_ABNORMAL;
         }
-        for (const auto& picture : jpegMpfParser.images_) {
+        auto extendInfo = JpegImageCheckAndUnpack(streamInfo, sourceHdrType_);
+        for (const auto& picture : extendInfo.auxiliaryPictures) {
             if (picture.auxType == AuxiliaryPictureType::FRAGMENT_MAP) {
                 fragmentPicture = std::make_shared<SingleJpegImage>(picture);
+                break;
             }
         }
         if (!fragmentPicture) {
@@ -6736,12 +6743,17 @@ uint32_t ImageSource::CreateFragmentMetadataByImageSource(ImageInfo info)
         return SUCCESS;
     } else {
         Rect fragmentRect;
-        if (!mainDecoder_->GetHeifFragmentMetadata(fragmentRect)) {
-            IMAGE_LOGE("mainDecoder_ is nullptr");
-            return ERR_IMAGE_DATA_ABNORMAL;
+        bool ret;
+        CHECK_ERROR_RETURN_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DATA_ABNORMAL, "mainDecoder_ is nullptr");
+        ret = mainDecoder_->GetHeifFragmentMetadata(fragmentRect);
+        if (!ret) {
+            return ERR_IMAGE_DATA_ABNORMAL; 
         }
         auto fragmentMetadata = std::static_pointer_cast<FragmentMetadata>(
             AuxiliaryGenerator::MakeFragmentMetadata(fragmentRect));
+        if (fragmentMetadata == nullptr) {
+            return ERR_IMAGE_DATA_ABNORMAL; 
+        }
         metadatas_[MetadataType::FRAGMENT] = fragmentMetadata;
         return SUCCESS;
     }
