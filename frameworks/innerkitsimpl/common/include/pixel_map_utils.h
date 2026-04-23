@@ -20,6 +20,7 @@
 #include "ashmem.h"
 #endif
 
+#include "image_log.h"
 #include "image_type.h"
 #include "log_tags.h"
 #include "memory_manager.h"

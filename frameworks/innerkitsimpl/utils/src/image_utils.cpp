@@ -2271,17 +2271,17 @@ bool ImageUtils::CheckPixelsInput(PixelMap* pixelMap, const RWPixelsOptions &opt
     }
     uint32_t regionStride = static_cast<uint32_t>(rect.width) * static_cast<uint32_t>(pixelBytes);
     if (opts.stride < regionStride || opts.bufferSize < regionStride) {
-        IMAGE_LOGE("CheckPixelsInput input stride (%{public}d) or input buffer size (%{public}d) is less than "
-            "regionStride (%{public}d).", opts.stride, opts.bufferSize, regionStride);
+        IMAGE_LOGE("CheckPixelsInput input stride (%{public}u) or input buffer size (%{public}" PRIu64
+            ") is less than regionStride (%{public}u).", opts.stride, opts.bufferSize, regionStride);
         return false;
     }
     // Minus NUM_1 is except the last line.
     uint64_t lastLinePos = opts.offset + static_cast<uint64_t>(rect.height - NUM_1) * opts.stride;
     if (static_cast<uint64_t>(opts.offset) > (opts.bufferSize - regionStride) ||
         lastLinePos > (opts.bufferSize - regionStride)) {
-        IMAGE_LOGE("CheckPixelsInput fail, height(%{public}d), width(%{public}d), lastLine(%{public}" PRIu64 "), "
-            "offset(%{public}u), bufferSize:%{public}" PRIu64 ".", rect.height, rect.width,
-            static_cast<uint64_t>(lastLinePos), opts.offset, static_cast<uint64_t>(opts.bufferSize));
+        IMAGE_LOGE("CheckPixelsInput fail, height(%{public}d), width(%{public}d), lastLine(%{public}" PRIu64
+            "), offset(%{public}u), bufferSize:%{public}" PRIu64 ".", rect.height, rect.width, lastLinePos, opts.offset,
+            opts.bufferSize);
         return false;
     }
     return true;

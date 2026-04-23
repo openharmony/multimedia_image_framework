@@ -108,7 +108,6 @@ constexpr int8_t INVALID_ALPHA_INDEX = -1;
 constexpr uint8_t ARGB_ALPHA_INDEX = 0;
 constexpr uint8_t BGRA_ALPHA_INDEX = 3;
 constexpr uint8_t ALPHA_BYTES = 1;
-constexpr uint8_t ALPHA_F16_BYTES = 2;
 constexpr uint8_t BGRA_BYTES = 4;
 constexpr uint8_t RGBA_F16_BYTES = 8;
 constexpr uint8_t PER_PIXEL_LEN = 1;
@@ -129,6 +128,7 @@ static constexpr float ALPHA_F16_MAX_VALUE = 255.0f;
 
 static uint8_t AlphaF16ToUInt8(const uint8_t *pixel);
 static void UInt8ToAlphaF16(uint8_t alpha, uint8_t *pixel);
+static float HalfTranslate(const uint8_t* ui);
 
 std::atomic<uint32_t> PixelMap::currentId = 0;
 
@@ -4687,18 +4687,10 @@ uint32_t PixelMap::Scale(float xAxis, float yAxis, AntiAliasingOption option)
     }
 
     ImageTrace imageTrace("PixelMap scale xAxis = %f, yAxis = %f, option = %d", xAxis, yAxis, option);
+    if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16 && option == AntiAliasingOption::SLR) {
+        option = AntiAliasingOption::HIGH;
+    }
     if (option == AntiAliasingOption::SLR) {
-        if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16) {
-            TransInfos infos;
-            infos.matrix.setScale(xAxis, yAxis);
-            uint32_t errCode = ApplyAffineTransform(infos, AntiAliasingOption::HIGH);
-            if (errCode != SUCCESS) {
-                IMAGE_LOGE("Scale fallback failed");
-                return errCode;
-            }
-            ImageUtils::DumpPixelMapIfDumpEnabled(*this, __func__);
-            return;
-        }
         uint32_t errCode = ScaleWithSLR(xAxis, yAxis);
         if (errCode != SUCCESS) {
             return errCode;
