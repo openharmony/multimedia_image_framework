@@ -65,6 +65,14 @@ enum class FormatType:int8_t {
 
 namespace OHOS {
 namespace Media {
+static PixelFormat GetAlphaPixelmapFormat(const std::shared_ptr<PixelMap> &pixelMap)
+{
+    if (pixelMap != nullptr && pixelMap->GetPixelFormat() == PixelFormat::ALPHA_F16) {
+        return PixelFormat::ALPHA_F16;
+    }
+    return PixelFormat::ALPHA_8;
+}
+
 static const std::string CREATE_PIXEL_MAP_FROM_PARCEL = "createPixelMapFromParcel";
 static const std::string MARSHALLING = "marshalling";
 static const std::map<std::string, std::set<uint32_t>> ETS_API_ERROR_CODE = {
@@ -4892,7 +4900,7 @@ napi_value PixelMapNapi::CreateAlphaPixelmap(napi_env env, napi_callback_info in
         [](napi_env env, void *data) {
             auto context = static_cast<PixelMapAsyncContext*>(data);
             InitializationOptions opts;
-            opts.pixelFormat = PixelFormat::ALPHA_8;
+            opts.pixelFormat = GetAlphaPixelmapFormat(context->rPixelMap);
             auto tmpPixelMap = PixelMap::Create(*(context->rPixelMap), opts);
             context->alphaMap = std::move(tmpPixelMap);
             context->status = SUCCESS;
@@ -4932,7 +4940,7 @@ napi_value PixelMapNapi::CreateAlphaPixelmapSync(napi_env env, napi_callback_inf
 
     if (pixelMapNapi->nativePixelMap_ != nullptr) {
         InitializationOptions opts;
-        opts.pixelFormat = PixelFormat::ALPHA_8;
+        opts.pixelFormat = GetAlphaPixelmapFormat(pixelMapNapi->nativePixelMap_);
         auto tmpPixelMap = PixelMap::Create(*(pixelMapNapi->nativePixelMap_), opts);
         result = PixelMapNapi::CreatePixelMap(env, std::move(tmpPixelMap));
     } else {
@@ -6473,6 +6481,7 @@ static bool IsMatchFormatType(FormatType type, PixelFormat format)
             case PixelFormat::BGRA_8888:
             case PixelFormat::RGB_888:
             case PixelFormat::RGBA_F16:
+            case PixelFormat::ALPHA_F16:
             case PixelFormat::RGBA_1010102:{
                 return true;
             }
@@ -6513,6 +6522,7 @@ static FormatType TypeFormat(PixelFormat &pixelForamt)
         case PixelFormat::BGRA_8888:
         case PixelFormat::RGB_888:
         case PixelFormat::RGBA_F16:
+        case PixelFormat::ALPHA_F16:
         case PixelFormat::RGBA_1010102:{
             return FormatType::RGB;
         }

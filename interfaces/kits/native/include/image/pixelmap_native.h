@@ -120,6 +120,10 @@ typedef enum {
     */
     PIXEL_FORMAT_RGBA_F16 = 7,
     /*
+    * ALPHA_F16 format
+    */
+    PIXEL_FORMAT_ALPHA_F16 = 15,
+    /*
     * NV21 format
     */
     PIXEL_FORMAT_NV21 = 8,

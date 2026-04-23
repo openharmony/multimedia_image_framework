@@ -161,7 +161,8 @@ static bool IsMatchType(IMAGE_FORMAT type, PixelFormat format)
             case PixelFormat::RGBA_8888:
             case PixelFormat::BGRA_8888:
             case PixelFormat::RGB_888:
-            case PixelFormat::RGBA_F16:{
+            case PixelFormat::RGBA_F16:
+            case PixelFormat::ALPHA_F16: {
                 return true;
             }
             default:{
@@ -1011,7 +1012,8 @@ Image_ErrorCode OH_PixelmapNative_CreateAlphaPixelmap(OH_PixelmapNative *srcPixe
     }
 
     InitializationOptions opts;
-    opts.pixelFormat = PixelFormat::ALPHA_8;
+    opts.pixelFormat = srcPixelmap->GetInnerPixelmap()->GetPixelFormat() == PixelFormat::ALPHA_F16 ?
+        PixelFormat::ALPHA_F16 : PixelFormat::ALPHA_8;
     std::unique_ptr<PixelMap> alphaPixelmap = PixelMap::Create(*(srcPixelmap->GetInnerPixelmap()), opts);
     if (alphaPixelmap == nullptr) {
         return IMAGE_BAD_PARAMETER;

@@ -18,6 +18,7 @@
 #ifdef EXT_PIXEL
 #include "pixel_yuv_ext.h"
 #endif
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <iostream>
@@ -107,6 +108,7 @@ constexpr int8_t INVALID_ALPHA_INDEX = -1;
 constexpr uint8_t ARGB_ALPHA_INDEX = 0;
 constexpr uint8_t BGRA_ALPHA_INDEX = 3;
 constexpr uint8_t ALPHA_BYTES = 1;
+constexpr uint8_t ALPHA_F16_BYTES = 2;
 constexpr uint8_t BGRA_BYTES = 4;
 constexpr uint8_t RGBA_F16_BYTES = 8;
 constexpr uint8_t PER_PIXEL_LEN = 1;
@@ -123,6 +125,10 @@ static constexpr uint8_t NUM_5 = 5;
 static constexpr uint8_t NUM_6 = 6;
 static constexpr uint8_t NUM_7 = 7;
 static constexpr uint8_t NUM_8 = 8;
+static constexpr float ALPHA_F16_MAX_VALUE = 255.0f;
+
+static uint8_t AlphaF16ToUInt8(const uint8_t *pixel);
+static void UInt8ToAlphaF16(uint8_t alpha, uint8_t *pixel);
 
 std::atomic<uint32_t> PixelMap::currentId = 0;
 
@@ -299,7 +305,7 @@ unique_ptr<PixelMap> PixelMap::Create(const uint32_t *colors, uint32_t colorLeng
                                       const InitializationOptions &opts)
 {
     IMAGE_LOGD("PixelMap::Create2 enter");
-    return Create(colors, colorLength, 0, opts.size.width, opts, true);
+    return Create(colors, colorLength, offset, width, opts, true);
 }
 
 unique_ptr<PixelMap> PixelMap::Create(const uint32_t *colors, uint32_t colorLength, int32_t offset, int32_t width,
@@ -612,8 +618,8 @@ unique_ptr<PixelMap> PixelMap::Create(const uint32_t *colors, uint32_t colorLeng
         srcImageInfo, opts.convertColorSpace.srcRange, colorLength, opts.convertColorSpace.srcYuvConversion};
     BufferInfo dstInfo = {dstMemory->data.data, dstRowStride, dstImageInfo, opts.convertColorSpace.dstRange,
         dstMemory->data.size, opts.convertColorSpace.dstYuvConversion};
-    int32_t dstLength =
-        PixelConvert::PixelsConvert(srcInfo, dstInfo, colorLength, dstMemory->GetType() == AllocatorType::DMA_ALLOC);
+    int32_t dstLength = PixelConvert::PixelsConvert(srcInfo, dstInfo, colorLength,
+        dstMemory->GetType() == AllocatorType::DMA_ALLOC);
     if (dstLength < 0) {
         IMAGE_LOGE("[PixelMap]Create: pixel convert failed.");
         dstMemory->Release();
@@ -1104,8 +1110,8 @@ bool PixelMap::SourceCropAndConvert(PixelMap &source, const ImageInfo &srcImageI
         IMAGE_LOGE("dstPixels memset_s failed.");
     }
     Position srcPosition { srcRect.left, srcRect.top };
-    if (!PixelConvertAdapter::ReadPixelsConvert(source.GetPixels(), srcPosition, source.GetRowStride(), srcImageInfo,
-        dstPixels, dstPixelMap.GetRowStride(), dstImageInfo)) {
+    if (!PixelConvertAdapter::ReadPixelsConvert(source.GetPixels(), srcPosition, source.GetRowStride(),
+        srcImageInfo, dstPixels, dstPixelMap.GetRowStride(), dstImageInfo)) {
         IMAGE_LOGE("pixel convert in adapter failed.");
         ReleaseBuffer(fd >= 0 ? AllocatorType::SHARE_MEM_ALLOC : AllocatorType::HEAP_ALLOC,
             fd, uBufferSize, &dstPixels);
@@ -1409,6 +1415,11 @@ bool PixelMap::GetPixelFormatDetail(const PixelFormat format)
             colorProc_ = ALPHA8ToARGB;
             break;
         }
+        case PixelFormat::ALPHA_F16: {
+            pixelBytes_ = ALPHA_F16_BYTES;
+            colorProc_ = ALPHAF16ToARGB;
+            break;
+        }
         case PixelFormat::RGB_565: {
             pixelBytes_ = RGB_565_BYTES;
             colorProc_ = RGB565ToARGB;
@@ -1471,9 +1482,9 @@ uint32_t PixelMap::SetRowDataSizeForImageInfo(ImageInfo info)
         return rowDataSize_ < 0 ? ERR_IMAGE_TOO_LARGE : ERR_IMAGE_DATA_ABNORMAL;
     }
 
-    if (info.pixelFormat == PixelFormat::ALPHA_8) {
+    if (info.pixelFormat == PixelFormat::ALPHA_8 || info.pixelFormat == PixelFormat::ALPHA_F16) {
         SetRowStride(rowDataSize_);
-        IMAGE_LOGI("ALPHA_8 rowDataSize_ %{public}d.", rowDataSize_);
+        IMAGE_LOGI("alpha format rowDataSize_ %{public}d.", rowDataSize_);
     } else if (!ImageUtils::IsAstc(info.pixelFormat)) {
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
         if (allocatorType_ == AllocatorType::DMA_ALLOC) {
@@ -1552,7 +1563,7 @@ const uint8_t *PixelMap::GetPixel8(int32_t x, int32_t y)
 
 const uint16_t *PixelMap::GetPixel16(int32_t x, int32_t y)
 {
-    if (!CheckValidParam(x, y) || (pixelBytes_ != RGB_565_BYTES)) {
+    if (!CheckValidParam(x, y) || (pixelBytes_ != RGB_565_BYTES && pixelBytes_ != ALPHA_F16_BYTES)) {
         IMAGE_LOGE("get addr16 pixel position:(%{public}d, %{public}d) pixel bytes:%{public}d invalid.", x, y,
             pixelBytes_);
         return nullptr;
@@ -1682,6 +1693,26 @@ bool PixelMap::ALPHA8ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, 
     const uint8_t *src = in;
     for (uint32_t i = 0; i < outCount; i++) {
         *out++ = GetColorARGB(*src++, BYTE_ZERO, BYTE_ZERO, BYTE_ZERO);
+    }
+    return true;
+}
+
+bool PixelMap::ALPHAF16ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount)
+{
+    if (in == nullptr || out == nullptr) {
+        IMAGE_LOGE("ALPHAF16ToARGB invalid input parameter: in or out is null");
+        return false;
+    }
+    if (((inCount / ALPHA_F16_BYTES) != outCount) || ((inCount % ALPHA_F16_BYTES) != 0)) {
+        IMAGE_LOGE("input count:%{public}u is not match to output count:%{public}u.", inCount, outCount);
+        return false;
+    }
+    const uint8_t *src = in;
+    for (uint32_t i = 0; i < outCount; i++) {
+        float alpha = HalfTranslate(src);
+        alpha = std::clamp(alpha, 0.0f, ALPHA_F16_MAX_VALUE);
+        *out++ = GetColorARGB(static_cast<uint8_t>(alpha + HALF_ONE), BYTE_ZERO, BYTE_ZERO, BYTE_ZERO);
+        src += ALPHA_F16_BYTES;
     }
     return true;
 }
@@ -2005,7 +2036,8 @@ static bool IsSupportConvertToARGB(PixelFormat pixelFormat)
 {
     return pixelFormat == PixelFormat::RGB_565 || pixelFormat == PixelFormat::RGBA_8888 ||
         pixelFormat == PixelFormat::BGRA_8888 || pixelFormat == PixelFormat::RGB_888 ||
-        pixelFormat == PixelFormat::NV21 || pixelFormat == PixelFormat::NV12;
+        pixelFormat == PixelFormat::NV21 || pixelFormat == PixelFormat::NV12 ||
+        pixelFormat == PixelFormat::ALPHA_F16;
 }
 
 uint32_t PixelMap::ReadARGBPixels(const uint64_t &bufferSize, uint8_t *dst)
@@ -2034,6 +2066,18 @@ uint32_t PixelMap::ReadARGBPixels(const uint64_t &bufferSize, uint8_t *dst)
             "Read ARGB pixels: input dst buffer (%{public}llu) < required buffer size (%{public}llu), or too large.",
             static_cast<unsigned long long>(bufferSize), static_cast<unsigned long long>(minBufferSize));
         return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
+    if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16) {
+        uint32_t *out = reinterpret_cast<uint32_t *>(dst);
+        for (int32_t y = 0; y < imageInfo_.size.height; ++y) {
+            const uint8_t *srcRow = data_ + y * rowStride_;
+            for (int32_t x = 0; x < imageInfo_.size.width; ++x) {
+                uint8_t alpha = AlphaF16ToUInt8(srcRow + x * ALPHA_F16_BYTES);
+                *out++ = GetColorARGB(alpha, BYTE_ZERO, BYTE_ZERO, BYTE_ZERO);
+            }
+        }
+        return SUCCESS;
     }
 
     ImageInfo dstImageInfo = MakeImageInfo(imageInfo_.size.width, imageInfo_.size.height, PixelFormat::ARGB_8888,
@@ -2109,7 +2153,7 @@ bool PixelMap::CheckPixelsInput(const uint8_t *dst, const uint64_t &bufferSize, 
 
 uint32_t PixelMap::ReadPixels(const RWPixelsOptions &opts)
 {
-    if (!CheckPixelsInput(opts.pixels, opts.bufferSize, opts.offset, opts.stride, opts.region)) {
+    if (!ImageUtils::CheckPixelsInput(this, opts)) {
         IMAGE_LOGE("read pixels by rect input parameter fail.");
         return ERR_IMAGE_INVALID_PARAMETER;
     }
@@ -2168,6 +2212,15 @@ uint32_t PixelMap::ReadPixel(const Position &pos, uint32_t &dst)
     if (isUnMap_ || data_ == nullptr) {
         IMAGE_LOGE("%{public}d:read pixel by pos source data is null, isUnMap %{public}d.", uniqueId_, isUnMap_);
         return ERR_IMAGE_READ_PIXELMAP_FAILED;
+    }
+    if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16) {
+        const uint8_t *pixel = GetPixel(pos.x, pos.y);
+        if (pixel == nullptr) {
+            IMAGE_LOGE("read pixel by pos get pixel failed.");
+            return ERR_IMAGE_READ_PIXELMAP_FAILED;
+        }
+        dst = static_cast<uint32_t>(AlphaF16ToUInt8(pixel)) << BGRA32_A_SHIFT;
+        return SUCCESS;
     }
     ImageInfo dstImageInfo =
         MakeImageInfo(PER_PIXEL_LEN, PER_PIXEL_LEN, PixelFormat::BGRA_8888, AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL);
@@ -2254,6 +2307,17 @@ uint32_t PixelMap::WritePixel(const Position &pos, const uint32_t &color)
     if (isUnMap_ || data_ == nullptr) {
         IMAGE_LOGE("write pixel by pos but current pixelmap data is nullptr, isUnMap %{public}d.", isUnMap_);
         return ERR_IMAGE_WRITE_PIXELMAP_FAILED;
+    }
+    if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16) {
+        uint8_t *pixel = const_cast<uint8_t *>(GetPixel(pos.x, pos.y));
+        if (pixel == nullptr) {
+            IMAGE_LOGE("write pixel by pos get pixel failed.");
+            return ERR_IMAGE_WRITE_PIXELMAP_FAILED;
+        }
+        UInt8ToAlphaF16(GetColorComp(color, BGRA32_A_SHIFT), pixel);
+        AddVersionId();
+        MarkDirty();
+        return SUCCESS;
     }
     ImageInfo srcImageInfo =
         MakeImageInfo(PER_PIXEL_LEN, PER_PIXEL_LEN, PixelFormat::BGRA_8888, AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL);
@@ -2409,6 +2473,17 @@ bool PixelMap::WritePixels(const uint32_t &color)
     if (isUnMap_ || data_ == nullptr) {
         IMAGE_LOGE("erase pixels by color current pixel map data is null, %{public}d.", isUnMap_);
         return false;
+    }
+    if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16) {
+        uint8_t alpha = GetColorComp(color, BGRA32_A_SHIFT);
+        for (int32_t y = 0; y < imageInfo_.size.height; ++y) {
+            uint8_t *row = data_ + y * rowStride_;
+            for (int32_t x = 0; x < imageInfo_.size.width; ++x) {
+                UInt8ToAlphaF16(alpha, row + x * ALPHA_F16_BYTES);
+            }
+        }
+        AddVersionId();
+        return true;
     }
     ImageInfo srcInfo =
         MakeImageInfo(imageInfo_.size.width, imageInfo_.size.height, imageInfo_.pixelFormat, imageInfo_.alphaType);
@@ -3976,6 +4051,8 @@ static const string GetNamedPixelFormat(const PixelFormat pixelFormat)
             return "Pixel Format ALPHA_8";
         case PixelFormat::ALPHA_U8:
             return "Pixel Format ALPHA_U8";
+        case PixelFormat::ALPHA_F16:
+            return "Pixel Format ALPHA_F16";
         case PixelFormat::RGBA_8888:
             return "Pixel Format RGBA_8888";
         case PixelFormat::BGRA_8888:
@@ -4010,6 +4087,25 @@ static void HalfTranslate(const float pixel, uint8_t* ui)
     ui[HALF_LOW_BYTE] = static_cast<uint8_t>((val >> SHIFT_8_BIT) & UINT8_MAX);
     ui[HALF_HIGH_BYTE] = static_cast<uint8_t>(val & UINT8_MAX);
 }
+
+static uint8_t AlphaF16ToUInt8(const uint8_t *pixel)
+{
+    if (pixel == nullptr) {
+        return 0;
+    }
+    float alpha = HalfTranslate(pixel);
+    alpha = std::clamp(alpha, 0.0f, ALPHA_F16_MAX_VALUE);
+    return static_cast<uint8_t>(alpha + HALF_ONE);
+}
+
+static void UInt8ToAlphaF16(uint8_t alpha, uint8_t *pixel)
+{
+    if (pixel == nullptr) {
+        return;
+    }
+    HalfTranslate(static_cast<float>(alpha), pixel);
+}
+
 constexpr uint8_t RGBA_F16_R_OFFSET = 0;
 constexpr uint8_t RGBA_F16_G_OFFSET = 2;
 constexpr uint8_t RGBA_F16_B_OFFSET = 4;
@@ -4138,6 +4234,7 @@ static int8_t GetAlphaIndex(const PixelFormat& pixelFormat)
         case PixelFormat::ARGB_8888:
         case PixelFormat::ALPHA_8:
         case PixelFormat::ALPHA_U8:
+        case PixelFormat::ALPHA_F16:
             return ARGB_ALPHA_INDEX;
         case PixelFormat::RGBA_8888:
         case PixelFormat::BGRA_8888:
@@ -4203,6 +4300,15 @@ uint32_t PixelMap::CheckAlphaFormatInput(PixelMap &wPixelMap, const bool isPremu
 
     PixelFormat srcPixelFormat = GetPixelFormat();
     PixelFormat dstPixelFormat = dstImageInfo.pixelFormat;
+    if (srcPixelFormat == PixelFormat::ALPHA_F16 && dstPixelFormat == PixelFormat::ALPHA_F16) {
+        if (pixelBytes_ != ALPHA_F16_BYTES || dstPixelBytes != ALPHA_F16_BYTES) {
+            IMAGE_LOGE("Pixel format %{public}s and %{public}s mismatch pixelByte %{public}d and %{public}d",
+                GetNamedPixelFormat(srcPixelFormat).c_str(), GetNamedPixelFormat(dstPixelFormat).c_str(), pixelBytes_,
+                dstPixelBytes);
+            return COMMON_ERR_INVALID_PARAMETER;
+        }
+        return SUCCESS;
+    }
     int8_t srcAlphaIndex = GetAlphaIndex(srcPixelFormat);
     int8_t dstAlphaIndex = GetAlphaIndex(dstPixelFormat);
     if (srcPixelFormat != dstPixelFormat || srcAlphaIndex == INVALID_ALPHA_INDEX ||
@@ -4213,8 +4319,10 @@ uint32_t PixelMap::CheckAlphaFormatInput(PixelMap &wPixelMap, const bool isPremu
         return ERR_IMAGE_DATA_UNSUPPORT;
     }
 
-    if ((ImageUtils::IsAlpha(srcPixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
-        (ImageUtils::IsAlpha(dstPixelFormat) && dstPixelBytes != ALPHA_BYTES)) {
+    if ((ImageUtils::IsAlpha8(srcPixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
+        (ImageUtils::IsAlpha8(dstPixelFormat) && dstPixelBytes != ALPHA_BYTES) ||
+        (srcPixelFormat == PixelFormat::ALPHA_F16 && pixelBytes_ != ALPHA_F16_BYTES) ||
+        (dstPixelFormat == PixelFormat::ALPHA_F16 && dstPixelBytes != ALPHA_F16_BYTES)) {
         IMAGE_LOGE("Pixel format %{public}s and %{public}s mismatch pixelByte %{public}d and %{public}d",
             GetNamedPixelFormat(srcPixelFormat).c_str(), GetNamedPixelFormat(dstPixelFormat).c_str(), pixelBytes_,
             dstPixelBytes);
@@ -4259,6 +4367,19 @@ uint32_t PixelMap::ConvertAlphaFormat(PixelMap &wPixelMap, const bool isPremul)
     int32_t stride = wPixelMap.GetRowStride();
 
     PixelFormat srcPixelFormat = GetPixelFormat();
+    if (srcPixelFormat == PixelFormat::ALPHA_F16) {
+        for (int32_t i = 0; i < imageInfo_.size.height; ++i) {
+            errno_t ret = memcpy_s(static_cast<uint8_t *>(dstData) + i * stride, stride,
+                data_ + i * GetRowStride(), GetRowStride());
+            if (ret != 0) {
+                IMAGE_LOGE("ConvertAlphaFormat memcpy for alpha_f16 failed, error:%{public}d", ret);
+                return ERR_IMAGE_READ_PIXELMAP_FAILED;
+            }
+        }
+        wPixelMap.SetAlphaType(isPremul ? AlphaType::IMAGE_ALPHA_TYPE_PREMUL :
+            AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL);
+        return SUCCESS;
+    }
     int8_t srcAlphaIndex = GetAlphaIndex(srcPixelFormat);
     int32_t index = 0;
     for (int32_t i = 0; i < imageInfo_.size.height; ++i) {
@@ -4315,7 +4436,8 @@ uint32_t PixelMap::SetAlpha(const float percent)
         return ERR_IMAGE_DATA_UNSUPPORT;
     }
 
-    if ((ImageUtils::IsAlpha(pixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
+    if ((ImageUtils::IsAlpha8(pixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
+        (pixelFormat == PixelFormat::ALPHA_F16 && pixelBytes_ != ALPHA_F16_BYTES) ||
         (pixelFormat == PixelFormat::RGBA_F16 && pixelBytes_ != RGBA_F16_BYTES)) {
         IMAGE_LOGE("Pixel format %{public}s mismatch pixelByte %{public}d",
             GetNamedPixelFormat(pixelFormat).c_str(), pixelBytes_);
@@ -4325,7 +4447,9 @@ uint32_t PixelMap::SetAlpha(const float percent)
     for (int i = 0; i < GetHeight(); i++) {
         for (int j = 0; j < GetRowStride(); j += pixelBytes_) {
             uint8_t* pixel = data_ + GetRowStride() * i + j;
-            if (pixelFormat == PixelFormat::RGBA_F16) {
+            if (pixelFormat == PixelFormat::ALPHA_F16) {
+                UInt8ToAlphaF16(static_cast<uint8_t>(UINT8_MAX * percent + HALF_ONE), pixel);
+            } else if (pixelFormat == PixelFormat::RGBA_F16) {
                 SetF16PixelAlpha(pixel, percent, isPixelPremul);
             } else if (pixelFormat == PixelFormat::RGBA_1010102) {
                 SetRGBA1010102PixelAlpha(pixel, percent, alphaIndex, isPixelPremul);
@@ -4617,6 +4741,15 @@ uint32_t PixelMap::Scale(float xAxis, float yAxis, AntiAliasingOption option)
 
     ImageTrace imageTrace("PixelMap scale xAxis = %f, yAxis = %f, option = %d", xAxis, yAxis, option);
     if (option == AntiAliasingOption::SLR) {
+        if (imageInfo_.pixelFormat == PixelFormat::ALPHA_F16) {
+            TransInfos infos;
+            infos.matrix.setScale(xAxis, yAxis);
+            if (!DoTranslation(infos, AntiAliasingOption::HIGH)) {
+                IMAGE_LOGE("scale fallback falied");
+            }
+            ImageUtils::DumpPixelMapIfDumpEnabled(*this, __func__);
+            return;
+        }
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
         if (!modifiable_) {
             IMAGE_LOGE("[PixelMap] scale can't be performed: PixelMap is not modifiable");
@@ -5179,7 +5312,24 @@ bool PixelMap::CloseFd()
 
 std::unique_ptr<PixelMap> PixelMap::ConvertFromAstc(PixelMap *source, uint32_t &errorCode, PixelFormat destFormat)
 {
-    return PixelConvert::AstcToRgba(source, errorCode, destFormat);
+    if (destFormat != PixelFormat::ALPHA_F16) {
+        return PixelConvert::AstcToRgba(source, errorCode, destFormat);
+    }
+    std::unique_ptr<PixelMap> rgbaPixelMap = PixelConvert::AstcToRgba(source, errorCode, PixelFormat::RGBA_8888);
+    if (rgbaPixelMap == nullptr) {
+        return nullptr;
+    }
+    ImageInfo imageInfo;
+    rgbaPixelMap->GetImageInfo(imageInfo);
+    InitializationOptions opts;
+    opts.size = imageInfo.size;
+    opts.pixelFormat = PixelFormat::ALPHA_F16;
+    opts.alphaType = AlphaType::IMAGE_ALPHA_TYPE_PREMUL;
+    std::unique_ptr<PixelMap> result = PixelMap::Create(*rgbaPixelMap, opts);
+    if (result == nullptr) {
+        errorCode = ERR_IMAGE_DECODE_FAILED;
+    }
+    return result;
 }
 
 uint64_t PixelMap::GetNoPaddingUsage()

@@ -112,6 +112,10 @@ struct AstcInfo {
     unsigned int dimY;
 };
 
+static int32_t ConvertToYUV(const void *srcPixels, const int32_t srcLength, const ImageInfo &srcInfo,
+    void *dstPixels, const ImageInfo &dstInfo);
+static int32_t ConvertToP010(const BufferInfo &src, BufferInfo &dst);
+
 static void AlphaTypeConvertOnRGB(uint32_t &A, uint32_t &R, uint32_t &G, uint32_t &B,
                                   const ProcFuncExtension &extension)
 {
@@ -1702,6 +1706,39 @@ static bool IsInterYUVConvert(PixelFormat srcPixelFormat, PixelFormat dstPixelFo
         (dstPixelFormat == PixelFormat::NV12 || dstPixelFormat == PixelFormat::NV21);
 }
 
+static int32_t ConvertAlphaF16ToYUV(const BufferInfo &src, BufferInfo &dst)
+{
+    ImageInfo tmpInfo = src.imageInfo;
+    tmpInfo.pixelFormat = PixelFormat::BGRA_8888;
+    tmpInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+    int32_t tmpLength = PixelMap::GetRGBxByteCount(tmpInfo);
+    CHECK_ERROR_RETURN_RET_LOG(tmpLength <= 0, CONVERT_ERROR,
+        "[PixelMap]Convert: Get ALPHA_F16 temp BGRA buffer length failed.");
+
+    std::unique_ptr<uint8_t[]> tmpBuffer = std::make_unique<uint8_t[]>(tmpLength);
+    CHECK_ERROR_RETURN_RET_LOG(tmpBuffer == nullptr, CONVERT_ERROR,
+        "[PixelMap]Convert: alloc ALPHA_F16 temp BGRA buffer failed.");
+    memset_s(tmpBuffer.get(), tmpLength, 0, tmpLength);
+
+    Position pos;
+    bool converted = PixelConvertAdapter::WritePixelsConvert(src.pixels,
+        src.rowStride == 0 ? PixelMap::GetRGBxRowDataSize(src.imageInfo) : src.rowStride, src.imageInfo,
+        tmpBuffer.get(), pos, PixelMap::GetRGBxRowDataSize(tmpInfo), tmpInfo);
+    CHECK_ERROR_RETURN_RET_LOG(!converted, CONVERT_ERROR,
+        "[PixelMap]Convert: ALPHA_F16 temp BGRA convert failed.");
+
+    if (dst.imageInfo.pixelFormat == PixelFormat::NV12 || dst.imageInfo.pixelFormat == PixelFormat::NV21) {
+        return ConvertToYUV(tmpBuffer.get(), tmpLength, tmpInfo, dst.pixels, dst.imageInfo);
+    }
+
+    BufferInfo tmpSrc = src;
+    tmpSrc.pixels = tmpBuffer.get();
+    tmpSrc.rowStride = PixelMap::GetRGBxRowDataSize(tmpInfo);
+    tmpSrc.imageInfo = tmpInfo;
+    tmpSrc.length = tmpLength;
+    return ConvertToP010(tmpSrc, dst);
+}
+
 int32_t PixelConvert::PixelsConvert(const BufferInfo &src, BufferInfo &dst, bool useDMA)
 {
     CHECK_ERROR_RETURN_RET_LOG(!(IsValidBufferInfo(src) && IsValidBufferInfo(dst)), CONVERT_ERROR,
@@ -1736,6 +1773,12 @@ int32_t PixelConvert::PixelsConvert(const BufferInfo &src, BufferInfo &dst, int3
     bool cond = IsValidBufferInfo(src) && IsValidBufferInfo(dst) && srcLength > 0;
     CHECK_ERROR_RETURN_RET_LOG(!cond, CONVERT_ERROR,
         "[PixelMap]Convert: pixels or image info or row stride or src pixels length invalid.");
+
+    if (src.imageInfo.pixelFormat == PixelFormat::ALPHA_F16 &&
+        (dst.imageInfo.pixelFormat == PixelFormat::NV12 || dst.imageInfo.pixelFormat == PixelFormat::NV21 ||
+        IsYUVP010Format(dst.imageInfo.pixelFormat))) {
+        return ConvertAlphaF16ToYUV(src, dst);
+    }
 
     if (dst.imageInfo.pixelFormat == PixelFormat::ARGB_8888) {
         if (useDMA || (src.imageInfo.size.width % EVEN_ALIGNMENT == 0 &&

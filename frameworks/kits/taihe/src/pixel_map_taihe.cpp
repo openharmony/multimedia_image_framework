@@ -97,6 +97,14 @@ PixelMap CreateEmptyPixelMap(InitializationOptions const& options)
     return make_holder<PixelMapImpl, PixelMap>(options);
 }
 
+static Media::PixelFormat GetAlphaPixelMapFormat(const std::shared_ptr<Media::PixelMap>& pixelMap)
+{
+    if (pixelMap != nullptr && pixelMap->GetPixelFormat() == Media::PixelFormat::ALPHA_F16) {
+        return Media::PixelFormat::ALPHA_F16;
+    }
+    return Media::PixelFormat::ALPHA_8;
+}
+
 PixelMap CreatePixelMapSync(array_view<uint8_t> colors, InitializationOptions const& options)
 {
     Media::InitializationOptions nativeOptions;
@@ -792,7 +800,7 @@ PixelMap PixelMapImpl::CreateAlphaPixelmapSync()
     }
 
     Media::InitializationOptions options;
-    options.pixelFormat = Media::PixelFormat::ALPHA_8;
+    options.pixelFormat = GetAlphaPixelmapFormat(nativePixelMap_);
     auto alphaPixelMap = Media::PixelMap::Create(*nativePixelMap_, options);
     return make_holder<PixelMapImpl, PixelMap>(std::move(alphaPixelMap));
 }
@@ -1252,6 +1260,7 @@ static FormatType FormatTypeOf(Media::PixelFormat pixelForamt)
         case Media::PixelFormat::BGRA_8888:
         case Media::PixelFormat::RGB_888:
         case Media::PixelFormat::RGBA_F16:
+        case Media::PixelFormat::ALPHA_F16:
         case Media::PixelFormat::RGBA_1010102:
             return FormatType::RGB;
         case Media::PixelFormat::NV21:

@@ -152,6 +152,8 @@ static string getPixelFormatItemName(PixelFormat format)
             return "ALPHA_8";
         case PixelFormat::RGBA_F16:
             return "RGBA_F16";
+        case PixelFormat::ALPHA_F16:
+            return "ALPHA_F16";
         case PixelFormat::NV21:
             return "NV21";
         case PixelFormat::NV12:
