@@ -2709,6 +2709,7 @@ uint32_t ImageSource::GetAvisProperty(uint32_t index, const std::string &key, Me
 {
     value.key = key;
     uint32_t errorCode = 0;
+#if !defined(CROSS_PLATFORM)
     std::shared_ptr<AvisMetadata> avisMetadata = GetAvisMetadata(index, errorCode);
     if (avisMetadata == nullptr || errorCode != SUCCESS) {
         IMAGE_LOGE("Get avis metadata failed");
@@ -2731,6 +2732,7 @@ uint32_t ImageSource::GetAvisProperty(uint32_t index, const std::string &key, Me
         }
         return errorCode;
     }
+#endif
     return errorCode;
 }
 
@@ -7104,7 +7106,6 @@ uint32_t ImageSource::GetDngImagePropertyByDngSdk(const std::string &key, Metada
     value.key = key;
     return dngMetadata->GetExifProperty(value);
 }
-#endif
 
 std::shared_ptr<AvisMetadata> ImageSource::GetAvisMetadata(uint32_t index, uint32_t &errorCode)
 {
@@ -7138,6 +7139,7 @@ std::shared_ptr<AvisMetadata> ImageSource::GetAvisMetadata(uint32_t index, uint3
     errorCode = SUCCESS;
     return avisMetadata;
 }
+#endif
 
 bool ImageSource::IsAvisImage()
 {
