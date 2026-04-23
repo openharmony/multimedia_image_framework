@@ -458,27 +458,26 @@ std::shared_ptr<AuxiliaryPicture> AuxiliaryGenerator::GenerateHeifAuxiliaryPictu
     return std::move(auxPicture);
 }
 
-std::shared_ptr<AuxiliaryPicture> AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(const MainPictureInfo &mainInfo,
-    std::unique_ptr<InputDataStream> &auxStream, std::unique_ptr<AbsImageDecoder> &extDecoder, uint32_t &errorCode,
-    const AuxiliaryPictureDecodeInfo& auxiliaryPictureDecodeInfo)
+std::shared_ptr<AuxiliaryPicture> AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
+    const MainPictureInfo &mainInfo, AuxiliaryPictureType type, std::unique_ptr<InputDataStream> &auxStream,
+    std::unique_ptr<AbsImageDecoder> &extDecoder, uint32_t &errorCode)
 {
-    ImageTrace trace("GenerateJpegAuxiliaryPicture Type:(%d)", static_cast<int>(auxiliaryPictureDecodeInfo.type));
-    IMAGE_LOGI("Generate jpeg auxiliary picture, type: %{public}d", static_cast<int>(auxiliaryPictureDecodeInfo.type));
-    if (!ImageUtils::IsAuxiliaryPictureTypeSupported(auxiliaryPictureDecodeInfo.type) || auxStream == nullptr ||
-        extDecoder == nullptr) {
+    ImageTrace trace("GenerateJpegAuxiliaryPicture Type:(%d)", static_cast<int>(type));
+    IMAGE_LOGI("Generate jpeg auxiliary picture, type: %{public}d", static_cast<int>(type));
+    if (!ImageUtils::IsAuxiliaryPictureTypeSupported(type) || auxStream == nullptr || extDecoder == nullptr) {
         errorCode = ERR_IMAGE_INVALID_PARAMETER;
         return nullptr;
     }
 
-    if (ImageUtils::IsAuxiliaryPictureEncoded(auxiliaryPictureDecodeInfo.type)) {
-        auto auxPicture = GenerateAuxiliaryPicture(mainInfo, errorCode, extDecoder, auxiliaryPictureDecodeInfo);
+    if (ImageUtils::IsAuxiliaryPictureEncoded(type)) {
+        auto auxPicture = GenerateAuxiliaryPicture(mainInfo, type, IMAGE_JPEG_FORMAT, extDecoder, errorCode);
         if (errorCode != SUCCESS) {
             IMAGE_LOGE("Generate jpeg auxiliary picture failed! errorCode: %{public}u", errorCode);
             return nullptr;
         }
-        if (auxiliaryPictureDecodeInfo.type == AuxiliaryPictureType::GAINMAP) {
+        if (type == AuxiliaryPictureType::GAINMAP) {
             errorCode = DecodeHdrMetadata(mainInfo.hdrType, extDecoder, auxPicture);
-        } else if (auxiliaryPictureDecodeInfo.type == AuxiliaryPictureType::FRAGMENT_MAP) {
+        } else if (type == AuxiliaryPictureType::FRAGMENT_MAP) {
             errorCode = DecodeJpegFragmentMetadata(auxStream, auxPicture);
         }
         if (errorCode != SUCCESS) {
@@ -488,7 +487,7 @@ std::shared_ptr<AuxiliaryPicture> AuxiliaryGenerator::GenerateJpegAuxiliaryPictu
         return auxPicture;
     }
 
-    int32_t denominator = GetAuxiliaryPictureDenominator(auxiliaryPictureDecodeInfo.type);
+    int32_t denominator = GetAuxiliaryPictureDenominator(type);
     denominator = (denominator == 0) ? DEFAULT_SCALE_DENOMINATOR : denominator;
     Size size = {mainInfo.imageInfo.size.width / denominator, mainInfo.imageInfo.size.height / denominator};
     sptr<SurfaceBuffer> surfaceBuffer = AllocSurfaceBuffer(size, GRAPHIC_PIXEL_FMT_RGBA16_FLOAT, errorCode);
@@ -498,7 +497,7 @@ std::shared_ptr<AuxiliaryPicture> AuxiliaryGenerator::GenerateJpegAuxiliaryPictu
     cond = (errorCode != SUCCESS);
     CHECK_ERROR_RETURN_RET_LOG(cond, nullptr,
         "Convert stream to surface buffer failed! errorCode: %{public}u", errorCode);
-    auto auxPicture = AuxiliaryPicture::Create(surfaceBuffer, auxiliaryPictureDecodeInfo.type, size);
+    auto auxPicture = AuxiliaryPicture::Create(surfaceBuffer, type, size);
     SetUncodedAuxilaryPictureInfo(auxPicture);
     return auxPicture;
 }

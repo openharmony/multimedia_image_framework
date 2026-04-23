@@ -1600,19 +1600,12 @@ bool ImageUtils::IsMetadataTypeSupported(MetadataType metadataType)
 
 bool ImageUtils::isBlobMetadataType(MetadataType metadataType)
 {
-    static const std::set<MetadataType> blobMetadataTypes = {
-        MetadataType::XTSTYLE,
-        MetadataType::RFDATAB,
-        MetadataType::RESMAP,
-        MetadataType::STDATA,
-        MetadataType::XDRAW4K,
-        MetadataType::PRIVATE,
-        MetadataType::RFDATAN,
-        MetadataType::RFDATAS,
-        MetadataType::HDRSNAP,
-        MetadataType::DFXDATA,
-    };
-    return blobMetadataTypes.find(metadataType) != blobMetadataTypes.end();
+    for (const auto& iter: BLOB_METADATA_TAG_MAP) {
+        if (iter.first == type) {
+            return true;
+        }
+    }
+    return false;
 }
 
 const std::set<AuxiliaryPictureType> &ImageUtils::GetAllAuxiliaryPictureType()
