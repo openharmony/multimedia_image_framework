@@ -5037,7 +5037,7 @@ void PixelMap::InnerSetColorSpace(const OHOS::ColorManager::ColorSpace &grColorS
             grColorSpace.GetColorSpaceName());
     }
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
-    if (IsYUV(imageInfo_.pixelFormat) && allocatorType_ == AllocatorType::DMA_ALLOC && GetFd() != nullptr) {
+    if (allocatorType_ == AllocatorType::DMA_ALLOC && GetFd() != nullptr) {
         sptr<SurfaceBuffer> buffer = sptr<SurfaceBuffer>(reinterpret_cast<SurfaceBuffer*>(GetFd()));
         HDI::Display::Graphic::Common::V1_0::CM_ColorSpaceType sbColorspaceType;
         VpeUtils::GetSbColorSpaceType(buffer, sbColorspaceType);
