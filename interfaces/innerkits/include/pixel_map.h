@@ -1085,6 +1085,8 @@ protected:
     uint32_t versionId_ = 1;
     std::shared_ptr<std::shared_mutex> versionMutex_ = std::make_shared<std::shared_mutex>();
 private:
+    uint32_t ScaleWithSLR(float xAxis, float yAxis);
+
     NATIVEEXPORT bool IsDisplayOnly()
     {
         return displayOnly_;

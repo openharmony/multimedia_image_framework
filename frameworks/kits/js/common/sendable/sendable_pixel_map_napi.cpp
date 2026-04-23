@@ -47,14 +47,6 @@ namespace {
 
 namespace OHOS {
 namespace Media {
-static PixelFormat GetAlphaPixelmapFormat(const std::shared_ptr<PixelMap> &pixelMap)
-{
-    if (pixelMap != nullptr && pixelMap->GetPixelFormat() == PixelFormat::ALPHA_F16) {
-        return PixelFormat::ALPHA_F16;
-    }
-    return PixelFormat::ALPHA_8;
-}
-
 static const std::string CREATE_PIXEL_MAP_FROM_PARCEL = "CreateSendablPixelMapFromParcel";
 static const std::string MARSHALLING = "marshalling";
 static const std::map<std::string, std::set<uint32_t>> ETS_API_ERROR_CODE = {
@@ -2060,7 +2052,8 @@ napi_value SendablePixelMapNapi::CreateAlphaPixelmap(napi_env env, napi_callback
         [](napi_env env, void *data) {
             auto context = static_cast<PixelMapAsyncContext*>(data);
             InitializationOptions opts;
-            opts.pixelFormat = GetAlphaPixelmapFormat(context->rPixelMap);
+            opts.pixelFormat = context->rPixelMap->GetPixelFormat() == PixelFormat::ALPHA_F16 ?
+                PixelFormat::ALPHA_F16 : PixelFormat::ALPHA_U8;
             auto tmpPixelMap = PixelMap::Create(*(context->rPixelMap), opts);
             context->alphaMap = std::move(tmpPixelMap);
             context->status = SUCCESS;
@@ -2100,7 +2093,8 @@ napi_value SendablePixelMapNapi::CreateAlphaPixelmapSync(napi_env env, napi_call
 
     if (pixelMapNapi->nativePixelMap_ != nullptr) {
         InitializationOptions opts;
-        opts.pixelFormat = GetAlphaPixelmapFormat(pixelMapNapi->nativePixelMap_);
+        opts.pixelFormat = pixelMapNapi->nativePixelMap_->GetPixelFormat() == PixelFormat::ALPHA_F16 ?
+            PixelFormat::ALPHA_F16 : PixelFormat::ALPHA_U8;
         auto tmpPixelMap = PixelMap::Create(*(pixelMapNapi->nativePixelMap_), opts);
         result = SendablePixelMapNapi::CreateSendablePixelMap(env, std::move(tmpPixelMap));
     } else {

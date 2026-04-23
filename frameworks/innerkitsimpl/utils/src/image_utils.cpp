@@ -90,7 +90,7 @@ using namespace HDI::Display::Graphic::Common::V1_0;
 #endif
 
 constexpr int32_t ALPHA8_BYTES = 1;
-constexpr int32_t ALPHAF16_BYTES = 2;
+constexpr int32_t ALPHA_F16_BYTES = 2;
 constexpr int32_t RGB565_BYTES = 2;
 constexpr int32_t RGB888_BYTES = 3;
 constexpr int32_t ARGB8888_BYTES = 4;
@@ -296,7 +296,7 @@ int32_t ImageUtils::GetPixelBytes(const PixelFormat &pixelFormat)
             pixelBytes = ALPHA8_BYTES;
             break;
         case PixelFormat::ALPHA_F16:
-            pixelBytes = ALPHAF16_BYTES;
+            pixelBytes = ALPHA_F16_BYTES;
             break;
         case PixelFormat::RGB_888:
             pixelBytes = RGB888_BYTES;
@@ -2526,7 +2526,7 @@ bool ImageUtils::CalcRGBStride(PixelFormat format, uint32_t width, int &stride)
             pixelBytes = RGBA_F16_BYTES;
             break;
         case PixelFormat::ALPHA_F16:
-            pixelBytes = ALPHAF16_BYTES;
+            pixelBytes = ALPHA_F16_BYTES;
             break;
         case PixelFormat::RGB_888:
             pixelBytes = RGB888_BYTES;

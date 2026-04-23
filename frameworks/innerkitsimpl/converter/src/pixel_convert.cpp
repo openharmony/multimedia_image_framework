@@ -112,10 +112,6 @@ struct AstcInfo {
     unsigned int dimY;
 };
 
-static int32_t ConvertToYUV(const void *srcPixels, const int32_t srcLength, const ImageInfo &srcInfo,
-    void *dstPixels, const ImageInfo &dstInfo);
-static int32_t ConvertToP010(const BufferInfo &src, BufferInfo &dst);
-
 static void AlphaTypeConvertOnRGB(uint32_t &A, uint32_t &R, uint32_t &G, uint32_t &B,
                                   const ProcFuncExtension &extension)
 {
