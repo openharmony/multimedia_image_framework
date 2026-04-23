@@ -77,9 +77,6 @@ HWTEST_F(AuxiliaryGeneratorTest, GenerateJpegAuxiliary_Denominator_DepthMap_Test
     mainInfo.imageInfo.size.height = 600;
     mainInfo.imageInfo.pixelFormat = PixelFormat::RGBA_8888;
     mainInfo.hdrType = ImageHdrType::SDR;
-    AuxiliaryPictureDecodeInfo auxiliaryPictureDecodeInfo;
-    auxiliaryPictureDecodeInfo.type = AuxiliaryPictureType::DEPTH_MAP;
-    auxiliaryPictureDecodeInfo.imageType = "image/jpeg";
 
     std::unique_ptr<OHOS::ImagePlugin::InputDataStream> auxStream =
         std::make_unique<MockInputDataStream>();
@@ -91,10 +88,10 @@ HWTEST_F(AuxiliaryGeneratorTest, GenerateJpegAuxiliary_Denominator_DepthMap_Test
 
     auto result = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
         mainInfo,
+        AuxiliaryPictureType::DEPTH_MAP,
         auxStream,
         extDecoder,
-        errorCode,
-        auxiliaryPictureDecodeInfo);
+        errorCode);
 
     ASSERT_EQ(result, nullptr);
     ASSERT_NE(errorCode, SUCCESS);
@@ -116,9 +113,6 @@ HWTEST_F(AuxiliaryGeneratorTest, GetAuxiliaryPictureDenominatorTest002, TestSize
     mainInfo.imageInfo.size.height = 768;
     mainInfo.imageInfo.pixelFormat = PixelFormat::RGBA_8888;
     mainInfo.hdrType = ImageHdrType::SDR;
-    AuxiliaryPictureDecodeInfo auxiliaryPictureDecodeInfo;
-    auxiliaryPictureDecodeInfo.type = AuxiliaryPictureType::LINEAR_MAP;
-    auxiliaryPictureDecodeInfo.imageType = "image/jpeg";
 
     std::unique_ptr<OHOS::ImagePlugin::InputDataStream> auxStream =
         std::make_unique<MockInputDataStream>();
@@ -130,10 +124,10 @@ HWTEST_F(AuxiliaryGeneratorTest, GetAuxiliaryPictureDenominatorTest002, TestSize
 
     auto result = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
         mainInfo,
+        AuxiliaryPictureType::LINEAR_MAP,
         auxStream,
         extDecoder,
-        errorCode,
-        auxiliaryPictureDecodeInfo);
+        errorCode);
 
     if (result == nullptr) {
         GTEST_LOG_(INFO) << "Result is nullptr as expected with mock objects";
@@ -167,9 +161,6 @@ HWTEST_F(AuxiliaryGeneratorTest, GetAuxiliaryPictureDenominatorTest003, TestSize
     mainInfo.imageInfo.size = {500, 400};
     mainInfo.imageInfo.pixelFormat = PixelFormat::RGBA_8888;
     mainInfo.hdrType = ImageHdrType::SDR;
-    AuxiliaryPictureDecodeInfo auxiliaryPictureDecodeInfo;
-    auxiliaryPictureDecodeInfo.type = AuxiliaryPictureType::GAINMAP;
-    auxiliaryPictureDecodeInfo.imageType = "image/jpeg";
 
     std::unique_ptr<OHOS::ImagePlugin::InputDataStream> auxStream =
         std::make_unique<MockInputDataStream>();
@@ -178,7 +169,7 @@ HWTEST_F(AuxiliaryGeneratorTest, GetAuxiliaryPictureDenominatorTest003, TestSize
     uint32_t errorCode = SUCCESS;
 
     auto result = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
-        mainInfo, auxStream, extDecoder, errorCode, auxiliaryPictureDecodeInfo);
+        mainInfo, AuxiliaryPictureType::GAINMAP, auxStream, extDecoder, errorCode);
 
 
     if (result != nullptr) {
@@ -210,19 +201,15 @@ HWTEST_F(AuxiliaryGeneratorTest, GenerateHeifAuxiliaryPictureTest001, TestSize.L
     GTEST_LOG_(INFO) << "AuxiliaryGeneratorTest: GenerateHeifAuxiliaryPictureTest001 start";
     MainPictureInfo mainInfo;
     mainInfo.imageInfo.size = {IMAGE_SIZE, IMAGE_SIZE};
-    AuxiliaryPictureDecodeInfo auxiliaryPictureDecodeInfo;
-    auxiliaryPictureDecodeInfo.type = AuxiliaryPictureType::DEPTH_MAP;
-    auxiliaryPictureDecodeInfo.imageType = "image/heic";
+    AuxiliaryPictureType type = AuxiliaryPictureType::DEPTH_MAP;
     uint32_t errorCode = SUCCESS;
     std::unique_ptr<AbsImageDecoder> extDecoder = nullptr;
-    auto auxPicture = AuxiliaryGenerator::GenerateHeifAuxiliaryPicture(mainInfo, extDecoder, errorCode,
-        auxiliaryPictureDecodeInfo);
+    auto auxPicture = AuxiliaryGenerator::GenerateHeifAuxiliaryPicture(mainInfo, type, extDecoder, errorCode);
     ASSERT_EQ(auxPicture, nullptr);
     ASSERT_EQ(errorCode, ERR_IMAGE_INVALID_PARAMETER);
 
-    auxiliaryPictureDecodeInfo.type =AuxiliaryPictureType::NONE;
-    auxPicture = AuxiliaryGenerator::GenerateHeifAuxiliaryPicture(mainInfo, extDecoder, errorCode,
-        auxiliaryPictureDecodeInfo);
+    type = AuxiliaryPictureType::NONE;
+    auxPicture = AuxiliaryGenerator::GenerateHeifAuxiliaryPicture(mainInfo, type, extDecoder, errorCode);
     ASSERT_EQ(auxPicture, nullptr);
     ASSERT_EQ(errorCode, ERR_IMAGE_INVALID_PARAMETER);
     GTEST_LOG_(INFO) << "AuxiliaryGeneratorTest: GenerateHeifAuxiliaryPictureTest001 end";
@@ -238,25 +225,20 @@ HWTEST_F(AuxiliaryGeneratorTest, GenerateJpegAuxiliaryPictureTest001, TestSize.L
     GTEST_LOG_(INFO) << "AuxiliaryGeneratorTest: GenerateJpegAuxiliaryPictureTest001 start";
     MainPictureInfo mainInfo;
     mainInfo.imageInfo.size = {IMAGE_SIZE, IMAGE_SIZE};
-    AuxiliaryPictureDecodeInfo auxiliaryPictureDecodeInfo;
-    auxiliaryPictureDecodeInfo.type = AuxiliaryPictureType::DEPTH_MAP;
-    auxiliaryPictureDecodeInfo.imageType = "image/jpeg";
+    AuxiliaryPictureType type = AuxiliaryPictureType::DEPTH_MAP;
     std::unique_ptr<InputDataStream> auxStreamMock = std::make_unique<MockInputDataStream>();
     uint32_t errorCode = SUCCESS;
     std::unique_ptr<AbsImageDecoder> extDecoder = nullptr;
     auto auxPicture =
-        AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(mainInfo, auxStreamMock, extDecoder, errorCode,
-        auxiliaryPictureDecodeInfo);
+        AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(mainInfo, type, auxStreamMock, extDecoder, errorCode);
     ASSERT_EQ(auxPicture, nullptr);
 
     std::unique_ptr<InputDataStream> auxStream = nullptr;
-    auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(mainInfo, auxStream, extDecoder, errorCode,
-        auxiliaryPictureDecodeInfo);
+    auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(mainInfo, type, auxStream, extDecoder, errorCode);
     ASSERT_EQ(auxPicture, nullptr);
 
-    auxiliaryPictureDecodeInfo.type = AuxiliaryPictureType::NONE;
-    auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(mainInfo, auxStream, extDecoder, errorCode,
-        auxiliaryPictureDecodeInfo);
+    type = AuxiliaryPictureType::NONE;
+    auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(mainInfo, type, auxStream, extDecoder, errorCode);
     ASSERT_EQ(auxPicture, nullptr);
     GTEST_LOG_(INFO) << "AuxiliaryGeneratorTest: GenerateJpegAuxiliaryPictureTest001 end";
 }
