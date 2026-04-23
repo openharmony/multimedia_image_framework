@@ -1598,6 +1598,23 @@ bool ImageUtils::IsMetadataTypeSupported(MetadataType metadataType)
     return (metaTypes.find(metadataType) != metaTypes.end());
 }
 
+bool ImageUtils::isBlobMetadataType(MetadataType metadataType)
+{
+    static const std::set<MetadataType> blobMetadataTypes = {
+        MetadataType::XTSTYLE,
+        MetadataType::RFDATAB,
+        MetadataType::RESMAP,
+        MetadataType::STDATA,
+        MetadataType::XDRAW4K,
+        MetadataType::PRIVATE,
+        MetadataType::RFDATAN,
+        MetadataType::RFDATAS,
+        MetadataType::HDRSNAP,
+        MetadataType::DFXDATA,
+    };
+    return blobMetadataTypes.find(metadataType) != blobMetadataTypes.end();
+}
+
 const std::set<AuxiliaryPictureType> &ImageUtils::GetAllAuxiliaryPictureType()
 {
     static const std::set<AuxiliaryPictureType> auxTypes = {
