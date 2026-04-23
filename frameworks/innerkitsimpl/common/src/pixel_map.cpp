@@ -4013,7 +4013,6 @@ static const string GetNamedPixelFormat(const PixelFormat pixelFormat)
         default:
             return "Pixel Format UNKNOWN";
     }
-    return "Pixel Format UNKNOWN";
 }
 
 constexpr uint8_t HALF_LOW_BYTE = 0;
@@ -4214,6 +4213,17 @@ static void ConvertUintPixelAlpha(uint8_t *rpixel,
     }
 }
 
+static bool IsValidAlphaPixelBytes(PixelFormat pixelFormat, int32_t pixelBytes)
+{
+    if (ImageUtils::IsAlpha8(pixelFormat)) {
+        return pixelBytes == ALPHA_BYTES;
+    }
+    if (pixelFormat == PixelFormat::ALPHA_F16) {
+        return pixelBytes == ALPHA_F16_BYTES;
+    }
+    return true;
+}
+
 uint32_t PixelMap::CheckAlphaFormatInput(PixelMap &wPixelMap, const bool isPremul)
 {
     ImageInfo dstImageInfo;
@@ -4241,34 +4251,29 @@ uint32_t PixelMap::CheckAlphaFormatInput(PixelMap &wPixelMap, const bool isPremu
         return COMMON_ERR_INVALID_PARAMETER;
     }
 
-    PixelFormat srcPixelFormat = GetPixelFormat();
-    PixelFormat dstPixelFormat = dstImageInfo.pixelFormat;
-    if (srcPixelFormat == PixelFormat::ALPHA_F16 && dstPixelFormat == PixelFormat::ALPHA_F16) {
+    PixelFormat srcFormat = GetPixelFormat();
+    PixelFormat dstFormat = dstImageInfo.pixelFormat;
+    if (srcFormat == PixelFormat::ALPHA_F16 && dstFormat == PixelFormat::ALPHA_F16) {
         if (pixelBytes_ != ALPHA_F16_BYTES || dstPixelBytes != ALPHA_F16_BYTES) {
             IMAGE_LOGE("Pixel format %{public}s and %{public}s mismatch pixelByte %{public}d and %{public}d",
-                GetNamedPixelFormat(srcPixelFormat).c_str(), GetNamedPixelFormat(dstPixelFormat).c_str(), pixelBytes_,
+                GetNamedPixelFormat(srcFormat).c_str(), GetNamedPixelFormat(dstFormat).c_str(), pixelBytes_,
                 dstPixelBytes);
             return COMMON_ERR_INVALID_PARAMETER;
         }
         return SUCCESS;
     }
-    int8_t srcAlphaIndex = GetAlphaIndex(srcPixelFormat);
-    int8_t dstAlphaIndex = GetAlphaIndex(dstPixelFormat);
-    if (srcPixelFormat != dstPixelFormat || srcAlphaIndex == INVALID_ALPHA_INDEX ||
-        dstAlphaIndex == INVALID_ALPHA_INDEX || srcPixelFormat == PixelFormat::RGBA_F16 ||
-        dstPixelFormat == PixelFormat::RGBA_F16) {
+    int8_t srcAlphaIndex = GetAlphaIndex(srcFormat);
+    int8_t dstAlphaIndex = GetAlphaIndex(dstFormat);
+    if (srcFormat != dstFormat || srcAlphaIndex == INVALID_ALPHA_INDEX || srcFormat == PixelFormat::RGBA_F16 ||
+        dstAlphaIndex == INVALID_ALPHA_INDEX || dstFormat == PixelFormat::RGBA_F16) {
         IMAGE_LOGE("Could not perform premultiply or nonpremultiply from %{public}s to %{public}s",
-            GetNamedPixelFormat(srcPixelFormat).c_str(), GetNamedPixelFormat(dstPixelFormat).c_str());
+            GetNamedPixelFormat(srcFormat).c_str(), GetNamedPixelFormat(dstFormat).c_str());
         return ERR_IMAGE_DATA_UNSUPPORT;
     }
 
-    if ((ImageUtils::IsAlpha8(srcPixelFormat) && pixelBytes_ != ALPHA_BYTES) ||
-        (ImageUtils::IsAlpha8(dstPixelFormat) && dstPixelBytes != ALPHA_BYTES) ||
-        (srcPixelFormat == PixelFormat::ALPHA_F16 && pixelBytes_ != ALPHA_F16_BYTES) ||
-        (dstPixelFormat == PixelFormat::ALPHA_F16 && dstPixelBytes != ALPHA_F16_BYTES)) {
+    if (!IsValidAlphaPixelBytes(srcFormat, pixelBytes_) || !IsValidAlphaPixelBytes(dstFormat, dstPixelBytes)) {
         IMAGE_LOGE("Pixel format %{public}s and %{public}s mismatch pixelByte %{public}d and %{public}d",
-            GetNamedPixelFormat(srcPixelFormat).c_str(), GetNamedPixelFormat(dstPixelFormat).c_str(), pixelBytes_,
-            dstPixelBytes);
+            GetNamedPixelFormat(srcFormat).c_str(), GetNamedPixelFormat(dstFormat).c_str(), pixelBytes_, dstPixelBytes);
         return COMMON_ERR_INVALID_PARAMETER;
     }
     return SUCCESS;

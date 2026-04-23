@@ -2241,53 +2241,48 @@ bool ImageUtils::CheckPixelsInput(PixelMap* pixelMap, const RWPixelsOptions &opt
 {
     const Rect& rect = opts.region;
     if (opts.bufferSize == 0 || opts.pixels == nullptr) {
-        IMAGE_LOGE("checkPixelsInput bufferSize or dst address invalid, bufferSize: %{public}" PRIu64, opts.bufferSize);
+        IMAGE_LOGE("CheckPixelsInput bufferSize or dst address invalid, bufferSize: %{public}" PRIu64, opts.bufferSize);
         return false;
     }
     if (rect.left < 0 || rect.top < 0 || opts.stride > numeric_limits<int32_t>::max() ||
         static_cast<uint64_t>(opts.offset) > opts.bufferSize) {
-        IMAGE_LOGE(
-            "checkPixelsInput left(%{public}d) or top(%{public}d) or stride(%{public}u) or offset(%{public}u) < 0.",
-            rect.left, rect.top, opts.stride, opts.offset);
+        IMAGE_LOGE("CheckPixelsInput left(%{public}d) or top(%{public}d) or stride(%{public}u) or "
+            "offset(%{public}u) < 0.", rect.left, rect.top, opts.stride, opts.offset);
         return false;
     }
     if (rect.width <= 0 || rect.height <= 0 || rect.width > MAX_DIMENSION || rect.height > MAX_DIMENSION) {
-        IMAGE_LOGE("checkPixelsInput width(%{public}d) or height(%{public}d) is < 0.", rect.width, rect.height);
+        IMAGE_LOGE("CheckPixelsInput width(%{public}d) or height(%{public}d) is < 0.", rect.width, rect.height);
         return false;
     }
     if (rect.left > pixelMap->GetWidth() - rect.width) {
-        IMAGE_LOGE("checkPixelsInput left(%{public}d) + width(%{public}d) is > pixelmap width(%{public}d).",
+        IMAGE_LOGE("CheckPixelsInput left(%{public}d) + width(%{public}d) is > pixelmap width(%{public}d).",
             rect.left, rect.width, pixelMap->GetWidth());
         return false;
     }
     if (rect.top > pixelMap->GetHeight() - rect.height) {
-        IMAGE_LOGE("checkPixelsInput top(%{public}d) + height(%{public}d) is > pixelmap height(%{public}d).",
+        IMAGE_LOGE("CheckPixelsInput top(%{public}d) + height(%{public}d) is > pixelmap height(%{public}d).",
             rect.top, rect.height, pixelMap->GetHeight());
         return false;
     }
     int32_t pixelBytes = ImageUtils::GetPixelBytes(opts.pixelFormat);
     if (pixelBytes <= 0) {
-        IMAGE_LOGE("checkPixelsInput invalid pixel format: %{public}d", opts.pixelFormat);
+        IMAGE_LOGE("CheckPixelsInput invalid pixel format: %{public}d", opts.pixelFormat);
         return false;
     }
     uint32_t regionStride = static_cast<uint32_t>(rect.width) * static_cast<uint32_t>(pixelBytes);
-    if (opts.stride < regionStride) {
-        IMAGE_LOGE("checkPixelsInput stride(%{public}d) < width*4 (%{public}d).", opts.stride, regionStride);
+    if (opts.stride < regionStride || opts.bufferSize < regionStride) {
+        IMAGE_LOGE("CheckPixelsInput input stride (%{public}d) or input buffer size (%{public}d) is less than "
+            "regionStride (%{public}d).", opts.stride, opts.bufferSize, regionStride);
         return false;
     }
-    if (opts.bufferSize < regionStride) {
-        IMAGE_LOGE("checkPixelsInput input buffer size is < width * 4.");
-        return false;
-    }
-    // "1" is except the last line.
+    // Minus NUM_1 is except the last line.
     uint64_t lastLinePos = opts.offset + static_cast<uint64_t>(rect.height - NUM_1) * opts.stride;
     if (static_cast<uint64_t>(opts.offset) > (opts.bufferSize - regionStride) ||
         lastLinePos > (opts.bufferSize - regionStride)) {
-            IMAGE_LOGE(
-                "checkPixelsInput fail, height(%{public}d), width(%{public}d), lastLine(%{public}" PRIu64 "), "
-                "offset(%{public}u), bufferSize:%{public}" PRIu64 ".", rect.height, rect.width,
-                static_cast<uint64_t>(lastLinePos), opts.offset, static_cast<uint64_t>(opts.bufferSize));
-            return false;
+        IMAGE_LOGE("CheckPixelsInput fail, height(%{public}d), width(%{public}d), lastLine(%{public}" PRIu64 "), "
+            "offset(%{public}u), bufferSize:%{public}" PRIu64 ".", rect.height, rect.width,
+            static_cast<uint64_t>(lastLinePos), opts.offset, static_cast<uint64_t>(opts.bufferSize));
+        return false;
     }
     return true;
 }
