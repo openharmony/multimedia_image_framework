@@ -1598,7 +1598,7 @@ bool ImageUtils::IsMetadataTypeSupported(MetadataType metadataType)
     return (metaTypes.find(metadataType) != metaTypes.end());
 }
 
-bool ImageUtils::isBlobMetadataType(MetadataType metadataType)
+bool ImageUtils::isBlobMetadataType(MetadataType type)
 {
     for (const auto& iter: BLOB_METADATA_TAG_MAP) {
         if (iter.first == type) {
