@@ -6018,7 +6018,7 @@ std::unique_ptr<Picture> ImageSource::CreatePicture(const DecodingOptionsForPict
         DecodeHeifAuxiliaryPictures(auxTypes, picture, errorCode, downSamplingScaleFactor);
         DecodeHeifBlobMetadatas(picture, metadataTypes, info, errorCode);
     } else if (info.encodedFormat == IMAGE_JPEG_FORMAT) {
-        DecodeJpegAuxiliaryPicture(auxTypes, picture, errorCode, downSamplingScaleFactor);
+        DecodeJpegExtendInfo(auxTypes, metadataTypes, picture, errorCode, downSamplingScaleFactor);
         SetJfifMetadataForPicture(picture);
     }
     SetHdrMetadataForPicture(picture);
@@ -6133,7 +6133,7 @@ static JpegExtendInfo ParsingJpegExtendInfo(uint8_t *stream, uint32_t streamSize
     return result;
 }
 
-static void ImageSource::DecodeJpegAuxiliaryPicture(std::set<AuxiliaryPictureType> &auxTypes,
+static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureType> &auxTypes,
  	    std::unique_ptr<Picture> &picture, uint32_t &errorCode, const DownSamplingScaleFactor& downSamplingScaleFactor)
 {
     if (auxTypes.empty()) {
@@ -6208,7 +6208,8 @@ static void DecodeJpegBlobMetadatas(JpegExtendInfo &extendInfo, std::set<Metadat
 }
  
 void ImageSource::DecodeJpegExtendInfo(std::set<AuxiliaryPictureType> &auxTypes,
-    std::set<MetadataType> &metadataTypes, std::unique_ptr<Picture> &picture, uint32_t &errorCode)
+    std::set<MetadataType> &metadataTypes, std::unique_ptr<Picture> &picture, uint32_t &errorCode,
+    const DownSamplingScaleFactor& downSamplingScaleFactor);
 {
     if (auxTypes.empty() && metadataTypes.empty()) {
         return;
@@ -6240,7 +6241,7 @@ void ImageSource::DecodeJpegExtendInfo(std::set<AuxiliaryPictureType> &auxTypes,
  
     if (!auxTypes.empty()) {
         DecodeJpegAuxiliaryPictures(extendInfo, auxTypes, mainPictureInfo,
-            picture, errorCode, streamInfo, createDecoder);
+            picture, errorCode, streamInfo, createDecoder, downSamplingScaleFactor);
     }
     if (!metadataTypes.empty()) {
         DecodeJpegBlobMetadatas(extendInfo, metadataTypes, picture, errorCode, streamInfo);
