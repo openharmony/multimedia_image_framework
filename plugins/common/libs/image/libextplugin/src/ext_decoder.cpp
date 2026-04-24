@@ -76,6 +76,8 @@
 #include "raw_stream.h"
 #include "src/binary_parse/range_checked_byte_ptr.h"
 #include "src/image_type_recognition/image_type_recognition_lite.h"
+#include "bandjpeg/fast_manager.h"
+#include "bandjpeg/progressive_jpeg_decoder.h"
 
 #if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
 #define DMA_BUF_SET_TYPE _IOW(DMA_BUF_BASE, 2, const char *)
@@ -1750,6 +1752,13 @@ uint32_t ExtDecoder::Decode(uint32_t index, DecodeContext &context)
     PixelFormat format = context.info.pixelFormat;
     bool isOutputYuv420Format = IsYuv420Format(context.info.pixelFormat);
     uint32_t result = 0;
+    if (skEncodeFormat == SkEncodedImageFormat::kJPEG) {
+        uint32_t progressiveDecodeRes = ProgressiveDecode(index, context);
+        if (progressiveDecodeRes == SUCCESS) {
+            return SUCCESS;
+        }
+        IMAGE_LOGE("ProgressiveDecode failed, res: %{public}d", progressiveDecodeRes);
+    }
     if (isOutputYuv420Format && skEncodeFormat == SkEncodedImageFormat::kJPEG) {
 #if defined(ANDROID_PLATFORM) || defined(IOS_PLATFORM)
         return 0;
@@ -1874,6 +1883,27 @@ JpegYuvFmt ExtDecoder::GetJpegYuvOutFmt(PixelFormat desiredFormat)
     } else {
         return iter->second;
     }
+}
+ 
+uint32_t ExtDecoder::ProgressiveDecode(uint32_t index, DecodeContext &context)
+{
+    if (IsYuv420Format(context.info.pixelFormat)) {
+#if defined(ANDROID_PLATFORM) || defined(IOS_PLATFORM)
+        return ERR_IMAGE_DATA_UNSUPPORT;
+#else
+        uint32_t res = PreDecodeCheckYuv(index, context.info.pixelFormat);
+        CHECK_ERROR_RETURN_RET(res != SUCCESS, res);
+        Size jpgSize = {static_cast<uint32_t>(info_.width()), static_cast<uint32_t>(info_.height())};
+        ProgressiveJpegDecoder::YuvDecodePlan progressivePlan;
+        ProgressiveJpegDecoder::YuvDecodeOptions progressiveOptions = {
+            codec_.get(), jpgSize, desiredSizeYuv_, context.info.pixelFormat, context.ifSourceCompleted,
+            supportRegionFlag_, dstOptions_.fSubset != nullptr, sampleSize_, softSampleSize_
+        };
+        if (!ProgressiveJpegDecoder::BuildYuvDecodePlan(progressiveOptions, progressivePlan)) {
+            return ERR_IMAGE_DECODE_ABNORMAL;
+        }
+    }
+    return SUCCESS;
 }
 
 uint32_t ExtDecoder::DecodeToYuv420(uint32_t index, DecodeContext &context)
