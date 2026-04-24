@@ -6133,8 +6133,10 @@ static JpegExtendInfo ParsingJpegExtendInfo(uint8_t *stream, uint32_t streamSize
     return result;
 }
 
-static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureType> &auxTypes,
-    std::unique_ptr<Picture> &picture, uint32_t &errorCode, const DownSamplingScaleFactor& downSamplingScaleFactor)
+void DecodeJpegAuxiliaryPictures(JpegExtendInfo &extendInfo, std::set<AuxiliaryPictureType> &auxTypes,
+    MainPictureInfo &mainPictureInfo, std::unique_ptr<Picture> &picture, uint32_t &errorCode, StreamInfo &streamInfo,
+    const std::function<std::unique_ptr<AbsImageDecoder>(InputDataStream&, uint32_t&)> &createDecoder,
+    const DownSamplingScaleFactor& downSamplingScaleFactor)
 {
     if (auxTypes.empty()) {
         return;
@@ -6162,7 +6164,6 @@ static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureTy
         }
         auto auxDecoder = createDecoder(*auxStream, errorCode);
         uint32_t auxErrorCode = ERROR;
-        auxDecodeInfo.type = auxInfo.auxType;
         auto auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
             mainInfo, auxStream, auxDecoder, auxErrorCode, auxiliaryPictureDecodeInfo);
         if (auxPicture != nullptr && auxPicture->GetContentPixel() != nullptr) {
@@ -6754,7 +6755,7 @@ uint32_t ImageSource::CreateFragmentMetadataByImageSource(ImageInfo info)
     } else {
         Rect fragmentRect;
         bool ret;
-        CHECK_ERROR_RETURN_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DATA_ABNORMAL, "mainDecoder_ is nullptr");
+        CHECK_ERROR_RETURN_RET_LOG(mainDecoder_ == nullptr, ERR_IMAGE_DATA_ABNORMAL, "mainDecoder_ is nullptr");
         ret = mainDecoder_->GetHeifFragmentMetadata(fragmentRect);
         if (!ret) {
             return ERR_IMAGE_DATA_ABNORMAL; 
