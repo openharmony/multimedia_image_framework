@@ -6134,7 +6134,7 @@ static JpegExtendInfo ParsingJpegExtendInfo(uint8_t *stream, uint32_t streamSize
 }
 
 static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureType> &auxTypes,
- 	    std::unique_ptr<Picture> &picture, uint32_t &errorCode, const DownSamplingScaleFactor& downSamplingScaleFactor)
+ 	std::unique_ptr<Picture> &picture, uint32_t &errorCode, const DownSamplingScaleFactor& downSamplingScaleFactor)
 {
     if (auxTypes.empty()) {
         return;
@@ -6164,7 +6164,7 @@ static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureTy
         uint32_t auxErrorCode = ERROR;
         auxDecodeInfo.type = auxInfo.auxType;
         auto auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
- 	        mainInfo, auxStream, auxDecoder, auxErrorCode, auxiliaryPictureDecodeInfo);
+            mainInfo, auxStream, auxDecoder, auxErrorCode, auxiliaryPictureDecodeInfo);
         if (auxPicture != nullptr && auxPicture->GetContentPixel() != nullptr) {
             AuxiliaryPictureInfo auxPictureInfo = auxPicture->GetAuxiliaryPictureInfo();
             auxPictureInfo.jpegTagName = auxInfo.auxTagName;
