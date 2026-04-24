@@ -69,4 +69,9 @@ group("fuzztest") {
       "imagetiffplugin_fuzzer:ImageTiffPluginFuzzTest",
     ]
   }
+  if (has_dav1d) {
+    deps += [
+      "imageavifdecode_fuzzer:ImageAvifDecodeFuzzTest",
+    ]
+  }
 }
