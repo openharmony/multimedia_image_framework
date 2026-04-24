@@ -44,7 +44,8 @@ public:
     bool HasProperty(std::string key) override;
     uint32_t Decode(uint32_t index, DecodeContext &context) override;
     uint32_t DecodeToYuv420(uint32_t index, DecodeContext &context);
-    uint32_t ProgressiveDecode(uint32_t index, DecodeContext &context);
+    uint32_t ProgressiveDecodeYuv(uint32_t index, DecodeContext &context);
+    uint32_t ProgressiveDecodeRgb(uint32_t index, DecodeContext &context);
     #ifdef JPEG_HW_DECODE_ENABLE
     void InitJpegDecoder() override;
     uint32_t AllocOutputBuffer(DecodeContext &context, OHOS::HDI::Codec::Image::V2_1::CodecImageBuffer& outputBuffer);
@@ -61,14 +62,17 @@ public:
     void SetSource(InputDataStream &sourceStream) override;
 
     uint32_t GetImagePropertyInt(uint32_t index, const std::string &key, int32_t &value) override;
-    uint32_t GetImagePropertyString(uint32_t index, const std::string &key, std::string &value) override;
+    uint32_t GetImagePropertyString(uint32_t index, const std::string &key, std::string &value,
+        bool useNewApi = false) override;
+
+    uint32_t GetHeifParseErr() override;
+
     Media::ImageHdrType CheckHdrType() override;
     void ValidateAndCorrectMetaData(Media::HdrMetadata& metadata) override;
     uint32_t GetGainMapOffset() override;
     Media::HdrMetadata GetHdrMetadata(Media::ImageHdrType type) override;
     bool DecodeHeifGainMap(DecodeContext &context) override;
     bool GetHeifHdrColorSpace(ColorManager::ColorSpaceName &gainmap, ColorManager::ColorSpaceName &hdr) override;
-    uint32_t GetHeifParseErr() override;
     bool DecodeHeifAuxiliaryMap(DecodeContext& context, Media::AuxiliaryPictureType type) override;
     bool CheckAuxiliaryMap(Media::AuxiliaryPictureType type) override;
     bool GetHeifFragmentMetadata(Media::Rect& metadata) override;
@@ -78,15 +82,14 @@ public:
     OHOS::ColorManager::ColorSpace GetPixelMapColorSpace() override;
     bool IsSupportICCProfile() override;
 #endif
-    bool GetHeifMetadataBlob(std::vector<uint8_t>& metadata, Media::MetadataType type) override;
     void FillYuvInfo(DecodeContext &context, SkImageInfo &dstInfo);
+    bool GetHeifMetadataBlob(std::vector<uint8_t>& metadata, Media::MetadataType type) override;
     OHOS::Media::Size GetHeifRegionGridSize() override;
     uint32_t GetJfifProperty(SkCodec *codec, const std::string &key, int32_t &value);
 #ifdef HEIF_HW_DECODE_ENABLE
     uint32_t GetHeifsProperty(SkCodec *codec, uint32_t index, const std::string &key, int32_t &value);
 #endif
     OHOS::Media::Size GetAnimationImageSize() override;
-
 private:
     typedef struct FrameCacheInfo {
         int width;
@@ -141,21 +144,25 @@ private:
     void SetHeifSampleSize(const PixelDecodeOptions &opts, int &dstWidth, int &dstHeight,
         SkColorType desireColor, SkAlphaType desireAlpha);
     bool IsSupportHeifHardwareDecode(const PixelDecodeOptions &opts);
-    bool DoHeifSwDecode(DecodeContext &context);
+    bool DoHeifSwDecode(OHOS::ImagePlugin::DecodeContext &context);
     void SetHeifDecodeError(DecodeContext &context);
     void SetHeifParseError();
     uint32_t ConvertFormatToYUV(DecodeContext &context, SkImageInfo &skInfo,
         uint64_t byteCount, OHOS::Media::PixelFormat format);
     bool IsHeifToSingleHdrDecode(const DecodeContext &context) const;
-    uint32_t AllocHeifSingleHdrBuffer(DecodeContext &context);
     uint32_t DoHeifToSingleHdrDecode(OHOS::ImagePlugin::DecodeContext &context);
+    uint32_t AllocHeifSingleHdrBuffer(DecodeContext &context);
     uint32_t HandleGifCache(uint8_t* src, uint8_t* dst, uint64_t rowStride, int dstHeight);
     uint32_t ParseGifMetadata();
     uint32_t GetGifHasGlobalColorMapInt(int32_t &value);
     uint32_t GetFramePixels(SkImageInfo& info, uint8_t* buffer, uint64_t rowStride, SkCodec::Options options);
+    uint32_t DecodeGifFrameWithCache(const SkCodec::FrameInfo& curInfo, int signedIndex,
+        uint64_t rowStride, const FrameCacheInfo& dstFrameCacheInfo, uint8_t* dstBuffer);
+    uint32_t DecodeGifTemporaryFrame(const SkCodec::FrameInfo& curInfo, int signedIndex,
+        uint64_t rowStride, const FrameCacheInfo& dstFrameCacheInfo, uint8_t* dstBuffer);
     FrameCacheInfo InitFrameCacheInfo(const uint64_t rowStride, SkImageInfo info);
-    bool FrameCacheInfoIsEqual(FrameCacheInfo& src, FrameCacheInfo& dst);
-    uint32_t UpdateHardWareDecodeInfo(DecodeContext &context);
+    bool FrameCacheInfoIsEqual(const FrameCacheInfo& src, const FrameCacheInfo& dst);
+    void UpdateHardWareDecodeInfo(DecodeContext &context, const SkImageInfo& info);
     uint32_t ExtractHeifRegion(const PixelDecodeOptions &opts);
     bool IsHeifValidCrop(OHOS::Media::Rect &crop, SkImageInfo &info, int32_t gridInfoCols, int32_t gridInfoRows);
     void SetHeifDecodeRegion(DecodeContext &context, int32_t gridTileWidth, int32_t gridTileHeight);
@@ -191,7 +198,7 @@ private:
     SkCodec::Options dstOptions_;
     SkIRect dstSubset_;
     int32_t frameCount_ = 0;
-    uint8_t *gifCache_ = nullptr;
+    std::unique_ptr<uint8_t[]> gifCache_;
     int gifCacheIndex_ = 0;
     FrameCacheInfo frameCacheInfo_ = {0, 0, 0, 0};
     bool gifMetadataParsed_ = false;
@@ -211,6 +218,7 @@ private:
     HeifGridRegionInfo heifGridRegionInfo_ = {0, 0, 0, 0, 0, 0, false};
     int32_t gridTileWidth_ = 0;
     int32_t gridTileHeight_ = 0;
+    Media::PixelFormat heifPixelFormat_ = Media::PixelFormat::RGBA_8888;
 #ifdef IMAGE_COLORSPACE_FLAG
     std::shared_ptr<OHOS::ColorManager::ColorSpace> dstColorSpace_ = nullptr;
     std::shared_ptr<OHOS::ColorManager::ColorSpace> srcColorSpace_ = nullptr;
@@ -227,6 +235,7 @@ private:
     OHOS::Media::Size outputBufferSize_;
     OHOS::HDI::Display::Composer::V1_2::PixelFormat outputColorFmt_ =
         OHOS::HDI::Display::Composer::V1_2::PIXEL_FMT_RGBA_8888;
+    uint32_t sampleSize_ = 1;
     static constexpr uint32_t ALIGN_8 = 8;
     static constexpr uint32_t ALIGN_16 = 16;
 #endif
@@ -236,7 +245,6 @@ private:
     //Yuv
     OHOS::Media::Size desiredSizeYuv_;
     int softSampleSize_ = 1;
-    uint32_t sampleSize_ = 1;
     std::string rawEncodedFormat_ = "";
 
     // hdr
@@ -245,6 +253,12 @@ private:
 #ifdef JPEG_HW_DECODE_ENABLE
     std::shared_ptr<JpegHardwareDecoder> hwDecoderPtr_ = nullptr;
     bool initJpegErr_ = false;
+#endif
+
+#ifdef JPEG_HW_DECODE_ENABLE
+    friend class RSTBasedDecoder;
+    friend class JpegHwRegionDecoder;
+    friend class JpegHwFullDecoder;
 #endif
 };
 } // namespace ImagePlugin
