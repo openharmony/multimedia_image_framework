@@ -6150,9 +6150,9 @@ static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureTy
             continue;
         }
         AuxiliaryPictureDecodeInfo auxiliaryPictureDecodeInfo;
- 	    auxiliaryPictureDecodeInfo.downSamplingScaleFactor = downSamplingScaleFactor;
- 	    auxiliaryPictureDecodeInfo.imageType = IMAGE_JPEG_FORMAT;
- 	    auxiliaryPictureDecodeInfo.type = auxInfo.auxType;
+        auxiliaryPictureDecodeInfo.downSamplingScaleFactor = downSamplingScaleFactor;
+        auxiliaryPictureDecodeInfo.imageType = IMAGE_JPEG_FORMAT;
+        auxiliaryPictureDecodeInfo.type = auxInfo.auxType;
         IMAGE_LOGI("Jpeg auxiliary picture has found. Type: %{public}d", auxInfo.auxType);
         std::unique_ptr<InputDataStream> auxStream =
             BufferSourceStream::CreateSourceStream((streamInfo.GetCurrentAddress() + auxInfo.offset), auxInfo.size);
@@ -6164,7 +6164,7 @@ static void ImageSource::DecodeJpegAuxiliaryPictures(std::set<AuxiliaryPictureTy
         uint32_t auxErrorCode = ERROR;
         auxDecodeInfo.type = auxInfo.auxType;
         auto auxPicture = AuxiliaryGenerator::GenerateJpegAuxiliaryPicture(
- 	             mainInfo, auxStream, auxDecoder, auxErrorCode, auxiliaryPictureDecodeInfo);
+ 	        mainInfo, auxStream, auxDecoder, auxErrorCode, auxiliaryPictureDecodeInfo);
         if (auxPicture != nullptr && auxPicture->GetContentPixel() != nullptr) {
             AuxiliaryPictureInfo auxPictureInfo = auxPicture->GetAuxiliaryPictureInfo();
             auxPictureInfo.jpegTagName = auxInfo.auxTagName;
