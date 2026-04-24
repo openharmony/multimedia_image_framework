@@ -6210,7 +6210,7 @@ static void DecodeJpegBlobMetadatas(JpegExtendInfo &extendInfo, std::set<Metadat
  
 void ImageSource::DecodeJpegExtendInfo(std::set<AuxiliaryPictureType> &auxTypes,
     std::set<MetadataType> &metadataTypes, std::unique_ptr<Picture> &picture, uint32_t &errorCode,
-    const DownSamplingScaleFactor& downSamplingScaleFactor);
+    const DownSamplingScaleFactor& downSamplingScaleFactor)
 {
     if (auxTypes.empty() && metadataTypes.empty()) {
         return;
