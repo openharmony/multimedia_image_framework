@@ -24,6 +24,8 @@
 #include <linux/dma-buf.h>
 #endif
 
+#include "bandjpeg/fast_manager.h"
+#include "bandjpeg/progressive_jpeg_decoder.h"
 #include "src/codec/SkJpegCodec.h"
 #include "src/codec/SkJpegDecoderMgr.h"
 #include "ext_pixel_convert.h"
@@ -1074,6 +1076,38 @@ static void FreeContextBuffer(const Media::CustomFreePixelMap &func, AllocatorTy
 #endif
 }
 
+static void ResetProgressiveBuffer(DecodeContext &context)
+{
+    FreeContextBuffer(context.freeFunc, context.allocatorType, context.pixelsBuffer);
+    ProgressiveJpegDecoder::ResetDecodeContextPixelsBuffer(context);
+}
+ 
+static void FlushProgressiveBuffer(DecodeContext &context)
+{
+#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+    if (context.allocatorType != AllocatorType::DMA_ALLOC) {
+        return;
+    }
+    SurfaceBuffer* surfaceBuffer = reinterpret_cast<SurfaceBuffer*>(context.pixelsBuffer.context);
+    if (surfaceBuffer == nullptr || !(surfaceBuffer->GetUsage() & BUFFER_USAGE_MEM_MMZ_CACHE)) {
+        return;
+    }
+    GSError err = surfaceBuffer->FlushCache();
+    if (err != GSERROR_OK) {
+        IMAGE_LOGE("FlushCache failed, GSError=%{public}d", err);
+    }
+#else
+    (void)context;
+#endif
+}
+ 
+static void UpdateProgressiveRgbOutputInfo(const ProgressiveJpegDecoder::RgbDecodePlan &plan, DecodeContext &context)
+{
+    if (plan.useDesiredSize) {
+        context.outInfo.size = {plan.dstInfo.width(), plan.dstInfo.height()};
+    }
+}
+
 uint32_t ExtDecoder::ConvertFormatToYUV(DecodeContext &context, SkImageInfo &skInfo,
     uint64_t byteCount, PixelFormat format)
 {
@@ -1753,11 +1787,12 @@ uint32_t ExtDecoder::Decode(uint32_t index, DecodeContext &context)
     bool isOutputYuv420Format = IsYuv420Format(context.info.pixelFormat);
     uint32_t result = 0;
     if (skEncodeFormat == SkEncodedImageFormat::kJPEG) {
-        uint32_t progressiveDecodeRes = ProgressiveDecode(index, context);
-        if (progressiveDecodeRes == SUCCESS) {
+        uint32_t progressiveResult = isOutputYuv420Format ? ProgressiveDecodeYuv(index, context) :
+            ProgressiveDecodeRgb(index, context);
+        if (progressiveResult == SUCCESS) {
             return SUCCESS;
         }
-        IMAGE_LOGE("ProgressiveDecode failed, res: %{public}d", progressiveDecodeRes);
+        CHECK_ERROR_RETURN_RET(progressiveResult != ERR_IMAGE_DATA_UNSUPPORT, progressiveResult);
     }
     if (isOutputYuv420Format && skEncodeFormat == SkEncodedImageFormat::kJPEG) {
 #if defined(ANDROID_PLATFORM) || defined(IOS_PLATFORM)
@@ -1884,7 +1919,7 @@ JpegYuvFmt ExtDecoder::GetJpegYuvOutFmt(PixelFormat desiredFormat)
         return iter->second;
     }
 }
- 
+
 uint32_t ExtDecoder::ProgressiveDecode(uint32_t index, DecodeContext &context)
 {
     if (IsYuv420Format(context.info.pixelFormat)) {
@@ -1904,6 +1939,102 @@ uint32_t ExtDecoder::ProgressiveDecode(uint32_t index, DecodeContext &context)
         }
     }
     return SUCCESS;
+}
+
+uint32_t ExtDecoder::ProgressiveDecodeYuv(uint32_t index, DecodeContext &context)
+{
+#if defined(ANDROID_PLATFORM) || defined(IOS_PLATFORM)
+    (void)index;
+    (void)context;
+    return ERR_IMAGE_DATA_UNSUPPORT;
+#else
+    uint32_t res = PreDecodeCheckYuv(index, context.info.pixelFormat);
+    CHECK_ERROR_RETURN_RET(res != SUCCESS, res);
+    Size jpgSize = {static_cast<uint32_t>(info_.width()), static_cast<uint32_t>(info_.height())};
+    ProgressiveJpegDecoder::YuvDecodeOptions options = {
+        codec_.get(), jpgSize, desiredSizeYuv_, context.info.pixelFormat, context.ifSourceCompleted,
+        supportRegionFlag_, dstOptions_.fSubset != nullptr, sampleSize_, softSampleSize_
+    };
+    ProgressiveJpegDecoder::YuvDecodePlan plan;
+    if (!ProgressiveJpegDecoder::BuildYuvDecodePlan(options, plan)) {
+        return ERR_IMAGE_DATA_UNSUPPORT;
+    }
+ 
+    ProgressiveJpegDecoder::JpegInputData jpegData;
+    res = ProgressiveJpegDecoder::GetJpegInputData(stream_,
+        [this](uint8_t *jpegBuffer, uint32_t jpegBufferSize) {
+            return ReadJpegData(jpegBuffer, jpegBufferSize);
+        }, jpegData);
+    if (res != SUCCESS) {
+        IMAGE_LOGI("progressive jpeg yuv decode fallback, get input failed ret=%{public}u", res);
+        return ERR_IMAGE_DATA_UNSUPPORT;
+    }
+ 
+    const SkImageInfo originalDstInfo = dstInfo_;
+    dstInfo_ = dstInfo_.makeWH(plan.size.width, plan.size.height);
+    res = SetContextPixelsBuffer(plan.bufferSize, context);
+    if (res == SUCCESS) {
+        res = ProgressiveJpegDecoder::DecodeYuv(jpegData, plan, context);
+        if (res == SUCCESS) {
+            return SUCCESS;
+        }
+        ResetProgressiveBuffer(context);
+    } else {
+        IMAGE_LOGI("progressive jpeg yuv decode fallback, alloc failed ret=%{public}u", res);
+    }
+    dstInfo_ = originalDstInfo;
+    return ERR_IMAGE_DATA_UNSUPPORT;
+#endif
+}
+ 
+uint32_t ExtDecoder::ProgressiveDecodeRgb(uint32_t index, DecodeContext &context)
+{
+    ProgressiveJpegDecoder::RgbDecodeOptions options = {
+        codec_.get(), info_, dstInfo_, regionDesiredSize_, context.info.pixelFormat, context.allocatorType,
+        context.ifSourceCompleted, supportRegionFlag_, context.pixelsBuffer.buffer != nullptr,
+        reusePixelmap_ != nullptr, dstOptions_.fSubset != nullptr, sampleSize_, softSampleSize_
+    };
+    ProgressiveJpegDecoder::RgbDecodePlan plan;
+    CHECK_ERROR_RETURN_RET(!ProgressiveJpegDecoder::BuildRgbDecodePlan(options, plan), ERR_IMAGE_DATA_UNSUPPORT);
+    bool allocatedProgressiveBuffer = false;
+    if (context.pixelsBuffer.buffer == nullptr) {
+        const SkImageInfo savedDstInfo = dstInfo_;
+        dstInfo_ = plan.dstInfo;
+        uint32_t res = SetContextPixelsBuffer(plan.byteCount, context);
+        dstInfo_ = savedDstInfo;
+        CHECK_ERROR_RETURN_RET(res != SUCCESS, res);
+        allocatedProgressiveBuffer = true;
+    }
+    uint64_t rowStride = ProgressiveJpegDecoder::GetOutputRowStride(plan.dstInfo, context,
+        static_cast<uint8_t *>(context.pixelsBuffer.buffer));
+    if (rowStride == 0) {
+        if (allocatedProgressiveBuffer) {
+            ResetProgressiveBuffer(context);
+        }
+        IMAGE_LOGE("progressive jpeg rowStride is zero");
+        return ERR_DMA_DATA_ABNORMAL;
+    }
+    const size_t stride = plan.isRgb888Output ?
+        static_cast<size_t>(plan.dstInfo.width()) * NUM_3 : static_cast<size_t>(rowStride);
+    ProgressiveJpegDecoder::JpegInputData jpegData;
+    uint32_t res = ProgressiveJpegDecoder::GetJpegInputData(stream_,
+        [this](uint8_t *buffer, uint32_t size) { return ReadJpegData(buffer, size); }, jpegData);
+    if (res == SUCCESS) {
+        dstOptions_.fFrameIndex = static_cast<int>(index);
+        DebugInfo(info_, plan.dstInfo, dstOptions_);
+        res = ProgressiveJpegDecoder::DecodeRgb(jpegData, plan, static_cast<uint8_t *>(context.pixelsBuffer.buffer),
+            stride);
+    }
+    if (res == SUCCESS) {
+        UpdateProgressiveRgbOutputInfo(plan, context);
+        FlushProgressiveBuffer(context);
+        return SUCCESS;
+    }
+    IMAGE_LOGI("progressive jpeg decode fallback, ret=%{public}u", res);
+    if (allocatedProgressiveBuffer) {
+        ResetProgressiveBuffer(context);
+    }
+    return ERR_IMAGE_DATA_UNSUPPORT;
 }
 
 uint32_t ExtDecoder::DecodeToYuv420(uint32_t index, DecodeContext &context)
