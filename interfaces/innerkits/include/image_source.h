@@ -496,8 +496,8 @@ private:
     uint32_t SetJfifMetadataForPicture(std::unique_ptr<Picture> &picture);
     void DecodeHeifBlobMetadatas(std::unique_ptr<Picture> &picture, std::set<MetadataType> &metadataTypes,
         ImageInfo &info, uint32_t &errorCode);
-    void DecodeJpegExtendInfo(std::set<AuxiliaryPictureType> &auxTypes, std::set<MetadataType> &metadataTypes,
-        std::unique_ptr<Picture> &picture, uint32_t &errorCode,
+    void DecodeJpegExtendInfo(std::set<AuxiliaryPictureType> &auxTypes,
+        std::set<MetadataType> &metadataTypes, std::unique_ptr<Picture> &picture, uint32_t &errorCode,
         const DownSamplingScaleFactor& downSamplingScaleFactor);
     std::shared_ptr<ImageMetadata> FindMetadataFromMap(MetadataType type);
     std::unique_ptr<PixelMap> GenerateThumbnail(const DecodingOptionsForThumbnail &opts, uint32_t &errorCode);
