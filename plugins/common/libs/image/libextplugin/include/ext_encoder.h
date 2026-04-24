@@ -185,7 +185,6 @@ private:
     OutputDataStream* output_ = nullptr;
     PlEncodeOptions opts_;
     Media::PixelMap* pixelmap_ = nullptr;
-    std::unique_ptr<Media::PixelMap> processedPixelmap_;
     std::vector<std::shared_ptr<Media::AbsMemory>> tmpMemoryList_;
     Media::Picture* picture_ = nullptr;
 };
