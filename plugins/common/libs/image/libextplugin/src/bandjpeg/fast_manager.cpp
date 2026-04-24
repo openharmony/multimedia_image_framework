@@ -20,19 +20,53 @@
 
 namespace OHOS {
 namespace ImagePlugin {
-FASTManager& FastManager::GetInstance()
+FASTManager& FASTManager::GetInstance()
 {
-    static FastManager instance;
+    static FASTManager instance;
     return instance;
 }
 
-FastManager::FastManager()
+FASTManager::FASTManager()
 {
-    FastHandle_ = dlopen(FASTLib_, RTLD_NOW);
-    CHECK_ERROR_RETURN_LOG(FastHandle_ == nullptr, "FASTManager dlopen FASTlib failed: %{public}s", dlerror());
+    FASTHandle_ = dlopen(FASTLib_, RTLD_NOW);
+    CHECK_ERROR_RETURN_LOG(FASTHandle_ == nullptr, "FASTManager dlopen FASTlib is failed: %{public}s", dlerror());
 
     DecodeImage = reinterpret_cast<fast::image::FastErrCode (*)(const uint8_t*, size_t, uint8_t*, uint32_t, uint32_t,
-        size_t, fast::image::RGBFormat)>(dlsym(FastHandle_, "_"));
+        size_t, fast::image::RGBFormat)>(dlsym(FASTHandle_, "_ZN4fast5image11DecodeImageEPKhmPhjjmNS0_9RGBFormatE"));
+    if (DecodeImage == nullptr) {
+        IMAGE_LOGE("FAST DecodeImage not found: %{public}s", dlerror());
+        dlclose(FASTHandle_);
+        FASTHandle_ = nullptr;
+        DecodeImageYUV = nullptr;
+        isInitialized_ = false;
+        return;
+    }
+    DecodeImageYUV = reinterpret_cast<fast::image::FastErrCode (*)(const uint8_t*, size_t, uint8_t*, uint8_t*,
+        uint32_t, uint32_t, size_t, size_t, fast::image::YUVFormat)>
+        (dlsym(FASTHandle_, "_ZN4fast5image14DecodeImageYUVEPKhmPhS3_jjmmNS0_9YUVFormatE"));
+    if (DecodeImageYUV == nullptr) {
+        IMAGE_LOGE("FAST DecodeImageYUV not found: %{public}s", dlerror());
+        dlclose(FASTHandle_);
+        FASTHandle_ = nullptr;
+        DecodeImage = nullptr;
+        isInitialized_ = false;
+        return;
+    }
+    
+    isInitialized_ = true;
+    IMAGE_LOGI("FASTManager initialized successfully");
 }
+
+FASTManager::~FASTManager()
+{
+    if (FASTHandle_) {
+        dlclose(FASTHandle_);
+        FASTHandle_ = nullptr;
+        DecodeImage = nullptr;
+        DecodeImageYUV = nullptr;
+        isInitialized_ = false;
+    }
 }
-}
+
+} // namespace ImagePlugin
+} // namespace OHOS
