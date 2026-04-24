@@ -838,7 +838,6 @@ void ExtEncoder::RecycleResources()
         memory->Release();
     }
     tmpMemoryList_.clear();
-    processedPixelmap_.reset();
 }
 
 bool ExtEncoder::IsFormatSupportTransparency(const std::string& format) const
@@ -915,21 +914,11 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
         "to fit max size (%{public}d, %{public}d), scale=%{public}f",
         srcWidth, srcHeight, maxWidth, maxHeight, scale);
 
-    int errorCode = SUCCESS;
-    processedPixelmap_ = pixelmap_->Clone(errorCode);
-    if (errorCode != SUCCESS || processedPixelmap_ == nullptr) {
-        IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize clone pixelmap failed, errorCode=%{public}d", errorCode);
-        return ERR_IMAGE_DATA_ABNORMAL;
-    }
-
-    uint32_t scaleRet = processedPixelmap_->Scale(scale, scale, opts_.antiAliasingLevel);
+    uint32_t scaleRet = pixelmap_->Scale(scale, scale, opts_.antiAliasingLevel);
     if (scaleRet != SUCCESS) {
         IMAGE_LOGE("ExtEncoder::ProcessMaxEncodeSize scale failed %{public}u", scaleRet);
-        processedPixelmap_.reset();
         return scaleRet;
     }
-
-    pixelmap_ = processedPixelmap_.get();
     IMAGE_LOGI("ExtEncoder::ProcessMaxEncodeSize scaled to (%{public}d, %{public}d)",
         pixelmap_->GetWidth(), pixelmap_->GetHeight());
     return SUCCESS;
@@ -937,20 +926,15 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
 
 uint32_t ExtEncoder::ProcessBackgroundColor()
 {
-    if (IsFormatSupportTransparency(opts_.format)) {
+    if (IsFormatSupportTransparency(opts_.format) || pixelmap_ == nullptr) {
         return SUCCESS;
-    }
-
-    if (pixelmap_ == nullptr) {
-        return ERR_IMAGE_DATA_ABNORMAL;
     }
 
     PixelFormat pixelFormat = pixelmap_->GetPixelFormat();
     AlphaType alphaType = pixelmap_->GetAlphaType();
-    if (pixelFormat != PixelFormat::RGBA_8888 && pixelFormat != PixelFormat::BGRA_8888) {
-        return SUCCESS;
-    }
-    if (alphaType == AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
+    if (pixelFormat != PixelFormat::RGBA_8888 || alphaType == AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
+        IMAGE_LOGI("ProcessBackgroundColor: format %{public}d or alpha %{public}d not supported",
+            static_cast<int32_t>(pixelFormat), static_cast<int32_t>(alphaType));
         return SUCCESS;
     }
 
@@ -970,20 +954,20 @@ uint32_t ExtEncoder::ProcessBackgroundColor()
 #endif
 
     SkImageInfo skInfo = ToSkInfo(pixelmap_);
-    if (pixelFormat == PixelFormat::BGRA_8888) {
-        skInfo = skInfo.makeColorType(SkColorType::kBGRA_8888_SkColorType);
-    }
-
     SkBitmap bitmap;
     if (!bitmap.installPixels(skInfo, pixels, rowStride)) {
         return ERR_IMAGE_ENCODE_FAILED;
     }
 
+    SkColor bgColor = SkColorSetRGB(SkColorGetR(opts_.backgroundColor),
+        SkColorGetG(opts_.backgroundColor), SkColorGetB(opts_.backgroundColor));
+    IMAGE_LOGI("ProcessBackgroundColor: input 0x%{public}X, output 0x%{public}X", opts_.backgroundColor, bgColor);
+
     SkCanvas canvas(bitmap);
     SkPaint paint;
     paint.setBlendMode(SkBlendMode::kSrcOver);
     canvas.saveLayer(nullptr, &paint);
-    canvas.drawColor(opts_.backgroundColor);
+    canvas.drawColor(bgColor);
     canvas.drawImage(SkImages::RasterFromBitmap(bitmap), 0, 0);
     canvas.restore();
 

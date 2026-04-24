@@ -753,18 +753,13 @@ static bool parsePackOptionOfQuality(napi_env env, napi_value root, PackOption* 
 
 static bool parsePackOptionOfBackgroundColor(napi_env env, napi_value root, PackOption* opts)
 {
-    napi_value tmpValue = nullptr;
-    if (!GET_NODE_BY_NAME(root, "backgroundColor", tmpValue)) {
+    uint32_t tmpValue = 0;
+    if (!GET_UINT32_BY_NAME(root, "backgroundColor", tmpValue)) {
         IMAGE_LOGD("No backgroundColor in pack option, use default");
         return true;
     }
-    uint32_t backgroundColor = 0;
-    if (napi_get_value_uint32(env, tmpValue, &backgroundColor) != napi_ok) {
-        IMAGE_LOGE("Parse backgroundColor failed");
-        return false;
-    }
-    opts->backgroundColor = backgroundColor;
-    IMAGE_LOGD("parsePackOptionOfBackgroundColor: %{public}u", backgroundColor);
+    opts->backgroundColor = tmpValue;
+    IMAGE_LOGD("parsePackOptionOfBackgroundColor: %{public}u", tmpValue);
     return true;
 }
 
@@ -809,19 +804,14 @@ static bool parsePackOptionOfMaxPackOption(napi_env env, napi_value root, PackOp
 
 static bool parsePackOptionOfNeedPackGPS(napi_env env, napi_value root, PackOption* opts)
 {
-    napi_value tmpValue = nullptr;
-    if (!GET_NODE_BY_NAME(root, "needPackGPS", tmpValue)) {
+    bool tmpValue = true;
+    if (!GET_BOOL_BY_NAME(root, "needPackGPS", tmpValue)) {
         IMAGE_LOGD("No needPackGPS in pack option, use default true");
         opts->needPackGPS = true;
         return true;
     }
-    bool needPackGPS = true;
-    if (napi_get_value_bool(env, tmpValue, &needPackGPS) != napi_ok) {
-        IMAGE_LOGE("Parse needPackGPS failed");
-        return false;
-    }
-    opts->needPackGPS = needPackGPS;
-    IMAGE_LOGD("parsePackOptionOfNeedPackGPS: %{public}d", needPackGPS);
+    opts->needPackGPS = tmpValue;
+    IMAGE_LOGD("parsePackOptionOfNeedPackGPS: %{public}d", tmpValue);
     return true;
 }
 
