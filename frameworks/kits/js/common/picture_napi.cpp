@@ -904,6 +904,9 @@ napi_value PictureNapi::GetGainmapPixelmap(napi_env env, napi_callback_info info
 
     if (pictureNapi->nativePicture_ != nullptr) {
         auto gainpixelmap = pictureNapi->nativePicture_->GetGainmapPixelMap();
+        if (gainpixelmap == nullptr) {
+            return nVal.result;
+        }
         nVal.result = PixelMapNapi::CreatePixelMap(env, gainpixelmap);
     } else {
         return ImageNapiUtils::ThrowExceptionError(env, ERR_MEDIA_UNKNOWN, "Picture is a null pointer");
