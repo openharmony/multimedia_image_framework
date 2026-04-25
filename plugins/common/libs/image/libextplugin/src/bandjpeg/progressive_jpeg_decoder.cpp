@@ -25,7 +25,7 @@
 #include "securec.h"
 #include "src/codec/SkJpegCodec.h"
 #include "src/codec/SkJpegDecoderMgr.h"
-#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+#if !defined(CROSS_PLATFORM)
 #include "surface_buffer.h"
 #endif
 
@@ -135,7 +135,7 @@ static bool InitYuvDataInfo(DecodeContext &context, uint32_t width, uint32_t hei
     context.yuvInfo.uvHeight = static_cast<uint32_t>((height + 1) / NUM_2);
     context.yuvInfo.uStride = context.yuvInfo.uvWidth;
     context.yuvInfo.vStride = context.yuvInfo.uvWidth;
-#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+#if !defined(CROSS_PLATFORM)
     if (context.allocatorType == AllocatorType::DMA_ALLOC) {
         auto *surfaceBuffer = reinterpret_cast<SurfaceBuffer *>(context.pixelsBuffer.context);
         if (surfaceBuffer == nullptr) {
