@@ -24,8 +24,6 @@
 #include <linux/dma-buf.h>
 #endif
 
-#include "bandjpeg/fast_manager.h"
-#include "bandjpeg/progressive_jpeg_decoder.h"
 #include "src/codec/SkJpegCodec.h"
 #include "src/codec/SkJpegDecoderMgr.h"
 #include "ext_pixel_convert.h"
@@ -1920,34 +1918,8 @@ JpegYuvFmt ExtDecoder::GetJpegYuvOutFmt(PixelFormat desiredFormat)
     }
 }
 
-uint32_t ExtDecoder::ProgressiveDecode(uint32_t index, DecodeContext &context)
-{
-    if (IsYuv420Format(context.info.pixelFormat)) {
-#if defined(ANDROID_PLATFORM) || defined(IOS_PLATFORM)
-        return ERR_IMAGE_DATA_UNSUPPORT;
-#else
-        uint32_t res = PreDecodeCheckYuv(index, context.info.pixelFormat);
-        CHECK_ERROR_RETURN_RET(res != SUCCESS, res);
-        Size jpgSize = {static_cast<uint32_t>(info_.width()), static_cast<uint32_t>(info_.height())};
-        ProgressiveJpegDecoder::YuvDecodePlan progressivePlan;
-        ProgressiveJpegDecoder::YuvDecodeOptions progressiveOptions = {
-            codec_.get(), jpgSize, desiredSizeYuv_, context.info.pixelFormat, context.ifSourceCompleted,
-            supportRegionFlag_, dstOptions_.fSubset != nullptr, sampleSize_, softSampleSize_
-        };
-        if (!ProgressiveJpegDecoder::BuildYuvDecodePlan(progressiveOptions, progressivePlan)) {
-            return ERR_IMAGE_DECODE_ABNORMAL;
-        }
-    }
-    return SUCCESS;
-}
-
 uint32_t ExtDecoder::ProgressiveDecodeYuv(uint32_t index, DecodeContext &context)
 {
-#if defined(ANDROID_PLATFORM) || defined(IOS_PLATFORM)
-    (void)index;
-    (void)context;
-    return ERR_IMAGE_DATA_UNSUPPORT;
-#else
     uint32_t res = PreDecodeCheckYuv(index, context.info.pixelFormat);
     CHECK_ERROR_RETURN_RET(res != SUCCESS, res);
     Size jpgSize = {static_cast<uint32_t>(info_.width()), static_cast<uint32_t>(info_.height())};
@@ -1984,7 +1956,6 @@ uint32_t ExtDecoder::ProgressiveDecodeYuv(uint32_t index, DecodeContext &context
     }
     dstInfo_ = originalDstInfo;
     return ERR_IMAGE_DATA_UNSUPPORT;
-#endif
 }
  
 uint32_t ExtDecoder::ProgressiveDecodeRgb(uint32_t index, DecodeContext &context)
