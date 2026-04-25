@@ -881,7 +881,7 @@ uint32_t ExtEncoder::ProcessEncodeControlParams()
 
 uint32_t ExtEncoder::ProcessMaxEncodeSize()
 {
-    if (opts_.maxWidth <= 0 && opts_.maxHeight <= 0) {
+    if (opts_.maxSize.width <= 0 && opts_.maxSize.height <= 0) {
         return SUCCESS;
     }
 
@@ -897,8 +897,8 @@ uint32_t ExtEncoder::ProcessMaxEncodeSize()
         return ERR_IMAGE_INVALID_PARAMETER;
     }
 
-    int32_t maxWidth = opts_.maxWidth > 0 ? opts_.maxWidth : srcWidth;
-    int32_t maxHeight = opts_.maxHeight > 0 ? opts_.maxHeight : srcHeight;
+    int32_t maxWidth = opts_.maxSize.width > 0 ? opts_.maxSize.width : srcWidth;
+    int32_t maxHeight = opts_.maxSize.height > 0 ? opts_.maxSize.height : srcHeight;
     if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
         IMAGE_LOGD("ExtEncoder::ProcessMaxEncodeSize image size (%{public}d, %{public}d) "
             "within max bounds (%{public}d, %{public}d), no scaling needed",
@@ -974,41 +974,6 @@ uint32_t ExtEncoder::ProcessBackgroundColor()
     return SUCCESS;
 }
 
-static const std::vector<std::string> GPS_EXIF_KEYS = {
-    "GPSVersionID",
-    "GPSLatitudeRef",
-    "GPSLatitude",
-    "GPSLongitudeRef",
-    "GPSLongitude",
-    "GPSAltitudeRef",
-    "GPSAltitude",
-    "GPSTimeStamp",
-    "GPSSatellites",
-    "GPSStatus",
-    "GPSMeasureMode",
-    "GPSDOP",
-    "GPSSpeedRef",
-    "GPSSpeed",
-    "GPSTrackRef",
-    "GPSTrack",
-    "GPSImgDirectionRef",
-    "GPSImgDirection",
-    "GPSMapDatum",
-    "GPSDestLatitudeRef",
-    "GPSDestLatitude",
-    "GPSDestLongitudeRef",
-    "GPSDestLongitude",
-    "GPSDestBearingRef",
-    "GPSDestBearing",
-    "GPSDestDistanceRef",
-    "GPSDestDistance",
-    "GPSProcessingMethod",
-    "GPSAreaInformation",
-    "GPSDateStamp",
-    "GPSDifferential",
-    "GPSHPositioningError"
-};
-
 uint32_t ExtEncoder::ProcessRemoveGpsInfo()
 {
     if (opts_.needPackGPS) {
@@ -1017,7 +982,7 @@ uint32_t ExtEncoder::ProcessRemoveGpsInfo()
     }
 
     if (pixelmap_ == nullptr) {
-        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo pixelmap_ is nullptr, skip");
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo pixelmap_ is nullptr");
         return SUCCESS;
     }
 
@@ -1027,12 +992,10 @@ uint32_t ExtEncoder::ProcessRemoveGpsInfo()
         return SUCCESS;
     }
 
-    IMAGE_LOGI("ExtEncoder::ProcessRemoveGpsInfo removing GPS information from EXIF");
-
-    for (const std::string& gpsKey : GPS_EXIF_KEYS) {
-        exifMetadata->RemoveEntry(gpsKey);
+    if (!exifMetadata->RemoveGpsInfo()) {
+        IMAGE_LOGE("ExtEncoder::ProcessRemoveGpsInfo RemoveGpsInfo failed");
+        return ERR_IMAGE_ENCODE_FAILED;
     }
-
     return SUCCESS;
 }
 

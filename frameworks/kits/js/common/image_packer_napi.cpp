@@ -751,68 +751,51 @@ static bool parsePackOptionOfQuality(napi_env env, napi_value root, PackOption* 
     return true;
 }
 
-static bool parsePackOptionOfBackgroundColor(napi_env env, napi_value root, PackOption* opts)
+static uint32_t parseBackgroundColor(napi_env env, napi_value root)
 {
     uint32_t tmpValue = 0;
     if (!GET_UINT32_BY_NAME(root, "backgroundColor", tmpValue)) {
-        IMAGE_LOGD("No backgroundColor in pack option, use default");
-        return true;
+        IMAGE_LOGD("No backgroundColor in pack option");
     }
-    opts->backgroundColor = tmpValue;
-    IMAGE_LOGD("parsePackOptionOfBackgroundColor: %{public}u", tmpValue);
-    return true;
+    return tmpValue;
 }
 
-static bool parsePackOptionOfMaxPackOption(napi_env env, napi_value root, PackOption* opts)
+static void parseMaxPackOption(napi_env env, napi_value root, PackOption* opts)
 {
     napi_value maxPackOptionValue = nullptr;
     if (!GET_NODE_BY_NAME(root, "maxPackOption", maxPackOptionValue)) {
-        IMAGE_LOGD("No maxPackOption in pack option, use default");
-        return true;
+        IMAGE_LOGD("No maxPackOption in pack option");
+        return;
     }
-
     napi_value sizeValue = nullptr;
     if (!GET_NODE_BY_NAME(maxPackOptionValue, "size", sizeValue)) {
         IMAGE_LOGD("No size in maxPackOption");
-        return true;
+        return;
     }
-
     int32_t width = 0;
     int32_t height = 0;
-    napi_value widthValue = nullptr;
-    napi_value heightValue = nullptr;
-    if (GET_NODE_BY_NAME(sizeValue, "width", widthValue)) {
-        napi_get_value_int32(env, widthValue, &width);
+    if (!GET_INT32_BY_NAME(sizeValue, "width", width)) {
+        IMAGE_LOGD("No width in maxPackOption size");
     }
-    if (GET_NODE_BY_NAME(sizeValue, "height", heightValue)) {
-        napi_get_value_int32(env, heightValue, &height);
+    if (!GET_INT32_BY_NAME(sizeValue, "height", height)) {
+        IMAGE_LOGD("No height in maxPackOption size");
     }
-    opts->maxWidth = width;
-    opts->maxHeight = height;
-
-    napi_value levelValue = nullptr;
-    if (GET_NODE_BY_NAME(maxPackOptionValue, "level", levelValue)) {
-        int32_t level = 0;
-        if (napi_get_value_int32(env, levelValue, &level) == napi_ok) {
-            opts->antiAliasingLevel = static_cast<AntiAliasingOption>(level);
-        }
+    opts->maxSize.width = width;
+    opts->maxSize.height = height;
+    int32_t level = 0;
+    if (!GET_INT32_BY_NAME(maxPackOptionValue, "level", level)) {
+        IMAGE_LOGD("No level in maxPackOption");
     }
-    IMAGE_LOGD("parsePackOptionOfMaxPackOption: width=%{public}d, height=%{public}d, level=%{public}d",
-        opts->maxWidth, opts->maxHeight, static_cast<int32_t>(opts->antiAliasingLevel));
-    return true;
+    opts->antiAliasingLevel = static_cast<AntiAliasingOption>(level);
 }
 
-static bool parsePackOptionOfNeedPackGPS(napi_env env, napi_value root, PackOption* opts)
+static bool parseNeedPackGPS(napi_env env, napi_value root)
 {
-    bool tmpValue = true;
-    if (!GET_BOOL_BY_NAME(root, "needPackGPS", tmpValue)) {
-        IMAGE_LOGD("No needPackGPS in pack option, use default true");
-        opts->needPackGPS = true;
-        return true;
+    bool tmpNeedPackGPS = true;
+    if (!GET_BOOL_BY_NAME(root, "needPackGPS", tmpNeedPackGPS)) {
+        IMAGE_LOGD("No needPackGPS in pack option");
     }
-    opts->needPackGPS = tmpValue;
-    IMAGE_LOGD("parsePackOptionOfNeedPackGPS: %{public}d", tmpValue);
-    return true;
+    return tmpNeedPackGPS;
 }
 
 static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
@@ -864,17 +847,10 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
     IMAGE_LOGD("parsePackOptions format:[%{public}s]", opts->format.c_str());
     opts->needsPackProperties = parseNeedsPackProperties(env, root);
     opts->maxEmbedThumbnailDimension = parseEmbedThumbnailMaxSize(env, root);
+    opts->backgroundColor = parseBackgroundColor(env, root);
+    parseMaxPackOption(env, root, opts);
+    opts->needPackGPS = parseNeedPackGPS(env, root);
     return parsePackOptionOfQuality(env, root, opts);
-}
-
-static bool parsePackOptionOfEncodeControlParams(napi_env env, napi_value root, PackOption* opts)
-{
-    if (!parsePackOptionOfBackgroundColor(env, root, opts) ||
-        !parsePackOptionOfMaxPackOption(env, root, opts) ||
-        !parsePackOptionOfNeedPackGPS(env, root, opts)) {
-        return false;
-    }
-    return true;
 }
 
 static int32_t ParserPackingArgumentType(napi_env env, napi_value argv)
@@ -993,8 +969,6 @@ static void ParserPackingArguments(napi_env env,
                 "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
         } else {
             BuildMsgOnError(context, parsePackOptions(env, argv[PARAM1], &(context->packOption)),
-                "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
-            BuildMsgOnError(context, parsePackOptionOfEncodeControlParams(env, argv[PARAM1], &(context->packOption)),
                 "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
             context->resultBufferSize = parseBufferSize(env, argv[PARAM1], context);
         }
@@ -1187,8 +1161,6 @@ static void ParserPackToFileArguments(napi_env env,
                 "PackOptions mismatch", COMMON_ERR_INVALID_PARAMETER);
         } else {
             BuildMsgOnError(context, parsePackOptions(env, argv[PARAM2], &(context->packOption)),
-                "PackOptions mismatch", ERR_IMAGE_INVALID_PARAMETER);
-            BuildMsgOnError(context, parsePackOptionOfEncodeControlParams(env, argv[PARAM2], &(context->packOption)),
                 "PackOptions mismatch", ERR_IMAGE_INVALID_PARAMETER);
         }
     }
