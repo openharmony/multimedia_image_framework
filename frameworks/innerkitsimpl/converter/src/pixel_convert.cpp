@@ -1731,7 +1731,7 @@ static int32_t ConvertAlphaF16ToYUV(const BufferInfo &src, BufferInfo &dst)
     tmpSrc.pixels = tmpBuffer.get();
     tmpSrc.rowStride = PixelMap::GetRGBxRowDataSize(tmpInfo);
     tmpSrc.imageInfo = tmpInfo;
-    tmpSrc.length = tmpLength;
+    tmpSrc.length = static_cast<uint32_t>(tmpLength);
     return ConvertToP010(tmpSrc, dst);
 }
 
