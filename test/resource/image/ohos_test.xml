@@ -111,6 +111,9 @@
             <option name="push" value="images/xmp/gif_xmp.gif -> /data/local/tmp/image" src="res"/>
             <option name="push" value="images/xmp/dng_xmp.dng -> /data/local/tmp/image" src="res"/>
             <option name="push" value="images/xmp/tiff_xmp.tiff -> /data/local/tmp/image" src="res"/>
+            <option name="push" value="images/read_test.tiff -> /data/local/tmp/image" src="res"/>
+            <option name="push" value="images/bird_burst.heic -> /data/local/tmp/image" src="res"/>
+            <option name="push" value="images/test002.png -> /data/local/tmp/image" src="res"/>
             <option name="push" value="images/test_dng_mock.dng -> /data/local/tmp/image" src="res"/>
             <option name="push" value="images/loop_count_9.webp -> /data/local/tmp/image" src="res"/>
             <option name="push" value="images/single_webp.webp -> /data/local/tmp/image" src="res"/>
@@ -590,6 +593,14 @@
         </preparer>
     </target>
     <target name="avif_decode_test">
+        <preparer>
+            <option name="push" value="images/8bit_I420_497_323.avif -> /data/local/tmp/image" src="res"/>
+            <option name="push" value="images/10bit_I010_1080_720.avif -> /data/local/tmp/image" src="res"/>
+            <option name="push" value="images/bird_8bit_I420_599x359_fps10.avif -> /data/local/tmp/image" src="res"/>
+            <option name="push" value="images/lizard_10bit_I010_599x338_fps24.avif -> /data/local/tmp/image" src="res"/>
+        </preparer>
+    </target>
+    <target name="ImageAvifDecodeFuzzTest">
         <preparer>
             <option name="push" value="images/8bit_I420_497_323.avif -> /data/local/tmp/image" src="res"/>
             <option name="push" value="images/10bit_I010_1080_720.avif -> /data/local/tmp/image" src="res"/>
