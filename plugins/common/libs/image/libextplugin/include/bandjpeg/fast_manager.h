@@ -48,13 +48,13 @@ namespace ImagePlugin {
 
 class FASTManager {
 public:
-    static FastManager& GetInstance();
+    static FASTManager& GetInstance();
 
     bool IsInitialized() const { return initialized_; }
 
     fast::image::FastErrCode (*DecodeImage)(const uint8_t*, size_t, uint8_t*, uint32_t,
         uint32_t, size_t, fast::image::RGBFormat) = nullptr;
-    fast::image::FastErrCode (*DecodeImageYUV)(const uint8_t*, size_t, uint8_t*, uint8_t*, uint_32_t, 
+    fast::image::FastErrCode (*DecodeImageYUV)(const uint8_t*, size_t, uint8_t*, uint8_t*, uint32_t,
         uint32_t, size_t, size_t, fast::image::YUVFormat) = nullptr;
 
 private:
