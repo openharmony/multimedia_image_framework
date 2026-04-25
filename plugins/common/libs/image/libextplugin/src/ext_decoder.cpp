@@ -1076,13 +1076,17 @@ static void FreeContextBuffer(const Media::CustomFreePixelMap &func, AllocatorTy
 
 static void ResetProgressiveBuffer(DecodeContext &context)
 {
+#if !defined(CROSS_PLATFORM)
     FreeContextBuffer(context.freeFunc, context.allocatorType, context.pixelsBuffer);
     ProgressiveJpegDecoder::ResetDecodeContextPixelsBuffer(context);
+#else
+    (void)context;
+#endif
 }
  
 static void FlushProgressiveBuffer(DecodeContext &context)
 {
-#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
+#if !defined(CROSS_PLATFORM)
     if (context.allocatorType != AllocatorType::DMA_ALLOC) {
         return;
     }

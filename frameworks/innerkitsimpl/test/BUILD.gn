@@ -1327,6 +1327,42 @@ ohos_unittest("jpeg_hw_decoder_test") {
   }
 }
 
+ohos_unittest("progressive_jpeg_decoder_test") {
+  module_out_path = module_output_path
+ 
+  if (is_ohos) {
+    defines = [ "SK_ENABLE_OHOS_CODEC" ]
+  }
+  sources = [
+    "${image_subsystem}/frameworks/innerkitsimpl/test/unittest/plugin_test/progressive_jpeg_decoder_test.cpp",
+  ]
+ 
+  include_dirs = [
+    "${image_subsystem}/frameworks/innerkitsimpl/test/unittest/mock/",
+    "${image_subsystem}/plugins/common/libs/image/libextplugin/include/",
+    "${image_subsystem}/plugins/common/libs/image/libextplugin/include/bandjpeg/",
+    "${image_subsystem}/plugins/manager/include/",
+    "${image_subsystem}/plugins/manager/include/pluginbase/",
+    "${image_subsystem}/interfaces/innerkits/include/",
+  ]
+ 
+  deps = [
+    "${image_subsystem}/interfaces/innerkits:image_native",
+    "${image_subsystem}/plugins/common/libs/image/libextplugin:extplugin",
+  ]
+ 
+  external_deps = [
+    "googletest:gtest_main",
+    "skia:libjpegm133",
+    "skia:skia_canvaskit",
+  ]
+  resource_config_file = "$image_subsystem/test/resource/image/ohos_test.xml"
+  cflags = [
+    "-Dprivate=public",
+    "-Dprotected=public",
+  ]
+}
+
 ohos_unittest("heif_decode_impl_test") {
   module_out_path = module_output_path
   resource_config_file = "$image_subsystem/test/resource/image/ohos_test.xml"
