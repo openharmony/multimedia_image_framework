@@ -305,7 +305,7 @@ unique_ptr<PixelMap> PixelMap::Create(const uint32_t *colors, uint32_t colorLeng
                                       const InitializationOptions &opts)
 {
     IMAGE_LOGD("PixelMap::Create2 enter");
-    return Create(colors, colorLength, offset, width, opts, true);
+    return Create(colors, colorLength, 0, opts.size.width, opts, true);
 }
 
 unique_ptr<PixelMap> PixelMap::Create(const uint32_t *colors, uint32_t colorLength, int32_t offset, int32_t width,

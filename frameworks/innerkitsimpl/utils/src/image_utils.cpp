@@ -2246,8 +2246,8 @@ bool ImageUtils::CheckPixelsInput(PixelMap* pixelMap, const RWPixelsOptions &opt
     }
     if (rect.left < 0 || rect.top < 0 || opts.stride > numeric_limits<int32_t>::max() ||
         static_cast<uint64_t>(opts.offset) > opts.bufferSize) {
-        IMAGE_LOGE("CheckPixelsInput left(%{public}d) or top(%{public}d) or stride(%{public}u) or "
-            "offset(%{public}u) < 0.", rect.left, rect.top, opts.stride, opts.offset);
+        IMAGE_LOGE("CheckPixelsInput left(%{public}d) or top(%{public}d) or stride(%{public}u) or offset(%{public}u) "
+            "is invalid.", rect.left, rect.top, opts.stride, opts.offset);
         return false;
     }
     if (rect.width <= 0 || rect.height <= 0 || rect.width > MAX_DIMENSION || rect.height > MAX_DIMENSION) {
@@ -2275,7 +2275,7 @@ bool ImageUtils::CheckPixelsInput(PixelMap* pixelMap, const RWPixelsOptions &opt
             ") is less than regionStride (%{public}u).", opts.stride, opts.bufferSize, regionStride);
         return false;
     }
-    // Minus NUM_1 is except the last line.
+    // Minus 1 is to except the last line.
     uint64_t lastLinePos = opts.offset + static_cast<uint64_t>(rect.height - NUM_1) * opts.stride;
     if (static_cast<uint64_t>(opts.offset) > (opts.bufferSize - regionStride) ||
         lastLinePos > (opts.bufferSize - regionStride)) {
