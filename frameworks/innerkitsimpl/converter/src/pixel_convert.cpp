@@ -1702,6 +1702,39 @@ static bool IsInterYUVConvert(PixelFormat srcPixelFormat, PixelFormat dstPixelFo
         (dstPixelFormat == PixelFormat::NV12 || dstPixelFormat == PixelFormat::NV21);
 }
 
+static int32_t ConvertAlphaF16ToYUV(const BufferInfo &src, BufferInfo &dst)
+{
+    ImageInfo tmpInfo = src.imageInfo;
+    tmpInfo.pixelFormat = PixelFormat::BGRA_8888;
+    tmpInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+    int32_t tmpLength = PixelMap::GetRGBxByteCount(tmpInfo);
+    CHECK_ERROR_RETURN_RET_LOG(tmpLength <= 0, CONVERT_ERROR,
+        "[PixelMap]Convert: Get ALPHA_F16 temp BGRA buffer length failed.");
+
+    std::unique_ptr<uint8_t[]> tmpBuffer = std::make_unique<uint8_t[]>(tmpLength);
+    CHECK_ERROR_RETURN_RET_LOG(tmpBuffer == nullptr, CONVERT_ERROR,
+        "[PixelMap]Convert: alloc ALPHA_F16 temp BGRA buffer failed.");
+    memset_s(tmpBuffer.get(), tmpLength, 0, tmpLength);
+
+    Position pos;
+    bool converted = PixelConvertAdapter::WritePixelsConvert(src.pixels,
+        src.rowStride == 0 ? PixelMap::GetRGBxRowDataSize(src.imageInfo) : src.rowStride, src.imageInfo,
+        tmpBuffer.get(), pos, PixelMap::GetRGBxRowDataSize(tmpInfo), tmpInfo);
+    CHECK_ERROR_RETURN_RET_LOG(!converted, CONVERT_ERROR,
+        "[PixelMap]Convert: ALPHA_F16 temp BGRA convert failed.");
+
+    if (dst.imageInfo.pixelFormat == PixelFormat::NV12 || dst.imageInfo.pixelFormat == PixelFormat::NV21) {
+        return ConvertToYUV(tmpBuffer.get(), tmpLength, tmpInfo, dst.pixels, dst.imageInfo);
+    }
+
+    BufferInfo tmpSrc = src;
+    tmpSrc.pixels = tmpBuffer.get();
+    tmpSrc.rowStride = PixelMap::GetRGBxRowDataSize(tmpInfo);
+    tmpSrc.imageInfo = tmpInfo;
+    tmpSrc.length = static_cast<uint32_t>(tmpLength);
+    return ConvertToP010(tmpSrc, dst);
+}
+
 int32_t PixelConvert::PixelsConvert(const BufferInfo &src, BufferInfo &dst, bool useDMA)
 {
     CHECK_ERROR_RETURN_RET_LOG(!(IsValidBufferInfo(src) && IsValidBufferInfo(dst)), CONVERT_ERROR,
@@ -1731,13 +1764,49 @@ int32_t PixelConvert::CopySrcBufferAndConvert(const BufferInfo &src, BufferInfo 
         PixelMap::GetRGBxByteCount(dst.imageInfo) : CONVERT_ERROR;
 }
 
+static bool TryYUVPixelsConvert(const BufferInfo &src, BufferInfo &dst, int32_t srcLength, int32_t &dstLength)
+{
+    PixelFormat srcPixelFormat = src.imageInfo.pixelFormat;
+    PixelFormat dstPixelFormat = dst.imageInfo.pixelFormat;
+    if (IsInterYUVConvert(srcPixelFormat, dstPixelFormat) ||
+        (IsYUVP010Format(srcPixelFormat) && IsYUVP010Format(dstPixelFormat))) {
+        dstLength = YUVConvert(src, srcLength, dst);
+        return true;
+    }
+    if (srcPixelFormat == PixelFormat::NV12 || srcPixelFormat == PixelFormat::NV21) {
+        dstLength = ConvertFromYUV(src, srcLength, dst);
+        return true;
+    }
+    if (dstPixelFormat == PixelFormat::NV12 || dstPixelFormat == PixelFormat::NV21) {
+        dstLength = ConvertToYUV(src.pixels, srcLength, src.imageInfo, dst.pixels, dst.imageInfo);
+        return true;
+    }
+    if (IsYUVP010Format(srcPixelFormat)) {
+        dstLength = ConvertFromP010(src.pixels, srcLength, src.imageInfo, dst.pixels, dst.imageInfo);
+        return true;
+    }
+    if (IsYUVP010Format(dstPixelFormat)) {
+        dstLength = ConvertToP010(src, dst);
+        return true;
+    }
+    return false;
+}
+
 int32_t PixelConvert::PixelsConvert(const BufferInfo &src, BufferInfo &dst, int32_t srcLength, bool useDMA)
 {
     bool cond = IsValidBufferInfo(src) && IsValidBufferInfo(dst) && srcLength > 0;
     CHECK_ERROR_RETURN_RET_LOG(!cond, CONVERT_ERROR,
-        "[PixelMap]Convert: pixels or image info or row stride or src pixels length invalid.");
+        "PixelsConvert: pixels or image info or row stride or src pixels length invalid.");
+    PixelFormat srcPixelFormat = src.imageInfo.pixelFormat;
+    PixelFormat dstPixelFormat = dst.imageInfo.pixelFormat;
 
-    if (dst.imageInfo.pixelFormat == PixelFormat::ARGB_8888) {
+    if (srcPixelFormat == PixelFormat::ALPHA_F16 &&
+        (dstPixelFormat == PixelFormat::NV12 || dstPixelFormat == PixelFormat::NV21 ||
+        IsYUVP010Format(dstPixelFormat))) {
+        return ConvertAlphaF16ToYUV(src, dst);
+    }
+
+    if (dstPixelFormat == PixelFormat::ARGB_8888) {
         if (useDMA || (src.imageInfo.size.width % EVEN_ALIGNMENT == 0 &&
             src.imageInfo.size.height % EVEN_ALIGNMENT == 0)) {
             return ConvertAndCollapseByFFMpeg(src.pixels, src.imageInfo, dst.pixels, dst.imageInfo, useDMA) ?
@@ -1746,18 +1815,9 @@ int32_t PixelConvert::PixelsConvert(const BufferInfo &src, BufferInfo &dst, int3
             return CopySrcBufferAndConvert(src, dst, srcLength, useDMA);
         }
     }
-    if (IsInterYUVConvert(src.imageInfo.pixelFormat, dst.imageInfo.pixelFormat) ||
-        (IsYUVP010Format(src.imageInfo.pixelFormat) && IsYUVP010Format(dst.imageInfo.pixelFormat))) {
-        return YUVConvert(src, srcLength, dst);
-    }
-    if (src.imageInfo.pixelFormat == PixelFormat::NV12 || src.imageInfo.pixelFormat == PixelFormat::NV21) {
-        return ConvertFromYUV(src, srcLength, dst);
-    } else if (dst.imageInfo.pixelFormat == PixelFormat::NV12 || dst.imageInfo.pixelFormat == PixelFormat::NV21) {
-        return ConvertToYUV(src.pixels, srcLength, src.imageInfo, dst.pixels, dst.imageInfo);
-    } else if (IsYUVP010Format(src.imageInfo.pixelFormat)) {
-        return ConvertFromP010(src.pixels, srcLength, src.imageInfo, dst.pixels, dst.imageInfo);
-    } else if (IsYUVP010Format(dst.imageInfo.pixelFormat)) {
-        return ConvertToP010(src, dst);
+    int32_t dstLength = 0;
+    if (TryYUVPixelsConvert(src, dst, srcLength, dstLength)) {
+        return dstLength;
     }
 
     Position pos;
@@ -1771,8 +1831,7 @@ int32_t PixelConvert::PixelsConvert(const BufferInfo &src, BufferInfo &dst, int3
     cond = PixelConvertAdapter::WritePixelsConvert(src.pixels,
         src.rowStride == 0 ? PixelMap::GetRGBxRowDataSize(src.imageInfo) : src.rowStride, src.imageInfo,
         dst.pixels, pos, useDMA ? dst.rowStride : PixelMap::GetRGBxRowDataSize(dst.imageInfo), dst.imageInfo);
-    CHECK_ERROR_RETURN_RET_LOG(!cond, CONVERT_ERROR,
-        "[PixelMap]Convert: PixelsConvert: pixel convert in adapter failed.");
+    CHECK_ERROR_RETURN_RET_LOG(!cond, CONVERT_ERROR, "PixelsConvert: pixel convert in adapter failed.");
 
     return PixelMap::GetRGBxByteCount(dst.imageInfo);
 }

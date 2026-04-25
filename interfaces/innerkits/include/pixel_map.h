@@ -947,6 +947,7 @@ protected:
     friend class OHOS::Rosen::RSMarshallingHelper;
     friend class OHOS::Rosen::RSProfiler;
     static bool ALPHA8ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
+    static bool ALPHAF16ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
     static bool RGB565ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
     static bool ARGB8888ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
     static bool RGBA8888ToARGB(const uint8_t *in, uint32_t inCount, uint32_t *out, uint32_t outCount);
@@ -1084,6 +1085,8 @@ protected:
     uint32_t versionId_ = 1;
     std::shared_ptr<std::shared_mutex> versionMutex_ = std::make_shared<std::shared_mutex>();
 private:
+    uint32_t ScaleWithSLR(float xAxis, float yAxis);
+
     NATIVEEXPORT bool IsDisplayOnly()
     {
         return displayOnly_;

@@ -221,7 +221,7 @@ public:
         int height, const std::shared_ptr<PixelMap> &reusePixelmap);
     static bool IsYuvFormat(PixelFormat format);
     static bool IsRGBX(PixelFormat format);
-    static bool IsAlpha(PixelFormat format);
+    static bool IsAlpha8(PixelFormat format);
     static bool PixelMapCreateCheckFormat(PixelFormat format);
     static bool CheckTlvSupportedFormat(PixelFormat format);
     static uint16_t GetReusePixelRefCount(const std::shared_ptr<PixelMap> &reusePixelmap);

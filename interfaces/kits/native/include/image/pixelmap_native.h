@@ -144,6 +144,11 @@ typedef enum {
      * @since 26.0.0
      */
     PIXEL_FORMAT_ALPHA_U8 = 15,
+    /*
+     * ALPHA_F16 format
+     * @since 26.0.0
+     */
+    PIXEL_FORMAT_ALPHA_F16 = 16,
 } PIXEL_FORMAT;
 
 typedef enum {
