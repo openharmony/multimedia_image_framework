@@ -84,6 +84,11 @@ static const std::string IMAGE_INPUT1_DNG_PATH = "/data/local/tmp/image/test_dng
 static const std::string IMAGE_INPUT2_DNG_PATH = "/data/local/tmp/image/test_dng_mock.dng";
 static const std::string IMAGE_INPUT_WEBP_ANIM_PATH = "/data/local/tmp/image/loop_count_9.webp";
 static const std::string IMAGE_INPUT_WEBP_SINGLE_PATH = "/data/local/tmp/image/single_webp.webp";
+static const std::string IMAGE_INPUT_TIFF_READ_TEST_PATH = "/data/local/tmp/image/read_test.tiff";
+static const std::string IMAGE_GET_PROPERTY_BY_TYPE_HEIFS_PATH = "/data/local/tmp/image/bird_burst.heic";
+static const std::string IMAGE_GET_PROPERTY_BY_TYPE_GIF_KV_PATH = "/data/local/tmp/image/moving_test.gif";
+static const std::string IMAGE_GET_PROPERTY_BY_TYPE_PNG_KV_PATH = "/data/local/tmp/image/test002.png";
+static const std::string IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH = "/data/local/tmp/image/jpeg_exif_thumbnail.jpg";
 static const int32_t DECODE_DESIRED_WIDTH = 7500;
 static const int32_t DECODE_DESIRED_HEIGHT = 7500;
 static const int32_t DESIRED_REGION_WIDTH = 4096;
@@ -95,6 +100,7 @@ static const int32_t IMAGE_INPUT_JPG_HEIGHT = 500;
 static const uint32_t MAX_SOURCE_SIZE = 300 * 1024 * 1024;
 static const uint32_t NUM_1 = 1;
 static const uint32_t NUM_2 = 2;
+static const uint32_t NUM_6 = 6;
 static const uint32_t NUM_10 = 10;
 static const uint32_t NUM_64 = 64;
 static const uint32_t TRUE_SETTING = 0;
@@ -120,6 +126,56 @@ static const uint32_t INPUT_WEBP_ANIM_DELAYTIME_MS_1 = 1;
 static const uint32_t INPUT_WEBP_ANIM_DELAYTIME_MS_100 = 100;
 static const uint32_t INPUT_WEBP_ANIM_DELAYTIME_MS_150 = 150;
 static const uint32_t INPUT_WEBP_ANIM_LOOPCOUNT = 9;
+static const uint32_t GIF_DELAYTIME = 100;
+static const uint32_t GIF_UNCLAMPED_DELAYTIME = 70;
+static const bool GIF_HAS_GLOBAL_COLOR_MAP = true;
+static const uint32_t GIF_LOOP_COUNT = 0;
+static const uint32_t GIF_DISPOSAL_TYPE = 1;
+static const uint32_t GIF_CANVAS_PIXEL_HEIGHT = 202;
+static const uint32_t GIF_CANVAS_PIXEL_WIDTH = 198;
+static const uint32_t JFIF_DENSITY_UNIT = 0;
+static const uint32_t JFIF_X_DENSITY = 1;
+static const uint32_t JFIF_Y_DENSITY = 1;
+static const bool JFIF_IS_PROGRESSIVE = false;
+static const uint32_t JFIF_VERSION = 1;
+static const std::string PNG_SOFTWARE = "Python pypng Script";
+static const std::string PNG_DISCLAIMER = "For internal use only";
+static const std::string PNG_COPYRIGHT = "Copyright (C) 2026 QA Team";
+static const uint32_t PNG_INTERLACE_TYPE = 0;
+static const std::string PNG_COMMENT = "Generated for testing purposes";
+static const std::string PNG_AUTHOR = "Test Engineer";
+static const std::string PNG_CREATION_TIME = "2026-03-19 10:00:00";
+static const std::string PNG_MODIFICATION_TIME = "2026-03-19 10:05:00";
+static const double PNG_GAMMA = 0.45455;
+static const uint32_t PNG_X_PIXELS_PERMETER = 3780;
+static const uint32_t PNG_Y_PIXELS_PERMETER = 3780;
+static const uint32_t PNG_SRGB = 0;
+static const std::string PNG_TITLE = "Complete Test Image";
+static const std::string PNG_WARNING = "Do not modify this metadata!";
+static const uint32_t TIFF_COMPRESSION = 1;
+static const uint32_t TIFF_PHOTOMETRIC_INTERPRETATION = 2;
+static const uint32_t TIFF_ORIENTATION = 1;
+static const uint32_t TIFF_RESOLUTION_UNIT = 2;
+static const double TIFF_X_RESOLUTION = 72;
+static const double TIFF_Y_RESOLUTION = 72;
+static const uint32_t TIFF_TILE_LENGTH = NUM_64;
+static const uint32_t TIFF_TILE_WIDTH = NUM_64;
+static const double TIFF_WHITE_POINT[2] = {0.3127, 0.329};
+static const double TIFF_PRIMARY_CHROMATICITIES[6] = {0.64, 0.33, 0.3, 0.6, 0.15, 0.06};
+static const std::string TIFF_TRANSFER_FUNCTION_PREFIX = "0,257,514,771,1028";
+static const std::string TIFF_DOCUMENT_NAME = "Test Document";
+static const std::string TIFF_IMAGE_DESCRIPTION = "Test image with comprehensive tags";
+static const std::string TIFF_ARTIST = "Test Artist";
+static const std::string TIFF_COPYRIGHT = "Copyright (c) 2025 Test";
+static const std::string TIFF_DATE_TIME = "2025:03:04 12:00:00";
+static const std::string TIFF_MAKE = "TestCam";
+static const std::string TIFF_MODEL = "TestModel 1.0";
+static const std::string TIFF_SOFTWARE = "libtiff generate_tiff_with_tags";
+static const std::string TIFF_HOST_COMPUTER = "TestHost";
+static const uint32_t HEIFS_DELAYTIME = 33;
+static const uint32_t HEIFS_UNCLAMPED_DELAYTIME = 33;
+static const uint32_t HEIFS_CANVAS_WIDTH = 640;
+static const uint32_t HEIFS_CANVAS_HEIGHT = 360;
 
 static const std::vector<std::pair<std::string, std::string>> VALID_PROPERTIES = {
     {"ImageLength", "1000"},
@@ -164,6 +220,26 @@ std::vector<uint8_t> MockIccProfile()
     std::copy(iccDeviceClass, iccDeviceClass + ICC_FIELD_LEN, icc.begin() + ICC_DEVICE_CLASS_OFFSET);
     std::copy(iccColorSpace, iccColorSpace + ICC_FIELD_LEN, icc.begin() + ICC_COLOR_SPACE_OFFSET);
     return icc;
+}
+
+static bool MetadataListHasKey(const std::vector<MetadataValue>& props, const std::string& key)
+{
+    for (const auto& p : props) {
+        if (p.key == key) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ClearMetadataValue(MetadataValue &value)
+{
+    value.key.clear();
+    value.type = PropertyValueType::UNKNOWN;
+    value.stringValue.clear();
+    value.intArrayValue.clear();
+    value.doubleArrayValue.clear();
+    value.bufferValue.clear();
 }
 
 static bool IsSameValue(MetadataValue value1, MetadataValue value2)
@@ -4121,6 +4197,451 @@ HWTEST_F(ImageSourceTest, GetImagePropertyByTypeTest005, TestSize.Level3)
     GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeTest005 end";
 }
 
+/**
+ * @tc.name: GetImagePropertyByTypeKvMetadataHeifsTest001
+ * @tc.desc: GetImagePropertyByType with HEIFS image
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetImagePropertyByTypeKvMetadataHeifsTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataHeifsTest001 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_HEIFS_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "HeifsDelayTime", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], HEIFS_DELAYTIME);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "HeifsUnclampedDelayTime", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], HEIFS_UNCLAMPED_DELAYTIME);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "HeifsCanvasHeight", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], HEIFS_CANVAS_HEIGHT);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "HeifsCanvasWidth", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], HEIFS_CANVAS_WIDTH);
+    ClearMetadataValue(v);
+    }
+}
+
+/**
+ * @tc.name: GetImagePropertyByTypeKvMetadataGifTest001
+ * @tc.desc: GetImagePropertyByType with GIF image
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetImagePropertyByTypeKvMetadataGifTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataGifTest001 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_GIF_KV_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    uint32_t errorCode = 0;
+    uint32_t frameCount = imageSource->GetFrameCount(errorCode);
+    EXPECT_EQ(errorCode, SUCCESS);
+    MetadataValue v;
+    for (uint32_t i = 0; i < frameCount; i++) {
+        uint32_t ret = imageSource->GetImagePropertyByType(i, "GifDelayTime", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_DELAYTIME);
+        ClearMetadataValue(v);
+
+        ret = imageSource->GetImagePropertyByType(i, "GifDisposalType", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_DISPOSAL_TYPE);
+        ClearMetadataValue(v);
+
+        ret = imageSource->GetImagePropertyByType(i, "GifCanvasWidth", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_CANVAS_PIXEL_WIDTH);
+        ClearMetadataValue(v);
+
+        ret = imageSource->GetImagePropertyByType(i, "GifCanvasHeight", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_CANVAS_PIXEL_HEIGHT);
+        ClearMetadataValue(v);
+
+        ret = imageSource->GetImagePropertyByType(i, "GifHasGlobalColorMap", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_HAS_GLOBAL_COLOR_MAP);
+        ClearMetadataValue(v);
+
+        ret = imageSource->GetImagePropertyByType(i, "GifUnclampedDelayTime", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_UNCLAMPED_DELAYTIME);
+        ClearMetadataValue(v);
+
+        ret = imageSource->GetImagePropertyByType(i, "GifLoopCount", v);
+        EXPECT_EQ(ret, SUCCESS);
+        ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+        EXPECT_EQ(v.intArrayValue[0], GIF_LOOP_COUNT);
+        ClearMetadataValue(v);
+    }
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataGifTest001 end";
+}
+
+/**
+ * @tc.name: GetImagePropertyByTypeKvMetadataPngTest001
+ * @tc.desc: GetImagePropertyByType with PNG image
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetImagePropertyByTypeKvMetadataPngTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataPngTest001 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_PNG_KV_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "PngXPixelsPerMeter", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], PNG_X_PIXELS_PERMETER);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngYPixelsPerMeter", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], PNG_Y_PIXELS_PERMETER);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngGamma", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.doubleArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.doubleArrayValue[0], PNG_GAMMA);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngInterlaceType", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], PNG_INTERLACE_TYPE);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngSRGBIntent", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], PNG_SRGB);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngTitle", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_TITLE);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngComment", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_COMMENT);
+    ClearMetadataValue(v);
+
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataPngTest001 end";
+}
+
+/**
+ * @tc.name: GetImagePropertyByTypeKvMetadataPngTest002
+ * @tc.desc: GetImagePropertyByType with PNG image
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetImagePropertyByTypeKvMetadataPngTest002, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataPngTest002 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_PNG_KV_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    auto ret = imageSource->GetImagePropertyByType(0, "PngDisclaimer", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_DISCLAIMER);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngWarning", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_WARNING);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngAuthor", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_AUTHOR);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngCopyright", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_COPYRIGHT);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngCreationTime", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_CREATION_TIME);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngModificationTime", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_MODIFICATION_TIME);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "PngSoftware", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue, PNG_SOFTWARE);
+    ClearMetadataValue(v);
+
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataPngTest002 end";
+}
+
+/**
+ * @tc.name: GetImagePropertyByTypeKvMetadataJfifTest001
+ * @tc.desc: GetImagePropertyByType with JPEG (JFIF) image
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetImagePropertyByTypeKvMetadataJfifTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataJfifTest001 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "JfifXDensity", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], JFIF_X_DENSITY);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "JfifYDensity", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], JFIF_Y_DENSITY);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "JfifDensityUnit", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], JFIF_DENSITY_UNIT);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "JfifVersion", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_2);
+    EXPECT_EQ(v.intArrayValue[0], JFIF_VERSION);
+    EXPECT_EQ(v.intArrayValue[1], JFIF_VERSION);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "JfifIsProgressive", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], JFIF_IS_PROGRESSIVE);
+    ClearMetadataValue(v);
+
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetImagePropertyByTypeKvMetadataJfifTest001 end";
+}
+
+/**
+ * @tc.name: GetTiffImagePropertyByTypeTest001
+ * @tc.desc: read_test.tiff — UINT16 TIFF tags (compression, photometric, orientation, resolution unit).
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetTiffImagePropertyByTypeTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest001 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_TIFF_READ_TEST_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "TiffCompression", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], TIFF_COMPRESSION);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffPhotometricInterpretation", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], TIFF_PHOTOMETRIC_INTERPRETATION);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffOrientation", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], TIFF_ORIENTATION);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffResolutionUnit", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(v.intArrayValue[0], TIFF_RESOLUTION_UNIT);
+    ClearMetadataValue(v);
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest001 end";
+}
+/**
+ * @tc.name: GetTiffImagePropertyByTypeTest002
+ * @tc.desc: read_test.tiff — resolution (float) and tile size (uint32).
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetTiffImagePropertyByTypeTest002, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest002 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_TIFF_READ_TEST_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "TiffXResolution", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.doubleArrayValue.size(), NUM_1);
+    EXPECT_TRUE(ImageUtils::FloatEqual(static_cast<float>(v.doubleArrayValue[0]),
+        static_cast<float>(TIFF_X_RESOLUTION)));
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffYResolution", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.doubleArrayValue.size(), NUM_1);
+    EXPECT_TRUE(ImageUtils::FloatEqual(static_cast<float>(v.doubleArrayValue[0]),
+        static_cast<float>(TIFF_Y_RESOLUTION)));
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffTileLength", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(static_cast<uint32_t>(v.intArrayValue[0]), TIFF_TILE_LENGTH);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffTileWidth", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.intArrayValue.size(), NUM_1);
+    EXPECT_EQ(static_cast<uint32_t>(v.intArrayValue[0]), TIFF_TILE_WIDTH);
+    ClearMetadataValue(v);
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest002 end";
+}
+
+/**
+ * @tc.name: GetTiffImagePropertyByTypeTest003
+ * @tc.desc: read_test.tiff — white point and primary chromaticities.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetTiffImagePropertyByTypeTest003, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest003 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_TIFF_READ_TEST_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "TiffWhitePoint", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.doubleArrayValue.size(), NUM_2);
+    EXPECT_TRUE(ImageUtils::FloatEqual(static_cast<float>(v.doubleArrayValue[0]),
+        static_cast<float>(TIFF_WHITE_POINT[0])));
+    EXPECT_TRUE(ImageUtils::FloatEqual(static_cast<float>(v.doubleArrayValue[1]),
+        static_cast<float>(TIFF_WHITE_POINT[1])));
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffPrimaryChromaticities", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_EQ(v.doubleArrayValue.size(), NUM_6);
+    for (size_t i = 0; i < 6; i++) {
+        EXPECT_TRUE(ImageUtils::FloatEqual(static_cast<float>(v.doubleArrayValue[i]),
+            static_cast<float>(TIFF_PRIMARY_CHROMATICITIES[i])));
+        ClearMetadataValue(v);
+    }
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest003 end";
+}
+
+/**
+ * @tc.name: GetTiffImagePropertyByTypeTest004
+ * @tc.desc: read_test.tiff — transfer function string prefix.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetTiffImagePropertyByTypeTest004, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest004 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_TIFF_READ_TEST_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "TiffTransferFunction", v);
+    EXPECT_EQ(ret, SUCCESS);
+    ASSERT_FALSE(v.stringValue.empty());
+    EXPECT_EQ(v.stringValue.rfind(TIFF_TRANSFER_FUNCTION_PREFIX, 0), 0U);
+    ClearMetadataValue(v);
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest004 end";
+}
+
+/**
+ * @tc.name: GetTiffImagePropertyByTypeTest005
+ * @tc.desc: read_test.tiff — ASCII TIFF tags (document through host computer).
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetTiffImagePropertyByTypeTest005, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest005 start";
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_TIFF_READ_TEST_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    MetadataValue v;
+
+    uint32_t ret = imageSource->GetImagePropertyByType(0, "TiffDocumentName", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_DOCUMENT_NAME);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffImageDescription", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_IMAGE_DESCRIPTION);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffArtist", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_ARTIST);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffCopyright", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_COPYRIGHT);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffDateTime", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_DATE_TIME);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffMake", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_MAKE);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffModel", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_MODEL);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffSoftware", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_SOFTWARE);
+    ClearMetadataValue(v);
+
+    ret = imageSource->GetImagePropertyByType(0, "TiffHostComputer", v);
+    EXPECT_EQ(ret, SUCCESS);
+    EXPECT_EQ(v.stringValue, TIFF_HOST_COMPUTER);
+    ClearMetadataValue(v);
+    GTEST_LOG_(INFO) << "ImageSourceTest: GetTiffImagePropertyByTypeTest005 end";
+}
+
 static uint8_t* LoadFileToBuffer(const std::string& path, size_t& size)
 {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -4300,6 +4821,77 @@ HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest003, TestSize.Level3)
         }
     }
     GTEST_LOG_(INFO) << "ImageSourceTest: GetAllPropertiesWithTypeTest003 end";
+}
+
+/**
+ * @tc.name: GetAllPropertiesWithTypeTest004
+ * @tc.desc: GetAllPropertiesWithType for GIF uses early-return GIF KV path (animated sample).
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest004_Gif, TestSize.Level3)
+{
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_GIF_KV_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    std::vector<MetadataValue> properties = imageSource->GetAllPropertiesWithType(1);
+    EXPECT_FALSE(properties.empty());
+    EXPECT_TRUE(MetadataListHasKey(properties, "GifCanvasWidth") || MetadataListHasKey(properties, "GifDelayTime") ||
+        MetadataListHasKey(properties, "GifLoopCount"));
+}
+
+/**
+ * @tc.name: GetAllPropertiesWithTypeTest005
+ * @tc.desc: GetAllPropertiesWithType for TIFF merges TIFF tags and baseline Exif map entries.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest005_Tiff, TestSize.Level3)
+{
+    auto imageSource = CreateImageSourceByPath(IMAGE_INPUT_TIFF_READ_TEST_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    std::vector<MetadataValue> properties = imageSource->GetAllPropertiesWithType(0);
+    EXPECT_FALSE(properties.empty());
+    EXPECT_TRUE(MetadataListHasKey(properties, "TiffCompression") || MetadataListHasKey(properties, "ImageWidth"));
+}
+
+/**
+ * @tc.name: GetAllPropertiesWithTypeTest006
+ * @tc.desc: GetAllPropertiesWithType for JPEG includes JFIF KV and/or Exif entries.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest006_JpegJfif, TestSize.Level3)
+{
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    std::vector<MetadataValue> properties = imageSource->GetAllPropertiesWithType(0);
+    EXPECT_FALSE(properties.empty());
+    EXPECT_TRUE(MetadataListHasKey(properties, "JfifXDensity") || MetadataListHasKey(properties, "JfifDensityUnit"));
+}
+
+/**
+ * @tc.name: GetAllPropertiesWithTypeTest007
+ * @tc.desc: GetAllPropertiesWithType for PNG includes PNG chunk KV when enabled and/or Exif entries.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest007_Png, TestSize.Level3)
+{
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_PNG_KV_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    std::vector<MetadataValue> properties = imageSource->GetAllPropertiesWithType(0);
+    EXPECT_FALSE(properties.empty());
+    EXPECT_TRUE(MetadataListHasKey(properties, "PngInterlaceType") || MetadataListHasKey(properties, "ImageWidth"));
+}
+
+/**
+ * @tc.name: GetAllPropertiesWithTypeTest008
+ * @tc.desc: GetAllPropertiesWithType for HEIFS adds Heifs canvas/delay KV when enabled and/or Exif entries.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetAllPropertiesWithTypeTest008_Heifs, TestSize.Level3)
+{
+    auto imageSource = CreateImageSourceByPath(IMAGE_GET_PROPERTY_BY_TYPE_HEIFS_PATH);
+    ASSERT_NE(imageSource, nullptr);
+    std::vector<MetadataValue> properties = imageSource->GetAllPropertiesWithType(1);
+    EXPECT_FALSE(properties.empty());
+    EXPECT_TRUE(MetadataListHasKey(properties, "HeifsDelayTime"));
 }
 
 /**
@@ -5525,5 +6117,139 @@ HWTEST_F(ImageSourceTest, GetWebPProperty001, TestSize.Level3)
     ret = imageSource->GetWebPProperty(0, "WebPLoopCount", errValue);
     ASSERT_EQ(errValue.intArrayValue.empty(), true);
 }
+
+/**
+ * @tc.name: GetJfifMetadata001
+ * @tc.desc: Test GetJfifMetadata.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetJfifMetadata001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    GTEST_LOG_(INFO) << "ImageSourceTest: CreateImageSource SUCCESS";
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/jpeg"), true);
+
+    std::shared_ptr<JfifMetadata> jfifMetadata;
+    errorCode = imageSource->GetJfifMetadata(jfifMetadata);
+    ASSERT_NE(jfifMetadata, nullptr);
+    ASSERT_EQ(errorCode, SUCCESS);
+
+    MetadataValue value;
+    auto ret = imageSource->GetJfifProperty("JfifDensityUnit", value);
+    ASSERT_EQ(ret, SUCCESS);
+
+    imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_GIF_KV_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/jpeg"), false);
+}
+
+/**
+ * @tc.name: GetGifMetadata001
+ * @tc.desc: Test GetGifMetadata.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetGifMetadata001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_GIF_KV_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    GTEST_LOG_(INFO) << "ImageSourceTest: CreateImageSource SUCCESS";
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/gif"), true);
+
+    auto gifMetadata = imageSource->GetGifMetadata(0, errorCode);
+    ASSERT_NE(gifMetadata, nullptr);
+    ASSERT_EQ(errorCode, SUCCESS);
+
+    MetadataValue value;
+    auto ret = imageSource->GetGifProperty(0, "GifDelayTime", value);
+    ASSERT_EQ(ret, SUCCESS);
+
+    imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/gif"), false);
+}
+
+/**
+ * @tc.name: GetHeifsMetadata001
+ * @tc.desc: Test GetHeifsMetadata.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetHeifsMetadata001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_HEIFS_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    GTEST_LOG_(INFO) << "ImageSourceTest: CreateImageSource SUCCESS";
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/heif-sequence"), true);
+
+    auto heifsMetadata = imageSource->GetHeifsMetadata(0, errorCode);
+    ASSERT_NE(heifsMetadata, nullptr);
+    ASSERT_EQ(errorCode, SUCCESS);
+
+    MetadataValue value;
+    auto ret = imageSource->GetHeifsProperty(0, "HeifsDelayTime", value);
+    ASSERT_EQ(ret, SUCCESS);
+
+    imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/heif-sequence"), false);
+}
+
+/**
+ * @tc.name: GetTiffMetadata001
+ * @tc.desc: Test GetTiffMetadata.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetTiffMetadata001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_INPUT_TIFF_READ_TEST_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    GTEST_LOG_(INFO) << "ImageSourceTest: CreateImageSource SUCCESS";
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/tiff"), true);
+
+    MetadataValue value;
+    auto ret = imageSource->GetTiffImagePropertyByType("TiffTileLength", value);
+    ASSERT_EQ(ret, SUCCESS);
+}
+
+/**
+ * @tc.name: GetPngMetadata001
+ * @tc.desc: Test GetPngMetadata.
+ * @tc.type: FUNC
+ */
+HWTEST_F(ImageSourceTest, GetPngMetadata001, TestSize.Level3)
+{
+    uint32_t errorCode = 0;
+    auto imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_PNG_KV_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    GTEST_LOG_(INFO) << "ImageSourceTest: CreateImageSource SUCCESS";
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/png"), true);
+    
+    std::shared_ptr<PngMetadata> pngMetadata;
+    errorCode = imageSource->GetPngMetadata(pngMetadata);
+    ASSERT_NE(pngMetadata, nullptr);
+    ASSERT_EQ(errorCode, SUCCESS);
+
+    MetadataValue value;
+    auto ret = imageSource->GetPngProperty("PngSoftware", value);
+    ASSERT_EQ(ret, SUCCESS);
+
+    imageSource = ImageSource::CreateImageSource(
+        IMAGE_GET_PROPERTY_BY_TYPE_JPEG_JFIF_PATH, SourceOptions(), errorCode);
+    ASSERT_NE(imageSource, nullptr);
+    ASSERT_EQ(imageSource->IsEncodedFormat("image/png"), false);
+}
+
 } // namespace Multimedia
 } // namespace OHOS
