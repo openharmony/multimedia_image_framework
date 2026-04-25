@@ -43,7 +43,7 @@ constexpr static int32_t NUM_4 = 4;
 constexpr static uint32_t DEFAULT_SAMPLE_SIZE = 1;
 constexpr static int32_t BANDJPEG_V1_MIN_LONG_SIDE = 1080;
 constexpr static int32_t BANDJPEG_V1_MAX_LONG_SIDE = 32768;  // 最大边长限制
-constexpr static uint32_t MAX_JPEG_BUFFER_SIZE = 300 * 1024 * 1024;  // 最大 JPEG 缓冲区 300MB
+constexpr static uint32_t MAX_JPEG_BUFFER_SIZE = 100 * 1024 * 1024;  // 最大 JPEG 缓冲区 100MB
 }
 
 namespace OHOS {
@@ -69,7 +69,6 @@ static bool IsLargeImage(const SkImageInfo &srcInfo)
     }
     const int32_t width = srcInfo.width();
     const int32_t height = srcInfo.height();
-
     // 验证尺寸上限，防止超大图像导致 OOM
     if (width > BANDJPEG_V1_MAX_LONG_SIDE || height > BANDJPEG_V1_MAX_LONG_SIDE) {
         IMAGE_LOGE("Image size exceeds max limit: %{public}dx%{public}d", width, height);
@@ -77,7 +76,6 @@ static bool IsLargeImage(const SkImageInfo &srcInfo)
     }
     
     const int32_t longSide = std::max(width, height);
-    
     return longSide >= BANDJPEG_V1_MIN_LONG_SIDE;
 }
 
@@ -205,10 +203,9 @@ uint32_t ProgressiveJpegDecoder::GetJpegInputData(InputDataStream *stream, const
     jpegData.buffer = nullptr;
     jpegData.bufferSize = static_cast<uint32_t>(stream->GetStreamSize());
     jpegData.ownedBuffer.reset();
-    CHECK_ERROR_RETURN_RET_LOG(jpegData.bufferSize == 0, ERR_IMAGE_SOURCE_DATA, "jpegBufferSize 0");
-    
+    CHECK_ERROR_RETURN_RET_LOG(jpegData.bufferSize == 0, ERR_IMAGE_SOURCE_DATA, "jpegBufferSize 0"); 
     // 验证缓冲区大小上限，防止超大文件导致 OOM
-    CHECK_ERROR_RETURN_RET_LOG(jpegData.bufferSize > MAX_JPEG_BUFFER_SIZE, 
+    CHECK_ERROR_RETURN_RET_LOG(jpegData.bufferSize > MAX_JPEG_BUFFER_SIZE,
         ERR_IMAGE_TOO_LARGE, "jpegBufferSize %{public}u exceeds max size", jpegData.bufferSize);
 
     if (stream->GetStreamType() == ImagePlugin::BUFFER_SOURCE_TYPE) {
@@ -361,7 +358,6 @@ uint64_t ProgressiveJpegDecoder::GetOutputRowStride(const SkImageInfo &imageInfo
     const uint8_t *bufferForDecode)
 {
     uint64_t rowStride = imageInfo.minRowBytes64();
-#if !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     if (bufferForDecode == static_cast<const uint8_t *>(context.pixelsBuffer.buffer) &&
         context.allocatorType == AllocatorType::DMA_ALLOC) {
         SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*> (context.pixelsBuffer.context);
@@ -371,7 +367,6 @@ uint64_t ProgressiveJpegDecoder::GetOutputRowStride(const SkImageInfo &imageInfo
         }
         rowStride = static_cast<uint64_t>(sbBuffer->GetStride());
     }
-#endif
     return rowStride;
 }
 
