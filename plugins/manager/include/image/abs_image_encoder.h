@@ -40,8 +40,7 @@ struct PlEncodeOptions {
     std::vector<uint8_t> disposalTypes;
     int32_t maxEmbedThumbnailDimension = 0;
     uint32_t backgroundColor = 0;
-    int32_t maxWidth = 0;
-    int32_t maxHeight = 0;
+    Size maxSize = {0, 0};
     AntiAliasingOption antiAliasingLevel = AntiAliasingOption::HIGH;
     bool needPackGPS = true;
 };

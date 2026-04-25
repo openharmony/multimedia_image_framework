@@ -109,16 +109,10 @@ struct PackOption {
     uint32_t backgroundColor = 0;
 
     /**
-     * Maximum encoding width for maxPackOption.
-     * Default value: 0 (no limit).
+     * Maximum encoding size for maxPackOption.
+     * Default value: {0, 0} (no limit).
      */
-    int32_t maxWidth = 0;
-
-    /**
-     * Maximum encoding height for maxPackOption.
-     * Default value: 0 (no limit).
-     */
-    int32_t maxHeight = 0;
+    Size maxSize = {0, 0};
 
     /**
      * Anti-aliasing level for scaling when maxPackOption is specified.
