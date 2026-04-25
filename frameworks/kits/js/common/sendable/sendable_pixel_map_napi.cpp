@@ -2052,7 +2052,8 @@ napi_value SendablePixelMapNapi::CreateAlphaPixelmap(napi_env env, napi_callback
         [](napi_env env, void *data) {
             auto context = static_cast<PixelMapAsyncContext*>(data);
             InitializationOptions opts;
-            opts.pixelFormat = PixelFormat::ALPHA_8;
+            opts.pixelFormat = context->rPixelMap->GetPixelFormat() == PixelFormat::ALPHA_F16 ?
+                PixelFormat::ALPHA_F16 : PixelFormat::ALPHA_8;
             auto tmpPixelMap = PixelMap::Create(*(context->rPixelMap), opts);
             context->alphaMap = std::move(tmpPixelMap);
             context->status = SUCCESS;
@@ -2092,7 +2093,8 @@ napi_value SendablePixelMapNapi::CreateAlphaPixelmapSync(napi_env env, napi_call
 
     if (pixelMapNapi->nativePixelMap_ != nullptr) {
         InitializationOptions opts;
-        opts.pixelFormat = PixelFormat::ALPHA_8;
+        opts.pixelFormat = pixelMapNapi->nativePixelMap_->GetPixelFormat() == PixelFormat::ALPHA_F16 ?
+            PixelFormat::ALPHA_F16 : PixelFormat::ALPHA_8;
         auto tmpPixelMap = PixelMap::Create(*(pixelMapNapi->nativePixelMap_), opts);
         result = SendablePixelMapNapi::CreateSendablePixelMap(env, std::move(tmpPixelMap));
     } else {

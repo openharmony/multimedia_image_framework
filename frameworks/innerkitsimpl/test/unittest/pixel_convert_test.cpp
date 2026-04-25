@@ -24,6 +24,7 @@
 #include "pixel_map.h"
 #include "image_source_util.h"
 #include "pixel_convert.h"
+#include "pixel_map_utils.h"
 #include "securec.h"
 using namespace testing::ext;
 using namespace OHOS::Media;
@@ -2171,7 +2172,7 @@ HWTEST_F(PixelConvertTest, NV12P010ToNV21P010Test001, TestSize.Level3)
     dstBuffer.range = 0;
     dstBuffer.yuvConversion = YuvConversion::BT601;
 
-    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, false);
     ASSERT_EQ(ret, CONVERT_FAIL);
     GTEST_LOG_(INFO) << "PixelConvertTest: NV12P010ToNV21P010Test001 end";
 }
@@ -2510,6 +2511,361 @@ HWTEST_F(PixelConvertTest, GetStrideTest001, TestSize.Level3)
         }
     }
     GTEST_LOG_(INFO) << "PixelConvertTest: GetStrideTest001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16Test001
+ * @tc.desc: Test PixelsConvert routes ALPHA_F16 conversion through converter layer.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16Test001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::BGRA_8888;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * HEIGHT * 2> srcPixels = {0};
+    std::array<uint32_t, WIDTH * HEIGHT> dstPixels = {0};
+    const uint8_t alphaValues[WIDTH * HEIGHT] = {0, 64, 128, 255};
+    for (size_t i = 0; i < dstPixels.size(); ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        srcPixels[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        srcPixels[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = static_cast<int32_t>(dstPixels.size() * sizeof(uint32_t));
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, static_cast<int32_t>(dstPixels.size() * sizeof(uint32_t)));
+    for (size_t i = 0; i < dstPixels.size(); ++i) {
+        EXPECT_EQ(GetColorComp(dstPixels[i], BGRA32_A_SHIFT), alphaValues[i]);
+    }
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16Test001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16ToYUVTest001
+ * @tc.desc: Test PixelsConvert supports ALPHA_F16 source to NV12 destination.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16ToYUVTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYUVTest001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::NV12;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * HEIGHT * 2> srcPixels = {0};
+    const uint8_t alphaValues[WIDTH * HEIGHT] = {16, 64, 128, 255};
+    for (size_t i = 0; i < WIDTH * HEIGHT; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        srcPixels[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        srcPixels[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+    std::array<uint8_t, WIDTH * HEIGHT * 3 / 2> dstPixels = {0};
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = static_cast<int32_t>(dstPixels.size());
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, static_cast<int32_t>(dstPixels.size()));
+    EXPECT_NE(dstPixels[0], 0);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYUVTest001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16ToNV21Test001
+ * @tc.desc: Test PixelsConvert supports ALPHA_F16 source to NV21 destination.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16ToNV21Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToNV21Test001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::NV21;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * HEIGHT * 2> srcPixels = {0};
+    const uint8_t alphaValues[WIDTH * HEIGHT] = {0x08, 0x20, 0x80, 0xF0};
+    for (size_t i = 0; i < WIDTH * HEIGHT; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        srcPixels[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        srcPixels[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+    std::array<uint8_t, WIDTH * HEIGHT * 3 / 2> dstPixels = {0};
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = static_cast<int32_t>(dstPixels.size());
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, static_cast<int32_t>(dstPixels.size()));
+    EXPECT_NE(dstPixels[0], 0);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToNV21Test001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16ToYcbcrP010Test001
+ * @tc.desc: Test PixelsConvert supports ALPHA_F16 source to YCBCR_P010 destination.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16ToYcbcrP010Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYcbcrP010Test001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::YCBCR_P010;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * HEIGHT * 2> srcPixels = {0};
+    const uint8_t alphaValues[WIDTH * HEIGHT] = {0x10, 0x30, 0x90, 0xFF};
+    for (size_t i = 0; i < WIDTH * HEIGHT; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        srcPixels[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        srcPixels[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+
+    const int32_t dstLength = PixelMap::GetAllocatedByteCount(dstInfo);
+    ASSERT_GT(dstLength, 0);
+    std::vector<uint8_t> dstPixels(dstLength, 0);
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = dstLength;
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, dstLength);
+    EXPECT_NE(dstPixels[0], 0);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYcbcrP010Test001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16ToYcrcbP010Test001
+ * @tc.desc: Test PixelsConvert supports ALPHA_F16 source to YCRCB_P010 destination.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16ToYcrcbP010Test001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYcrcbP010Test001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::YCRCB_P010;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * HEIGHT * 2> srcPixels = {0};
+    const uint8_t alphaValues[WIDTH * HEIGHT] = {0x12, 0x45, 0x87, 0xFE};
+    for (size_t i = 0; i < WIDTH * HEIGHT; ++i) {
+        uint16_t half = FloatToHalf(static_cast<float>(alphaValues[i]));
+        srcPixels[i * 2] = static_cast<uint8_t>(half & 0xFF);
+        srcPixels[i * 2 + 1] = static_cast<uint8_t>((half >> 8) & 0xFF);
+    }
+
+    const int32_t dstLength = PixelMap::GetAllocatedByteCount(dstInfo);
+    ASSERT_GT(dstLength, 0);
+    std::vector<uint8_t> dstPixels(dstLength, 0);
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = dstLength;
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, dstLength);
+    EXPECT_NE(dstPixels[0], 0);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYcrcbP010Test001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16ToYUVOddWidthTest001
+ * @tc.desc: Test PixelsConvert rejects ALPHA_F16 to NV12 conversion when width is odd.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16ToYUVOddWidthTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYUVOddWidthTest001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {1, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {1, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::NV12;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, HEIGHT * 2> srcPixels = {0x00, 0x48, 0x00, 0x58};
+    std::array<uint8_t, HEIGHT * 2> dstPixels = {0};
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = static_cast<int32_t>(dstPixels.size());
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, CONVERT_FAIL);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToYUVOddWidthTest001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16ToP010OddHeightTest001
+ * @tc.desc: Test PixelsConvert rejects ALPHA_F16 to YCBCR_P010 conversion when height is odd.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16ToP010OddHeightTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToP010OddHeightTest001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, 1};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, 1};
+    dstInfo.pixelFormat = PixelFormat::YCBCR_P010;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * 2> srcPixels = {0x00, 0x40, 0x00, 0x5B};
+    std::array<uint8_t, WIDTH * 4> dstPixels = {0};
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 0;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = static_cast<int32_t>(dstPixels.size());
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, CONVERT_FAIL);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16ToP010OddHeightTest001 end";
+}
+
+/**
+ * @tc.name: PixelsConvertAlphaF16InvalidRowStrideTest001
+ * @tc.desc: Test PixelsConvert rejects ALPHA_F16 source when rowStride is smaller than one row.
+ * @tc.type: FUNC
+ */
+HWTEST_F(PixelConvertTest, PixelsConvertAlphaF16InvalidRowStrideTest001, TestSize.Level3)
+{
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16InvalidRowStrideTest001 start";
+    ImageInfo srcInfo;
+    srcInfo.size = {WIDTH, HEIGHT};
+    srcInfo.pixelFormat = PixelFormat::ALPHA_F16;
+    srcInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    ImageInfo dstInfo;
+    dstInfo.size = {WIDTH, HEIGHT};
+    dstInfo.pixelFormat = PixelFormat::NV21;
+    dstInfo.alphaType = AlphaType::IMAGE_ALPHA_TYPE_UNPREMUL;
+
+    std::array<uint8_t, WIDTH * HEIGHT * 2> srcPixels = {0};
+    std::array<uint8_t, WIDTH * HEIGHT * 3 / 2> dstPixels = {0};
+
+    BufferInfo srcBuffer;
+    srcBuffer.pixels = srcPixels.data();
+    srcBuffer.rowStride = 1;
+    srcBuffer.imageInfo = srcInfo;
+    srcBuffer.length = static_cast<int32_t>(srcPixels.size());
+
+    BufferInfo dstBuffer;
+    dstBuffer.pixels = dstPixels.data();
+    dstBuffer.rowStride = 0;
+    dstBuffer.imageInfo = dstInfo;
+    dstBuffer.length = static_cast<int32_t>(dstPixels.size());
+
+    int32_t ret = PixelConvert::PixelsConvert(srcBuffer, dstBuffer, srcBuffer.length, false);
+
+    ASSERT_EQ(ret, CONVERT_FAIL);
+    GTEST_LOG_(INFO) << "PixelConvertTest: PixelsConvertAlphaF16InvalidRowStrideTest001 end";
 }
 }
 }

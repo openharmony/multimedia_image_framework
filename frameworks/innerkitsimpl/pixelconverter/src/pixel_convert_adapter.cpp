@@ -65,6 +65,7 @@ static const map<PixelFormat, SkColorType> PIXEL_FORMAT_MAP = {
     { PixelFormat::ARGB_8888, SkColorType::kRGBA_8888_SkColorType},
     { PixelFormat::ALPHA_8, SkColorType::kAlpha_8_SkColorType},
     { PixelFormat::ALPHA_U8, SkColorType::kAlpha_8_SkColorType},
+    { PixelFormat::ALPHA_F16, SkColorType::kA16_float_SkColorType},
     { PixelFormat::RGB_565, SkColorType::kRGB_565_SkColorType},
     { PixelFormat::RGBA_F16, SkColorType::kRGBA_F16_SkColorType},
     { PixelFormat::RGBA_8888, SkColorType::kRGBA_8888_SkColorType},

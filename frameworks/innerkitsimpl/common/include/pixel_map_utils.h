@@ -20,6 +20,7 @@
 #include "ashmem.h"
 #endif
 
+#include "image_log.h"
 #include "image_type.h"
 #include "log_tags.h"
 #include "memory_manager.h"
@@ -30,6 +31,7 @@ namespace OHOS {
 namespace Media {
 // Define bytes per pixel
 constexpr int8_t ALPHA_8_BYTES = 1;
+constexpr int8_t ALPHA_F16_BYTES = 2;
 constexpr int8_t RGB_565_BYTES = 2;
 constexpr int8_t RGB_888_BYTES = 3;
 constexpr int8_t ARGB_8888_BYTES = 4;

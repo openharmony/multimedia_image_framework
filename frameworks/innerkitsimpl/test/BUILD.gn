@@ -1577,11 +1577,26 @@ ohos_unittest("eglimagetest") {
 ohos_unittest("eglimagetest2") {
   module_out_path = module_output_path
 
+  defines = [
+    "SK_SUPPORT_GPU=1",
+    "GR_TEST_UTILS=1",
+    "SK_GL=1",
+  ]
+  if (image_use_new_skia) {
+    defines += [ "USE_M133_SKIA" ]
+  }
+
   include_dirs = [
     "$image_subsystem/frameworks/innerkitsimpl/egl_image/include",
+    "$image_subsystem/frameworks/innerkitsimpl/utils/include",
     "$image_subsystem/interfaces/innerkits/include",
   ]
   sources = [
+    "$image_subsystem/frameworks/innerkitsimpl/egl_image/src/pixel_map_gl_context.cpp",
+    "$image_subsystem/frameworks/innerkitsimpl/egl_image/src/pixel_map_gl_post_proc_program.cpp",
+    "$image_subsystem/frameworks/innerkitsimpl/egl_image/src/pixel_map_gl_shader.cpp",
+    "$image_subsystem/frameworks/innerkitsimpl/egl_image/src/pixel_map_program_manager.cpp",
+    "$image_subsystem/frameworks/innerkitsimpl/utils/src/image_trace.cpp",
     "unittest/egl_image_helper_test.cpp",
     "unittest/egl_image_test2.cpp",
   ]
@@ -1596,7 +1611,11 @@ ohos_unittest("eglimagetest2") {
     "graphic_2d:GLESv3",
     "graphic_2d:color_manager",
     "graphic_surface:surface",
+    "graphic_surface:sync_fence",
     "hilog:libhilog",
+    "hitrace:hitrace_meter",
+    "ipc:ipc_single",
+    "skia:skia_canvaskit",
   ]
 }
 

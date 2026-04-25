@@ -199,6 +199,7 @@ enum class PixelFormat : int32_t {
     RGBA_U16 = 13, // Interim format for ffmpeg and skia conversion
     YUV_400 = 14,
     ALPHA_U8 = 15, // ALPHA_8 without 4-byte alignment
+    ALPHA_F16 = 16,
     EXTERNAL_MAX,
     INTERNAL_START = 100,
     CMYK = INTERNAL_START + 1,

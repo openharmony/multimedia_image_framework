@@ -754,7 +754,8 @@ PixelMap PixelMapImpl::ExtractAlphaPixelMapSync()
     }
 
     Media::InitializationOptions options;
-    options.pixelFormat = Media::PixelFormat::ALPHA_U8;
+    options.pixelFormat = nativePixelMap_->GetPixelFormat() == Media::PixelFormat::ALPHA_F16 ?
+        Media::PixelFormat::ALPHA_F16 : Media::PixelFormat::ALPHA_U8;
     Media::Rect region;
     int32_t errCode = Media::SUCCESS;
     auto alphaPixelMap = Media::PixelMap::Create(*nativePixelMap_, region, options, errCode);
@@ -792,7 +793,8 @@ PixelMap PixelMapImpl::CreateAlphaPixelmapSync()
     }
 
     Media::InitializationOptions options;
-    options.pixelFormat = Media::PixelFormat::ALPHA_8;
+    options.pixelFormat = nativePixelMap_->GetPixelFormat() == Media::PixelFormat::ALPHA_F16 ?
+        Media::PixelFormat::ALPHA_F16 : Media::PixelFormat::ALPHA_8;
     auto alphaPixelMap = Media::PixelMap::Create(*nativePixelMap_, options);
     return make_holder<PixelMapImpl, PixelMap>(std::move(alphaPixelMap));
 }
