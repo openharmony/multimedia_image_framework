@@ -30,6 +30,7 @@
         "components": [
           "ability_runtime",
           "access_token",
+          "bounds_checking_function",
           "bundle_framework",
           "c_utils",
           "graphic_2d",
