@@ -177,6 +177,7 @@ struct HeifEncodeItemInfo {
 };
 
 static const std::map<AuxiliaryPictureType, HeifEncodeItemInfo> HEIF_AUX_PIC_INFO_MAPPING = {
+#if !defined(CROSS_PLATFORM)
     { AuxiliaryPictureType::GAINMAP,
         { GAINMAP_IMAGE_ITEM_ID, GAINMAP_IMAGE_ITEM_NAME, HEIF_AUXTTYPE_ID_GAINMAP } },
     { AuxiliaryPictureType::DEPTH_MAP,
@@ -195,6 +196,7 @@ static const std::map<AuxiliaryPictureType, HeifEncodeItemInfo> HEIF_AUX_PIC_INF
         { PAN_MAP_ITEM_ID, PAN_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_PAN_MAP } },
     { AuxiliaryPictureType::PAN_GAINMAP,
         { PAN_GAINMAP_ITEM_ID, PAN_GAINMAP_ITEM_NAME, HEIF_AUXTTYPE_ID_PAN_GAINMAP } },
+#endif
 };
 
 static const std::map<std::string, SkEncodedImageFormat> FORMAT_NAME = {
