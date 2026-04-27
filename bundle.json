@@ -67,7 +67,10 @@
           "ets_runtime",
           "libtiff",
           "api_metrics",
-          "dav1d"
+          "dav1d",
+          "egl",
+          "opengles",
+          "jsoncpp"
         ],
         "third_party": [
           "bounds_checking_function"
