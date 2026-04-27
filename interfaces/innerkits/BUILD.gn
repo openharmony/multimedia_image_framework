@@ -265,6 +265,9 @@ if (use_clang_android) {
         "zlib:libz",
         "graphic_2d:GLESv3",
         "graphic_surface:sync_fence",
+        "egl:libEGL",
+        "opengles:libGLES",
+        "jsoncpp:jsoncpp",
       ]
       public_external_deps = [
         "graphic_2d:color_manager",
