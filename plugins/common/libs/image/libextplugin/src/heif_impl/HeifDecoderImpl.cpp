@@ -33,6 +33,7 @@
 #include "color_utils.h"
 
 #include "heif_impl/hevc_sw_decode_param.h"
+#include "heif_impl/heif_common.h"
 
 #include "SkImageInfo.h"
 
@@ -96,7 +97,12 @@ const std::map<AuxiliaryPictureType, std::string> HEIF_AUXTTYPE_ID_MAP = {
     {AuxiliaryPictureType::DEPTH_MAP, HEIF_AUXTTYPE_ID_DEPTH_MAP},
     {AuxiliaryPictureType::UNREFOCUS_MAP, HEIF_AUXTTYPE_ID_UNREFOCUS_MAP},
     {AuxiliaryPictureType::LINEAR_MAP, HEIF_AUXTTYPE_ID_LINEAR_MAP},
-    {AuxiliaryPictureType::FRAGMENT_MAP, HEIF_AUXTTYPE_ID_FRAGMENT_MAP}
+    {AuxiliaryPictureType::FRAGMENT_MAP, HEIF_AUXTTYPE_ID_FRAGMENT_MAP},
+    {AuxiliaryPictureType::FRAGMENT_MAP, HEIF_AUXTTYPE_ID_FRAGMENT_MAP},
+    {AuxiliaryPictureType::SNAP_MAP, HEIF_AUXTTYPE_ID_SNAP_MAP},
+    {AuxiliaryPictureType::SNAP_GAINMAP, HEIF_AUXTTYPE_ID_SNAP_GAINMAP},
+    {AuxiliaryPictureType::PAN_MAP, HEIF_AUXTTYPE_ID_PAN_MAP},
+    {AuxiliaryPictureType::PAN_GAINMAP, HEIF_AUXTTYPE_ID_PAN_GAINMAP},
 };
 
 #if !defined(CROSS_PLATFORM)
@@ -287,6 +293,10 @@ bool HeifDecoderImpl::CheckAuxiliaryMap(AuxiliaryPictureType type)
         case AuxiliaryPictureType::FRAGMENT_MAP:
             auxiliaryImage_ = parser_->GetAuxiliaryMapImage(iter->second);
             break;
+        case AuxiliaryPictureType::SNAP_MAP:
+        case AuxiliaryPictureType::SNAP_GAINMAP:
+        case AuxiliaryPictureType::PAN_MAP:
+        case AuxiliaryPictureType::PAN_GAINMAP:
         case AuxiliaryPictureType::THUMBNAIL:
             auxiliaryImage_ = this->GetThumbnailImage();
             break;
@@ -1548,20 +1558,14 @@ void HeifDecoderImpl::getVividMetadata(std::vector<uint8_t>& uwaInfo, std::vecto
     lightInfo = primaryImage_->GetLightInfo();
 }
 
-void HeifDecoderImpl::GetMetadataBlob(std::vector<uint8_t>& metadata, MetadataType type)
+void HeifImage::SetBlobMetadata(HeifMetadataType type, std::vector<uint8_t>& blobMetadata)
 {
-    if (type == MetadataType::XTSTYLE) {
-        metadata = primaryImage_->GetXtStyleData();
-    } else if (type == MetadataType::RFDATAB) {
-        metadata = primaryImage_->GetRfDataBData();
-    } else if (type == MetadataType::STDATA) {
-        metadata = primaryImage_->GetSTDataMetaData();
-    }
+    blobMetadataMap_[type] = blobMetadata;
 }
-
-void HeifDecoderImpl::getISOMetadata(std::vector<uint8_t>& isoMetadata)
+ 
+std::vector<uint8_t> HeifImage::GetBlobMetadata(HeifMetadataType type)
 {
-    isoMetadata = primaryImage_->GetISOMetadata();
+    return blobMetadataMap_[type];
 }
 
 void HeifDecoderImpl::getFragmentMetadata(Media::Rect& fragmentMetadata)

@@ -77,6 +77,7 @@ struct OH_PackingOptions {
     int quality;
     int32_t desiredDynamicRange = IMAGE_PACKER_DYNAMIC_RANGE_SDR;
     bool needsPackProperties = false;
+    bool needsPackDfxData = false;
     uint16_t loop;
     uint16_t* delayTimes;
     uint32_t delayTimesSize;
@@ -152,6 +153,7 @@ static Image_ErrorCode CopyPackingOptions(const OH_PackingOptions *options, Pack
     packOption.format = format;
     packOption.quality = options->quality;
     packOption.needsPackProperties = options->needsPackProperties;
+    packOption.needsPackDfxData = options->needsPackDfxData;
     packOption.desiredDynamicRange = ParseDynamicRange(options->desiredDynamicRange);
     return IMAGE_SUCCESS;
 }
@@ -288,6 +290,26 @@ Image_ErrorCode OH_PackingOptions_SetNeedsPackProperties(OH_PackingOptions *opti
         return IMAGE_BAD_PARAMETER;
     }
     options->needsPackProperties = needsPackProperties;
+    return IMAGE_SUCCESS;
+}
+
+MIDK_EXPORT
+Image_ErrorCode OH_PackingOptions_GetNeedsPackDfxData(OH_PackingOptions *options, bool *needsPackDfxData)
+{
+    if (options == nullptr || needsPackDfxData == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
+    *needsPackDfxData = options->needsPackDfxData;
+    return IMAGE_SUCCESS;
+}
+ 
+MIDK_EXPORT
+Image_ErrorCode OH_PackingOptions_SetNeedsPackDfxData(OH_PackingOptions *options, bool needsPackDfxData)
+{
+    if (options == nullptr) {
+        return IMAGE_BAD_PARAMETER;
+    }
+    options->needsPackDfxData = needsPackDfxData;
     return IMAGE_SUCCESS;
 }
 
