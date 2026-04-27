@@ -723,8 +723,6 @@ HWTEST_F(ProgressiveJpegDecoderTest, GetOutputRowStrideTest001, TestSize.Level3)
     GTEST_LOG_(INFO) << "ProgressiveJpegDecoderTest: GetOutputRowStrideTest001 end";
 }
 
-
-
 /**
  * @tc.name: ResetDecodeContextPixelsBufferTest001
  * @tc.desc: Test ResetDecodeContextPixelsBuffer
@@ -802,8 +800,6 @@ HWTEST_F(ProgressiveJpegDecoderTest, BuildRgbDecodePlanTest011, TestSize.Level3)
     GTEST_LOG_(INFO) << "ProgressiveJpegDecoderTest: BuildRgbDecodePlanTest011 end";
 }
 
-// ==================== FASTManager 测试 ====================
-
 /**
  * @tc.name: FASTManagerGetInstanceTest001
  * @tc.desc: Test FASTManager::GetInstance returns same instance
@@ -832,7 +828,6 @@ HWTEST_F(ProgressiveJpegDecoderTest, FASTManagerIsInitializedTest001, TestSize.L
     GTEST_LOG_(INFO) << "ProgressiveJpegDecoderTest: FASTManager initialized = " << isInitialized;
     GTEST_LOG_(INFO) << "ProgressiveJpegDecoderTest: FASTManagerIsInitializedTest001 end";
 }
-// ==================== 边界条件和错误处理测试 ====================
 
 /**
  * @tc.name: GetJpegInputDataTest006
@@ -873,8 +868,6 @@ HWTEST_F(ProgressiveJpegDecoderTest, GetJpegInputDataTest006, TestSize.Level3)
     ASSERT_EQ(ret, ERR_IMAGE_SOURCE_DATA);
     GTEST_LOG_(INFO) << "ProgressiveJpegDecoderTest: GetJpegInputDataTest006 end";
 }
-
-// DecodeRgbTest004-006 removed due to using invalid memory address (0x1) causing crashes
 
 /**
  * @tc.name: DecodeYuvTest003
