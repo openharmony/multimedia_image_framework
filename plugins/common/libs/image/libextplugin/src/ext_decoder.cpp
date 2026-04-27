@@ -933,9 +933,8 @@ uint32_t ExtDecoder::SetDecodeOptions(uint32_t index, const PixelDecodeOptions &
             auto decoder = reinterpret_cast<AvifDecoderImpl*>(codec_->getHeifContext());
             CHECK_ERROR_RETURN_RET_LOG(decoder == nullptr, ERR_IMAGE_DATA_UNSUPPORT, "Avif Decoder is nullptr.");
 #ifndef CROSS_PLATFORM
-            CHECK_ERROR_RETURN_RET_LOG(!decoder->IsSupportedPixelFormat(opts.isAnimationDecode,
-                opts.desiredPixelFormat), ERR_IMAGE_DATA_UNSUPPORT,
-                "%{public}s current AVIF desiredFormat is not support", __func__);
+            uint32_t errorCode = decoder->IsSupportedPixelFormat(opts.isAnimationDecode, opts.desiredPixelFormat);
+            CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, errorCode);
 #endif
         }
     }
@@ -3731,9 +3730,8 @@ uint32_t ExtDecoder::AvifDecode(uint32_t index, DecodeContext &context, uint64_t
     UpdateDstInfoAndOutInfo(context);
     CHECK_ERROR_RETURN_RET_LOG(SkImageInfo::ByteSizeOverflowed(byteCount), ERR_IMAGE_TOO_LARGE,
         "%{public}s too large byteCount: %{public}llu", __func__, static_cast<unsigned long long>(byteCount));
-    CHECK_ERROR_RETURN_RET_LOG(!decoder->IsSupportedPixelFormat(context.isAnimationDecode,
-        context.info.pixelFormat), ERR_IMAGE_DATA_UNSUPPORT,
-        "%{public}s current AVIF desiredFormat is not support", __func__);
+    uint32_t errorCode = decoder->IsSupportedPixelFormat(context.isAnimationDecode, context.info.pixelFormat);
+    CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, errorCode);
     decoder->setDstBuffer(reinterpret_cast<uint8_t *>(context.pixelsBuffer.buffer), rowStride, nullptr);
     decoder->SetAllocatorType(context.allocatorType);
     decoder->SetDesiredPixelFormat(context.info.pixelFormat);
