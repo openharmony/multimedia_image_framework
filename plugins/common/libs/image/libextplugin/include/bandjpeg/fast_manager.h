@@ -50,7 +50,7 @@ class FASTManager {
 public:
     static FASTManager& GetInstance();
 
-    bool IsInitialized() const { return initialized_; }
+    bool IsInitialized() const { return isInitialized_; }
 
     fast::image::FastErrCode (*DecodeImage)(const uint8_t*, size_t, uint8_t*, uint32_t,
         uint32_t, size_t, fast::image::RGBFormat) = nullptr;
@@ -67,7 +67,7 @@ private:
 
     void* FASTHandle_ = nullptr;
     const char* FASTLib_ = "/system/lib64/ndk/libfast_image.so";
-    bool initialized_ = false; // initialization flag
+    bool isInitialized_ = false; // initialization flag
 };
 }
 }
