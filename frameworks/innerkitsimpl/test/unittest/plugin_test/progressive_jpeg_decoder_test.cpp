@@ -766,16 +766,6 @@ HWTEST_F(ProgressiveJpegDecoderTest, GetOutputRowStrideTest002, TestSize.Level3)
     GTEST_LOG_(INFO) << "ProgressiveJpegDecoderTest: GetOutputRowStrideTest002 end";
 }
 
-// ==================== ProgressiveJpegDecoder 静态辅助函数测试 ====================
-
-
-
-
-
-
-
-
-
 /**
  * @tc.name: BuildYuvDecodePlanTest010
  * @tc.desc: Test BuildYuvDecodePlan with softSampleSize not default
