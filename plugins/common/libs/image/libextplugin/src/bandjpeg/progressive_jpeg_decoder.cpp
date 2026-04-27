@@ -201,13 +201,18 @@ uint32_t ProgressiveJpegDecoder::GetJpegInputData(InputDataStream *stream, const
 {
     CHECK_ERROR_RETURN_RET(stream == nullptr, ERR_IMAGE_SOURCE_DATA);
     jpegData.buffer = nullptr;
-    jpegData.bufferSize = static_cast<uint32_t>(stream->GetStreamSize());
     jpegData.ownedBuffer.reset();
-    CHECK_ERROR_RETURN_RET_LOG(jpegData.bufferSize == 0, ERR_IMAGE_SOURCE_DATA, "jpegBufferSize 0"); 
-    // 验证缓冲区大小上限，防止超大文件导致 OOM
-    CHECK_ERROR_RETURN_RET_LOG(jpegData.bufferSize > MAX_JPEG_BUFFER_SIZE,
-        ERR_IMAGE_TOO_LARGE, "jpegBufferSize %{public}u exceeds max size", jpegData.bufferSize);
-
+    
+    uint64_t streamSize = stream->GetStreamSize();
+    CHECK_ERROR_RETURN_RET_LOG(streamSize == 0, ERR_IMAGE_SOURCE_DATA, "jpegBufferSize 0");
+    
+    CHECK_ERROR_RETURN_RET_LOG(streamSize > MAX_JPEG_BUFFER_SIZE,
+        ERR_IMAGE_TOO_LARGE, "jpegBufferSize %{public}llu exceeds max size", streamSize);
+    
+    CHECK_ERROR_RETURN_RET_LOG(streamSize > UINT32_MAX,
+        ERR_IMAGE_TOO_LARGE, "jpegBufferSize %{public}llu exceeds uint32 max", streamSize);
+    
+    jpegData.bufferSize = static_cast<uint32_t>(streamSize);
     if (stream->GetStreamType() == ImagePlugin::BUFFER_SOURCE_TYPE) {
         jpegData.buffer = stream->GetDataPtr();
     }
