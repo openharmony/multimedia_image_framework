@@ -140,40 +140,6 @@ const std::map<PixelFormat, GraphicPixelFormat> SURFACE_FORMAT_MAP = {
 #endif
 
 namespace {
-    constexpr static uint32_t PRIMARY_IMAGE_ITEM_ID = 1;
-    constexpr static uint32_t GAINMAP_IMAGE_ITEM_ID = 2;
-    constexpr static uint32_t TMAP_IMAGE_ITEM_ID = 3;
-    constexpr static uint32_t EXIF_META_ITEM_ID = 4;
-    constexpr static uint32_t DEPTH_MAP_ITEM_ID = 5;
-    constexpr static uint32_t UNREFOCUS_MAP_ITEM_ID = 6;
-    constexpr static uint32_t LINEAR_MAP_ITEM_ID = 7;
-    constexpr static uint32_t FRAGMENT_MAP_ITEM_ID = 8;
-    constexpr static uint32_t XTSTYLE_META_ITEM_ID = 9;
-    constexpr static uint32_t RFDATAB_META_ITEM_ID = 10;
-    constexpr static uint32_t STDATA_META_ITEM_ID = 11;
-    constexpr static uint32_t THUMBNAIL_ITEM_ID = 22;
-    const static std::string COMPRESS_TYPE_TMAP = "tmap";
-    const static std::string COMPRESS_TYPE_HEVC = "hevc";
-    const static std::string COMPRESS_TYPE_NONE = "none";
-    const static std::string DEFAULT_ASHMEM_TAG = "Heif Encoder Default";
-    const static std::string ICC_ASHMEM_TAG = "Heif Encoder Property";
-    const static std::string IT35_ASHMEM_TAG = "Heif Encoder IT35";
-    const static std::string OUTPUT_ASHMEM_TAG = "Heif Encoder Output";
-    const static std::string IMAGE_DATA_TAG = "Heif Encoder Image";
-    const static std::string HDR_GAINMAP_TAG = "Heif Encoder Gainmap";
-    const static std::string EXIF_ASHMEM_TAG = "Heif Encoder Exif";
-    const static std::string XTSTYLE_ASHMEM_TAG = "Heif Encoder XtStyle";
-    const static std::string RFDATAB_ASHMEM_TAG = "Heif Encoder RfDataB";
-    const static std::string STDATA_ASHMEM_TAG = "Heif Encoder STData";
-    const static std::string GAINMAP_IMAGE_ITEM_NAME = "Gain map Image";
-    const static std::string DEPTH_MAP_ITEM_NAME =  "Depth Map Image";
-    const static std::string UNREFOCUS_MAP_ITEM_NAME = "Unrefocus Map Image";
-    const static std::string LINEAR_MAP_ITEM_NAME = "Linear Map Image";
-    const static std::string FRAGMENT_MAP_ITEM_NAME = "Fragment Map Image";
-    const static std::string THUMBNAIL_ITEM_NAME = "Thumbnail Image";
-    const static std::string XTSTYLE_METADATA_ITEM_NAME = "urn:com:huawei:photo:5:1:0:meta:xtstyle";
-    const static std::string RFDATAB_METADATA_ITEM_NAME = "RfDataB\0";
-    const static std::string STDATA_METADATA_ITEM_NAME = "STData\0";
     const static size_t DEFAULT_OUTPUT_SIZE = 35 * 1024 * 1024; // 35M
     const static uint16_t STATIC_METADATA_COLOR_SCALE = 50000;
     const static uint16_t STATIC_METADATA_LUM_SCALE = 10000;
@@ -186,6 +152,7 @@ namespace {
     constexpr uint8_t GAINMAP_CHANNEL_SINGLE = 1;
     constexpr uint8_t EXIF_PRE_SIZE = 6;
     constexpr uint32_t JPEG_MARKER_TAG_SIZE = 2;
+    constexpr uint32_t BLOB_METADATA_TAG_LENGTH = 8;
     constexpr uint32_t DEPTH_MAP_BYTES = sizeof(float); // float16
     constexpr uint32_t LINEAR_MAP_BYTES = sizeof(short) * 3 / 2; // 16bit yuv420
     constexpr uint32_t PLACE_HOLDER_LENGTH = 1;
@@ -197,13 +164,6 @@ namespace {
     constexpr uint32_t HIGHEST_QUALITY = 100;
     constexpr uint32_t DEFAULT_QUALITY = 75;
 
-    const static std::map<MetadataType, std::tuple<uint32_t, std::string, std::string>>
-    HEIF_METADATA_MAPPING = {
-        {MetadataType::XTSTYLE, std::make_tuple(XTSTYLE_META_ITEM_ID, XTSTYLE_ASHMEM_TAG, XTSTYLE_METADATA_ITEM_NAME)},
-        {MetadataType::RFDATAB, std::make_tuple(RFDATAB_META_ITEM_ID, RFDATAB_ASHMEM_TAG, RFDATAB_METADATA_ITEM_NAME)},
-        {MetadataType::STDATA, std::make_tuple(STDATA_META_ITEM_ID, STDATA_ASHMEM_TAG, STDATA_METADATA_ITEM_NAME)}
-    };
-
     // exif/0/0
     constexpr uint8_t EXIF_PRE_TAG[EXIF_PRE_SIZE] = {
         0x45, 0x78, 0x69, 0x66, 0x00, 0x00
@@ -214,6 +174,27 @@ struct HeifEncodeItemInfo {
     uint32_t itemId = 0;
     std::string itemName = "";
     std::string itemType = "";
+};
+
+static const std::map<AuxiliaryPictureType, HeifEncodeItemInfo> HEIF_AUX_PIC_INFO_MAPPING = {
+    { AuxiliaryPictureType::GAINMAP,
+        { GAINMAP_IMAGE_ITEM_ID, GAINMAP_IMAGE_ITEM_NAME, HEIF_AUXTTYPE_ID_GAINMAP } },
+    { AuxiliaryPictureType::DEPTH_MAP,
+        { DEPTH_MAP_ITEM_ID, DEPTH_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_DEPTH_MAP } },
+    { AuxiliaryPictureType::UNREFOCUS_MAP,
+        { UNREFOCUS_MAP_ITEM_ID, UNREFOCUS_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_UNREFOCUS_MAP } },
+    { AuxiliaryPictureType::LINEAR_MAP,
+        { LINEAR_MAP_ITEM_ID, LINEAR_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_LINEAR_MAP } },
+    { AuxiliaryPictureType::FRAGMENT_MAP,
+        { FRAGMENT_MAP_ITEM_ID, FRAGMENT_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_FRAGMENT_MAP } },
+    { AuxiliaryPictureType::SNAP_MAP,
+        { SNAP_MAP_ITEM_ID, SNAP_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_SNAP_MAP } },
+    { AuxiliaryPictureType::SNAP_GAINMAP,
+        { SNAP_GAINMAP_ITEM_ID, SNAP_GAINMAP_ITEM_NAME, HEIF_AUXTTYPE_ID_SNAP_GAINMAP } },
+    { AuxiliaryPictureType::PAN_MAP,
+        { PAN_MAP_ITEM_ID, PAN_MAP_ITEM_NAME, HEIF_AUXTTYPE_ID_PAN_MAP } },
+    { AuxiliaryPictureType::PAN_GAINMAP,
+        { PAN_GAINMAP_ITEM_ID, PAN_GAINMAP_ITEM_NAME, HEIF_AUXTTYPE_ID_PAN_GAINMAP } },
 };
 
 static const std::map<std::string, SkEncodedImageFormat> FORMAT_NAME = {
@@ -234,6 +215,10 @@ static const std::map<AuxiliaryPictureType, std::string> DEFAULT_AUXILIARY_TAG_M
     {AuxiliaryPictureType::UNREFOCUS_MAP, AUXILIARY_TAG_UNREFOCUS_MAP},
     {AuxiliaryPictureType::LINEAR_MAP, AUXILIARY_TAG_LINEAR_MAP},
     {AuxiliaryPictureType::FRAGMENT_MAP, AUXILIARY_TAG_FRAGMENT_MAP},
+    {AuxiliaryPictureType::SNAP_MAP, AUXILIARY_TAG_SNAP_MAP},
+    {AuxiliaryPictureType::SNAP_GAINMAP, AUXILIARY_TAG_SNAP_GAINMAP},
+    {AuxiliaryPictureType::PAN_MAP, AUXILIARY_TAG_PAN_MAP},
+    {AuxiliaryPictureType::PAN_GAINMAP, AUXILIARY_TAG_PAN_GAINMAP},
     {AuxiliaryPictureType::THUMBNAIL, AUXILIARY_TAG_THUMBNAIL},
 };
 
@@ -1376,6 +1361,21 @@ uint32_t ExtEncoder::AssembleHeifAuxiliaryPicture(std::vector<ImageItem>& inputI
         AssembleHeifFragmentMap(inputImgs) == SUCCESS) {
         AssembleAuxiliaryRefItem(AuxiliaryPictureType::FRAGMENT_MAP, refs);
     }
+    static constexpr AuxiliaryPictureType TARGET_AUX_TYPES[] = {
+        AuxiliaryPictureType::SNAP_MAP, AuxiliaryPictureType::SNAP_GAINMAP,
+        AuxiliaryPictureType::PAN_MAP, AuxiliaryPictureType::PAN_GAINMAP,
+    };
+    for (auto type : TARGET_AUX_TYPES) {
+        if (!picture_->HasAuxiliaryPicture(type)) {
+            continue;
+        }
+        if (AssembleHeifUltraPhotoMap(type, inputImgs) == SUCCESS) {
+            AssembleAuxiliaryRefItem(type, refs);
+        } else {
+            IMAGE_LOGE("%{public}s %{public}s assemble fail",
+                __func__, HEIF_AUX_PIC_INFO_MAPPING.at(type).itemName.c_str());
+        }
+    }
     if (opts_.needsPackProperties != false || (picture_->HasAuxiliaryPicture(AuxiliaryPictureType::THUMBNAIL) &&
         AssembleHeifThumbnail(inputImgs) == SUCCESS)) {
         AssembleAuxiliaryRefItem(AuxiliaryPictureType::THUMBNAIL, refs);
@@ -1401,46 +1401,6 @@ ImageItem ExtEncoder::InitAuxiliaryImageItem(uint32_t id, std::string itemName)
     return item;
 }
 
-HeifEncodeItemInfo GetHeifEncodeItemInfo(AuxiliaryPictureType auxType)
-{
-    HeifEncodeItemInfo itemInfo;
-    switch (auxType) {
-        case AuxiliaryPictureType::GAINMAP:
-            itemInfo.itemId = GAINMAP_IMAGE_ITEM_ID;
-            itemInfo.itemName = GAINMAP_IMAGE_ITEM_NAME;
-            itemInfo.itemType = HEIF_AUXTTYPE_ID_GAINMAP;
-            break;
-        case AuxiliaryPictureType::DEPTH_MAP:
-            itemInfo.itemId = DEPTH_MAP_ITEM_ID;
-            itemInfo.itemName = DEPTH_MAP_ITEM_NAME;
-            itemInfo.itemType = HEIF_AUXTTYPE_ID_DEPTH_MAP;
-            break;
-        case AuxiliaryPictureType::UNREFOCUS_MAP:
-            itemInfo.itemId = UNREFOCUS_MAP_ITEM_ID;
-            itemInfo.itemName = UNREFOCUS_MAP_ITEM_NAME;
-            itemInfo.itemType = HEIF_AUXTTYPE_ID_UNREFOCUS_MAP;
-            break;
-        case AuxiliaryPictureType::LINEAR_MAP:
-            itemInfo.itemId = LINEAR_MAP_ITEM_ID;
-            itemInfo.itemName = LINEAR_MAP_ITEM_NAME;
-            itemInfo.itemType = HEIF_AUXTTYPE_ID_LINEAR_MAP;
-            break;
-        case AuxiliaryPictureType::FRAGMENT_MAP:
-            itemInfo.itemId = FRAGMENT_MAP_ITEM_ID;
-            itemInfo.itemName = FRAGMENT_MAP_ITEM_NAME;
-            itemInfo.itemType = HEIF_AUXTTYPE_ID_FRAGMENT_MAP;
-            break;
-        case AuxiliaryPictureType::THUMBNAIL:
-            itemInfo.itemId = THUMBNAIL_ITEM_ID;
-            itemInfo.itemName = THUMBNAIL_ITEM_NAME;
-            itemInfo.itemType = HEIF_AUXTTYPE_ID_THUMBNAIL;
-            break;
-        default:
-            break;
-    }
-    return itemInfo;
-}
-
 uint32_t ExtEncoder::AssembleHeifAuxiliaryNoncodingMap(std::vector<ImageItem>& inputImgs, AuxiliaryPictureType auxType)
 {
     auto auxMap = picture_->GetAuxiliaryPicture(auxType);
@@ -1453,7 +1413,7 @@ uint32_t ExtEncoder::AssembleHeifAuxiliaryNoncodingMap(std::vector<ImageItem>& i
     bool cond = !auxMapSptr;
     CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER, "%{public}s auxMapSptr is nullptr", __func__);
 
-    HeifEncodeItemInfo itemInfo = GetHeifEncodeItemInfo(auxType);
+    HeifEncodeItemInfo itemInfo = HEIF_AUX_PIC_INFO_MAPPING.at(auxType);
     auto item = InitAuxiliaryImageItem(itemInfo.itemId, itemInfo.itemName);
     std::string auxTypeStr = itemInfo.itemType;
     Resolution resolution = {
@@ -1483,7 +1443,7 @@ uint32_t ExtEncoder::AssembleHeifUnrefocusMap(std::vector<ImageItem>& inputImgs)
     auto unrefocusMap = picture_->GetAuxiliaryPicture(AuxiliaryPictureType::UNREFOCUS_MAP);
     bool cond = !unrefocusMap || !unrefocusMap->GetContentPixel();
     CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER, "%{public}s The unrefocusMap is nullptr", __func__);
-    HeifEncodeItemInfo itemInfo = GetHeifEncodeItemInfo(AuxiliaryPictureType::UNREFOCUS_MAP);
+    HeifEncodeItemInfo itemInfo = HEIF_AUX_PIC_INFO_MAPPING.at(AuxiliaryPictureType::UNREFOCUS_MAP);
     auto item = InitAuxiliaryImageItem(itemInfo.itemId, itemInfo.itemName);
     bool sdrIsSRGB = unrefocusMap->GetContentPixel()->GetToSdrColorSpaceIsSRGB();
     SkImageInfo unrefocusInfo = GetSkInfo(unrefocusMap->GetContentPixel().get(), false, sdrIsSRGB);
@@ -1504,6 +1464,44 @@ uint32_t ExtEncoder::AssembleHeifUnrefocusMap(std::vector<ImageItem>& inputImgs)
     uint32_t litePropertiesSize =
         sizeof(PropertyType::AUX_TYPE) + UINT32_BYTES_NUM + auxTypeStr.length() + PLACE_HOLDER_LENGTH;
     litePropertiesSize += (sizeof(PropertyType::COLOR_TYPE) + sizeof(ColorType));
+    item.liteProperties.resize(litePropertiesSize);
+    size_t offset = 0;
+    cond = !FillLitePropertyItemByString(item.liteProperties, offset, PropertyType::AUX_TYPE, auxTypeStr);
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER, "%{public}s Fill auxiliary type failed", __func__);
+    ColorType colorType = ColorType::RICC;
+    cond = !FillLitePropertyItem(item.liteProperties, offset, PropertyType::COLOR_TYPE, &colorType, sizeof(ColorType));
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER, "%{public}s Fill color type failed", __func__);
+    inputImgs.push_back(item);
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::AssembleHeifUltraPhotoMap(AuxiliaryPictureType auxType, std::vector<ImageItem>& inputImgs)
+{
+    auto preMainMap = picture_->GetAuxiliaryPicture(auxType);
+    bool cond = !preMainMap || !preMainMap->GetContentPixel();
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER,
+        "%{public}s The preMainMap:%{public}d is nullptr", __func__, auxType);
+ 
+    HeifEncodeItemInfo itemInfo = HEIF_AUX_PIC_INFO_MAPPING.at(auxType);
+    auto item = InitHeifAuxiliaryImageItem(itemInfo.itemId, itemInfo.itemName);
+    bool sdrIsSRGB = preMainMap->GetContentPixel()->GetToSdrColorSpaceIsSRGB();
+    SkImageInfo ski = GetSkInfo(preMainMap->GetContentPixel().get(), false, sdrIsSRGB);
+#ifdef USE_M133_SKIA
+    sk_sp<SkData> icc = icc_from_color_space(ski, nullptr, nullptr);
+#else
+    sk_sp<SkData> icc = icc_from_color_space(ski);
+#endif
+    cond = !AssembleICCImageProperty(icc, item.sharedProperties);
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER,
+        "%{public}s AssembleICCImageProperty failed", __func__);
+    sptr<SurfaceBuffer> preMainMapSptr = ConvertPixelMapToDmaBuffer(preMainMap->GetContentPixel());
+    cond = !preMainMapSptr;
+    CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER, "%{public}s preMainMap DMA buffer failed", __func__);
+    item.pixelBuffer = sptr<NativeBuffer>::MakeSptr(preMainMapSptr->GetBufferHandle());
+    std::string auxTypeStr = itemInfo.itemType;
+    uint32_t litePropertiesSize =
+        sizeof(PropertyType::AUX_TYPE) + UINT32_BYTES_NUM + auxTypeStr.length() + PLACE_HOLDER_LENGTH
+      + sizeof(PropertyType::COLOR_TYPE) + sizeof(ColorType);
     item.liteProperties.resize(litePropertiesSize);
     size_t offset = 0;
     cond = !FillLitePropertyItemByString(item.liteProperties, offset, PropertyType::AUX_TYPE, auxTypeStr);
@@ -1542,7 +1540,7 @@ uint32_t ExtEncoder::AssembleHeifFragmentMap(std::vector<ImageItem>& inputImgs)
     sptr<SurfaceBuffer> fragmentMapSptr = ConvertPixelMapToDmaBuffer(fragmentMap->GetContentPixel());
     cond = !fragmentMapSptr;
     CHECK_ERROR_RETURN_RET_LOG(cond, ERR_IMAGE_INVALID_PARAMETER, "%{public}s fragmentMapSptr is nullptr", __func__);
-    HeifEncodeItemInfo itemInfo = GetHeifEncodeItemInfo(AuxiliaryPictureType::FRAGMENT_MAP);
+    HeifEncodeItemInfo itemInfo = HEIF_AUX_PIC_INFO_MAPPING.at(AuxiliaryPictureType::FRAGMENT_MAP);
     auto item = InitAuxiliaryImageItem(itemInfo.itemId, itemInfo.itemName);
     bool sdrIsSRGB = fragmentMap->GetContentPixel()->GetToSdrColorSpaceIsSRGB();
     SkImageInfo fragmentInfo = GetSkInfo(fragmentMap->GetContentPixel().get(), false, sdrIsSRGB);
@@ -2137,9 +2135,18 @@ void ExtEncoder::EncodeHeifMetadata(std::vector<ItemRef> &refs, std::vector<Meta
     if (AssembleExifMetaItem(inputMetas)) {
         AssembleExifRefItem(refs);
     }
-    for (const auto& iter : HEIF_METADATA_MAPPING) {
-        if (AssembleBlobMetaItem(iter.first, inputMetas)) {
-            AssembleBlobRefItem(iter.first, refs);
+    for (const auto& info : HEIF_BLOB_INFOS) {
+        auto metaType = MetadataTypeConvertFromHeif(info.type);
+        if (!opts_.needsPackProperties && metaType != MetadataType::DFXDATA) {
+            IMAGE_LOGD("no need encode blob: %{public}d", metaType);
+            continue;
+        }
+        if (metaType == MetadataType::DFXDATA && !opts_.needsPackDfxData) {
+            IMAGE_LOGD("no need encode DfxData");
+            continue;
+        }
+        if (AssembleBlobMetaItem(metaType, inputMetas)) {
+            AssembleBlobRefItem(metaType, refs);
         }
     }
 }
@@ -2394,12 +2401,17 @@ void ExtEncoder::EncodeJpegAuxiliaryPictures(SkWStream& skStream)
 void ExtEncoder::EncodeJpegAllBlobMetadata(SkWStream& skStream)
 {
     ImageFuncTimer imageFuncTimer("%s enter", __func__);
-    if (picture_ == nullptr || opts_.needsPackProperties == false) {
+    if (picture_ == nullptr) {
         return;
+    }
+    if (opts_.needsPackDfxData == false) {
+        IMAGE_LOGD("no need encode DfxData");
+        picture_->DropMetadata(MetadataType::DFXDATA);
     }
     for (const auto& iter : BLOB_METADATA_TAG_MAP) {
         auto metadataPtr = picture_->GetMetadata(iter.first);
-        if (metadataPtr == nullptr) {
+        if (metadataPtr == nullptr || (iter.first != MetadataType::DFXDATA && opts_.needsPackProperties == false)) {
+            IMAGE_LOGD("no need encode blob: %{public}d or don't have this blob", iter.first);
             continue;
         }
         uint8_t* bytes = metadataPtr->GetBlobPtr();
@@ -2413,8 +2425,10 @@ void ExtEncoder::EncodeJpegAllBlobMetadata(SkWStream& skStream)
         std::vector<uint8_t> dataSize = JpegMpfPacker::PackDataSize(writeSize, false);
         skStream.write(dataSize.data(), dataSize.size());
         std::string tagName = iter.second;
-        std::vector<uint8_t> dataTag(tagName.begin(), tagName.end());
-        dataTag.push_back(0);
+        std::vector<uint8_t> dataTag;
+        dataTag.reserve(BLOB_METADATA_TAG_LENGTH);
+        dataTag.insert(dataTag.end(), tagName.begin(), tagName.end());
+        dataTag.resize(BLOB_METADATA_TAG_LENGTH);
         skStream.write(dataTag.data(), dataTag.size());
     }
 }
@@ -2993,39 +3007,36 @@ bool ExtEncoder::FillPixelSharedBuffer(sptr<SurfaceBuffer> sbBuffer, uint32_t ca
 
 void ExtEncoder::AssembleAuxiliaryRefItem(AuxiliaryPictureType type, std::vector<ItemRef>& refs)
 {
+    auto info = HEIF_AUX_PIC_INFO_MAPPING.at(type);
     auto item = std::make_shared<ItemRef>();
     item->type = ReferenceType::AUXL;
+    item->from = info.itemId;
     item->to.resize(INDEX_ONE);
     item->to[INDEX_ZERO] = PRIMARY_IMAGE_ITEM_ID;
-    switch (type) {
-        case AuxiliaryPictureType::DEPTH_MAP:
-            item->from = DEPTH_MAP_ITEM_ID;
-            break;
-        case AuxiliaryPictureType::UNREFOCUS_MAP:
-            item->from = UNREFOCUS_MAP_ITEM_ID;
-            break;
-        case AuxiliaryPictureType::LINEAR_MAP:
-            item->from = LINEAR_MAP_ITEM_ID;
-            break;
-        case AuxiliaryPictureType::FRAGMENT_MAP:
-            item->from = FRAGMENT_MAP_ITEM_ID;
-            break;
-        case AuxiliaryPictureType::THUMBNAIL:
-            item->type = ReferenceType::THMB;
-            item->from = THUMBNAIL_ITEM_ID;
-            break;
-        default:
-            break;
-    }
     refs.push_back(*item);
+}
+
+static const HeifBlobMetadataEncodeInfo* FindHeifBlobMetadataEncodeInfo(MetadataType type)
+{
+    HeifMetadataType heifType = MetadataTypeConvertToHeif(type);
+    for (const auto& info : HEIF_BLOB_INFOS) {
+        if (info.type == heifType) {
+            return &info;
+        }
+    }
+    return nullptr;
 }
 
 void ExtEncoder::AssembleBlobRefItem(MetadataType type, std::vector<ItemRef>& refs)
 {
-    auto metadataTuple = HEIF_METADATA_MAPPING.at(type);
+    const HeifBlobMetadataEncodeInfo* info = FindHeifBlobMetadataEncodeInfo(type);
+    if (!info) {
+        IMAGE_LOGW("Unknown metadata type: %{public}d", type);
+        return;
+    }
     auto item = std::make_shared<ItemRef>();
     item->type = ReferenceType::CDSC;
-    item->from = std::get<0>(metadataTuple);
+    item->from = info->itemId;
     item->to.resize(INDEX_ONE);
     item->to[INDEX_ZERO] = PRIMARY_IMAGE_ITEM_ID;
     refs.push_back(*item);
@@ -3033,13 +3044,13 @@ void ExtEncoder::AssembleBlobRefItem(MetadataType type, std::vector<ItemRef>& re
  
 bool ExtEncoder::AssembleBlobMetaItem(MetadataType type, std::vector<MetaItem>& metaItems)
 {
-    auto metadataTuple = HEIF_METADATA_MAPPING.at(type);
-    if (!opts_.needsPackProperties) {
-        IMAGE_LOGD("no need encode blob: %{public}d", type);
-        return false;
-    }
     if (picture_ == nullptr || picture_->GetMetadata(type) == nullptr) {
         IMAGE_LOGE("fail to get picture or fail to get blob");
+        return false;
+    }
+    const HeifBlobMetadataEncodeInfo* info = FindHeifBlobMetadataEncodeInfo(type);
+    if (!info) {
+        IMAGE_LOGW("Unknown metadata type: %{public}d", static_cast<int>(type));
         return false;
     }
     auto blobMetadata = picture_->GetMetadata(type);
@@ -3055,10 +3066,10 @@ bool ExtEncoder::AssembleBlobMetaItem(MetadataType type, std::vector<MetaItem>& 
     }
  
     auto item = std::make_shared<MetaItem>();
-    item->id = std::get<0>(metadataTuple);
-    item->itemName = std::get<NUM_2>(metadataTuple);
+    item->id = info->itemId;
+    item->itemName = info->itemName;
     item->data.fd = INVALID_FD;
-    std::shared_ptr<AbsMemory> propertyAshmem = AllocateNewSharedMem(blobDataSize, std::get<1>(metadataTuple));
+    std::shared_ptr<AbsMemory> propertyAshmem = AllocateNewSharedMem(blobDataSize, info->ashmemTag);
     if (propertyAshmem == nullptr) {
         IMAGE_LOGE("AssembleBlobMetaItem alloc propertyAshmem failed");
         return false;

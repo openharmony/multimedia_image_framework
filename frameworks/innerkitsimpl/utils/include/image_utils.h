@@ -149,10 +149,10 @@ public:
     static void DumpPixelMapIfDumpEnabled(std::unique_ptr<PixelMap>& pixelMap, uint64_t imageId = 0);
     static void DumpPixelMapIfDumpEnabled(PixelMap& pixelMap, std::string func);
     static void DumpPixelMapBeforeEncode(PixelMap& pixelMap);
+    static void DumpData(const char* data, const size_t& totalSize, const std::string& fileSuffix = "dat",
+        uint64_t imageId = 0);
     static void DumpDataIfDumpEnabled(const char* data, const size_t& totalSize, const std::string& fileSuffix = "dat",
         uint64_t imageId = 0);
-    static void DumpData(const char* data, const size_t& totalSize,
-        const std::string& fileSuffix, uint64_t imageId);
 #if !defined(CROSS_PLATFORM)
     static bool SurfaceBuffer2PixelMap(sptr<SurfaceBuffer> &surfaceBuffer, std::unique_ptr<PixelMap>& Pixelmap);
     static void DumpHdrBufferEnabled(sptr<SurfaceBuffer>& buffer, const std::string& fileName);
@@ -189,6 +189,7 @@ public:
     static bool IsAuxiliaryPictureTypeSupported(AuxiliaryPictureType auxiliaryPictureType);
     static bool IsAuxiliaryPictureEncoded(AuxiliaryPictureType type);
     static bool IsMetadataTypeSupported(MetadataType metadataType);
+    static bool isBlobMetadataType(MetadataType metadataType);
     static const std::set<AuxiliaryPictureType> &GetAllAuxiliaryPictureType();
     static const std::set<MetadataType> &GetAllMetadataType();
     static uint32_t GetThumbnailScaleTargetSize(const Size &sourceSize, const int32_t &maxPixelSize, Size &dstSize,
