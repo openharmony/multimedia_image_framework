@@ -178,10 +178,12 @@ private:
     uint32_t ProcessEncodeControlParams();
     uint32_t ProcessPixelmapEncodeControlParams();
     uint32_t ProcessPictureEncodeControlParams();
-    bool ResizePicturePixelmaps(float xScale, float yScale);
-    uint32_t ProcessMaxEncodeSize(Media::PixelMap* targetPixelmap);
+    uint32_t ProcessPixelmapMaxSize();
+#if !defined(CROSS_PLATFORM)
+    uint32_t ProcessPictureMaxSize();
+#endif
     uint32_t ProcessBackgroundColor(Media::PixelMap* targetPixelmap);
-    uint32_t ProcessRemoveGpsInfo(Media::PixelMap* targetPixelmap);
+    uint32_t ProcessRemoveGpsInfo();
     bool IsFormatSupportTransparency(const std::string& format) const;
 
     SkEncodedImageFormat encodeFormat_ = SkEncodedImageFormat::kBMP;
