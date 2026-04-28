@@ -123,9 +123,8 @@ static int32_t SaveSTP(uint32_t *buffer,
 }
 
 // Internal implementation without lock (called by public versions that already hold the lock)
-int32_t ImageReceiver::SaveBufferAsImageInner(int &fd,
-                                         OHOS::sptr<OHOS::SurfaceBuffer> buffer,
-                                         InitializationOptions initializationOpts)
+int32_t ImageReceiver::SaveBufferAsImageInner(int &fd, OHOS::sptr<OHOS::SurfaceBuffer> buffer,
+    InitializationOptions initializationOpts)
 {
     int32_t errorcode = 0;
     if (buffer != nullptr) {
