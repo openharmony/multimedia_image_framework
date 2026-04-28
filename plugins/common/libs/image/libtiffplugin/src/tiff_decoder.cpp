@@ -224,9 +224,10 @@ uint32_t TiffDecoder::Decode(uint32_t index, DecodeContext& context)
         return ERR_IMAGE_DECODE_FAILED;
     }
     if (context.allocatorType == AllocatorType::DMA_ALLOC && dmaStride_ > tiffSize_.width) {
-        for (uint32_t row = 0; row < tiffSize_.height; row++) {
-            uint32_t* src = raster + row * tiffSize_.width;
-            uint8_t* dst = static_cast<uint8_t*>(context.pixelsBuffer.buffer) + row * dmaStride_;
+        for (int32_t row = 0; row < tiffSize_.height; row++) {
+            uint32_t* src = raster + static_cast<uint32_t>(row) * static_cast<uint32_t>(tiffSize_.width);
+            uint8_t* dst = static_cast<uint8_t*>(context.pixelsBuffer.buffer) +
+                       static_cast<uint32_t>(row) * static_cast<uint32_t>(dmaStride_);
             auto err = memcpy_s(dst, dmaStride_, src, tiffSize_.width * sizeof(uint32_t));
             CHECK_ERROR_RETURN_RET_LOG(err != EOK, ERR_IMAGE_DECODE_FAILED, "memcpy is failed");
         }
