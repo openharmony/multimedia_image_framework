@@ -5980,6 +5980,15 @@ bool ApplyDecodingOptionsForPicture(DecodeOptions& dopts, const DecodingOptionsF
     return false;
 }
 
+static void HandleErrorCode(const std::string &encodedFormat, uint32_t &errorCode)
+{
+    if (encodedFormat == IMAGE_AVIF_FORMAT && errorCode == ERR_MEDIA_FORMAT_UNSUPPORT) {
+        errorCode = ERR_IMAGE_DESIRED_PIXELFORMAT_UNSUPPORTED;
+    } else {
+        errorCode = ERR_IMAGE_PICTURE_CREATE_FAILED;
+    }
+}
+
 std::unique_ptr<Picture> ImageSource::CreatePicture(const DecodingOptionsForPicture &opts, uint32_t &errorCode)
 {
     ImageInfo info;
@@ -6005,7 +6014,7 @@ std::unique_ptr<Picture> ImageSource::CreatePicture(const DecodingOptionsForPict
     std::unique_ptr<Picture> picture = Picture::Create(mainPixelMap);
     if (picture == nullptr) {
         IMAGE_LOGE("Picture is nullptr");
-        errorCode = ERR_IMAGE_PICTURE_CREATE_FAILED;
+        HandleErrorCode(info.encodedFormat, errorCode);
         return nullptr;
     }
     DownSamplingScaleFactor downSamplingScaleFactor;
