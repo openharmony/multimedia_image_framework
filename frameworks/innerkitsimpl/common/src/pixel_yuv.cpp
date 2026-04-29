@@ -1187,7 +1187,7 @@ static bool CopyYuvPlanes(PixelMap &source, PixelMap &dstPixelMap)
     return true;
 }
 
-std::unique_ptr<PixelMap> PixelYuv::CloneYuvImpl(PixelMap &source, int32_t &errorCode)
+std::unique_ptr<PixelMap> PixelYuv::CloneYuv(PixelMap &source, int32_t &errorCode)
 {
     ImageInfo imageInfo;
     source.GetImageInfo(imageInfo);
@@ -1338,7 +1338,7 @@ std::unique_ptr<PixelMap> PixelYuv::CreateThumbnailPixelMap(PixelMap &source, in
     errorCode = static_cast<int32_t>(err);
     CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, nullptr);
     if (ImageUtils::FloatEqual(scale, 1.0f)) {
-        return CloneYuvImpl(source, errorCode);
+        return CloneYuv(source, errorCode);
     }
     targetSize.width = targetSize.width - (targetSize.width % NUM_2);
     targetSize.height = targetSize.height - (targetSize.height % NUM_2);

@@ -921,7 +921,7 @@ std::unique_ptr<PixelMap> ExtEncoder::DeepCopyPixelmap()
     std::unique_ptr<PixelMap> clonedPixelmap = nullptr;
 
     if (ImageUtils::IsYuvFormat(pixelmap_->GetPixelFormat())) {
-        clonedPixelmap = PixelYuv::CloneYuvImpl(*pixelmap_, errorCode);
+        clonedPixelmap = PixelYuv::CloneYuv(*pixelmap_, errorCode);
     } else {
         clonedPixelmap = pixelmap_->Clone(errorCode);
     }
