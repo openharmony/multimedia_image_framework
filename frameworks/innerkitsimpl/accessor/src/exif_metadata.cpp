@@ -2354,7 +2354,15 @@ bool ExifMetadata::RemoveGpsInfo()
         IMAGE_LOGD("RemoveGpsInfo: exifData_ is nullptr");
         return false;
     }
+
+    std::shared_ptr<ExifMetadata> backup = Clone();
+    if (backup == nullptr) {
+        IMAGE_LOGE("RemoveGpsInfo: failed to clone exif metadata");
+        return false;
+    }
+
     IMAGE_LOGI("RemoveGpsInfo: removing GPS information from EXIF");
+    bool hasError = false;
     for (const std::string& gpsKey : GPS_EXIF_KEYS) {
         std::string value;
         if (GetValue(gpsKey, value) != SUCCESS) {
@@ -2362,9 +2370,19 @@ bool ExifMetadata::RemoveGpsInfo()
         }
         if (!RemoveEntry(gpsKey)) {
             IMAGE_LOGE("RemoveGpsInfo: failed to remove key %{public}s", gpsKey.c_str());
-            return false;
+            hasError = true;
+            break;
         }
     }
+
+    if (hasError) {
+        IMAGE_LOGE("RemoveGpsInfo: restore exif data from backup");
+        exif_data_unref(exifData_);
+        exifData_ = backup->GetExifData();
+        exif_data_ref(exifData_);
+        return false;
+    }
+
     return true;
 }
 } // namespace Media

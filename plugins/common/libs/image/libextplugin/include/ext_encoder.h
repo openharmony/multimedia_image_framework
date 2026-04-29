@@ -176,13 +176,14 @@ private:
     void RecycleResources();
 
     uint32_t ProcessEncodeControlParams();
+    bool NeedDeepCopy();
+    std::unique_ptr<PixelMap> DeepCopyPixelmap();
+    std::unique_ptr<Picture> DeepCopyPicture();
     uint32_t ProcessPixelmapEncodeControlParams();
     uint32_t ProcessPictureEncodeControlParams();
     uint32_t ProcessPixelmapMaxSize();
-#if !defined(CROSS_PLATFORM)
     uint32_t ProcessPictureMaxSize();
-#endif
-    uint32_t ProcessBackgroundColor(Media::PixelMap* targetPixelmap);
+    uint32_t ProcessBackgroundColor(PixelMap* processPixelmap);
     uint32_t ProcessRemoveGpsInfo();
     bool IsFormatSupportTransparency(const std::string& format) const;
 
@@ -190,8 +191,10 @@ private:
     OutputDataStream* output_ = nullptr;
     PlEncodeOptions opts_;
     Media::PixelMap* pixelmap_ = nullptr;
+    std::unique_ptr<PixelMap> dstPixelmap_;
     std::vector<std::shared_ptr<Media::AbsMemory>> tmpMemoryList_;
     Media::Picture* picture_ = nullptr;
+    std::unique_ptr<Picture> dstPicture_;
 };
 } // namespace ImagePlugin
 } // namespace OHOS
