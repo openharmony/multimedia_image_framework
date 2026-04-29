@@ -782,7 +782,7 @@ static void parseMaxPackOption(napi_env env, napi_value root, PackOption* opts)
     }
     opts->maxSize.width = width;
     opts->maxSize.height = height;
-    int32_t level = 0;
+    int32_t level = static_cast<int32_t>(AntiAliasingOption::HIGH);
     if (!GET_INT32_BY_NAME(maxPackOptionValue, "level", level)) {
         IMAGE_LOGD("No level in maxPackOption");
     }

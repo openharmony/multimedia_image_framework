@@ -77,7 +77,6 @@
 #include "buffer_packer_stream.h"
 #include "file_packer_stream.h"
 #include "memory_manager.h"
-#include "exif_metadata.h"
 #ifdef HEIF_HW_ENCODE_ENABLE
 #include "v2_1/icodec_image.h"
 #include "iremote_object.h"
@@ -842,24 +841,136 @@ void ExtEncoder::RecycleResources()
 
 bool ExtEncoder::IsFormatSupportTransparency(const std::string& format) const
 {
-    static const std::set<std::string> transparencyFormats = {
-        IMAGE_PNG_FORMAT,
-        IMAGE_WEBP_FORMAT,
-        IMAGE_GIF_FORMAT
-    };
-    return transparencyFormats.find(LowerStr(format)) != transparencyFormats.end();
+    std::string lowerFormat = LowerStr(format);
+    return lowerFormat == IMAGE_PNG_FORMAT || lowerFormat == IMAGE_WEBP_FORMAT || lowerFormat == IMAGE_GIF_FORMAT;
 }
 
 uint32_t ExtEncoder::ProcessEncodeControlParams()
 {
     if (picture_ != nullptr) {
+        if (NeedDeepCopy()) {
+            dstPicture_ = DeepCopyPicture();
+            if (dstPicture_ == nullptr) {
+                IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams DeepCopyPicture failed");
+                return ERR_IMAGE_ENCODE_FAILED;
+            }
+            picture_ = dstPicture_.get();
+        }
         return ProcessPictureEncodeControlParams();
     }
     if (pixelmap_ != nullptr) {
+        if (NeedDeepCopy()) {
+            dstPixelmap_ = DeepCopyPixelmap();
+            if (dstPixelmap_ == nullptr) {
+                IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams DeepCopyPixelmap failed");
+                return ERR_IMAGE_ENCODE_FAILED;
+            }
+            pixelmap_ = dstPixelmap_.get();
+        }
         return ProcessPixelmapEncodeControlParams();
     }
     IMAGE_LOGD("ExtEncoder::ProcessEncodeControlParams no pixelmap or picture for encoding, skip");
     return SUCCESS;
+}
+
+bool ExtEncoder::NeedDeepCopy()
+{
+    PixelMap* srcPixelmap = nullptr;
+    std::shared_ptr<ExifMetadata> exifMetadata = nullptr;
+    bool hasGainmap = false;
+
+    if (picture_ != nullptr) {
+        srcPixelmap = picture_->GetMainPixel().get();
+        exifMetadata = picture_->GetExifMetadata();
+        hasGainmap = picture_->GetGainmapPixelMap() != nullptr;
+    } else if (pixelmap_ != nullptr) {
+        srcPixelmap = pixelmap_;
+        exifMetadata = pixelmap_->GetExifMetadata();
+        hasGainmap = false;
+    }
+
+    if ((srcPixelmap != nullptr) && (opts_.maxSize.width > 0 || opts_.maxSize.height > 0)) {
+        int32_t srcWidth = srcPixelmap->GetWidth();
+        int32_t srcHeight = srcPixelmap->GetHeight();
+        int32_t maxWidth = opts_.maxSize.width > 0 ? opts_.maxSize.width : srcWidth;
+        int32_t maxHeight = opts_.maxSize.height > 0 ? opts_.maxSize.height : srcHeight;
+        if (srcWidth > maxWidth || srcHeight > maxHeight) {
+            return true;
+        }
+    }
+
+    if (!opts_.needPackGPS && exifMetadata != nullptr) {
+        return true;
+    }
+
+    if ((srcPixelmap != nullptr) && (opts_.backgroundColor != 0) && !hasGainmap
+        && !IsFormatSupportTransparency(opts_.format)) {
+        PixelFormat pixelFormat = srcPixelmap->GetPixelFormat();
+        AlphaType alphaType = srcPixelmap->GetAlphaType();
+        if (pixelFormat == PixelFormat::RGBA_8888 && alphaType != AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::unique_ptr<PixelMap> ExtEncoder::DeepCopyPixelmap()
+{
+    int32_t errorCode = SUCCESS;
+    std::unique_ptr<PixelMap> clonedPixelmap = nullptr;
+
+    if (ImageUtils::IsYuvFormat(pixelmap_->GetPixelFormat())) {
+        clonedPixelmap = PixelYuv::CloneYuvImpl(*pixelmap_, errorCode);
+    } else {
+        clonedPixelmap = pixelmap_->Clone(errorCode);
+    }
+
+    if (errorCode != SUCCESS || clonedPixelmap == nullptr) {
+        IMAGE_LOGE("ExtEncoder::DeepCopyPixelmap copy failed, errorCode=%{public}d", errorCode);
+        return nullptr;
+    }
+
+    auto srcExif = pixelmap_->GetExifMetadata();
+    if (srcExif != nullptr) {
+        auto clonedExif = srcExif->Clone();
+        if (clonedExif != nullptr) {
+            clonedPixelmap->SetExifMetadata(clonedExif);
+        }
+    }
+
+    return clonedPixelmap;
+}
+
+std::unique_ptr<Picture> ExtEncoder::DeepCopyPicture()
+{
+    auto srcPicture = std::make_shared<Picture>(*picture_);
+
+    std::vector<AuxiliaryPictureType> srcAuxTypes;
+    std::vector<AuxiliaryPictureType> dstAuxTypes;
+    const auto& allAuxTypes = ImageUtils::GetAllAuxiliaryPictureType();
+    for (const auto& auxType : allAuxTypes) {
+        if (picture_->GetAuxiliaryPicture(auxType) != nullptr) {
+            srcAuxTypes.push_back(auxType);
+            dstAuxTypes.push_back(auxType);
+        }
+    }
+
+    std::vector<MetadataType> srcMetas;
+    std::vector<MetadataType> dstMetas;
+    if (picture_->GetMetadata(MetadataType::EXIF) != nullptr) {
+        srcMetas.push_back(MetadataType::EXIF);
+        dstMetas.push_back(MetadataType::EXIF);
+    }
+
+    std::unique_ptr<Picture> clonedPicture = Picture::DeepCopy(srcPicture,
+        srcAuxTypes, srcMetas, dstAuxTypes, dstMetas, AuxiliaryPictureType::NONE);
+    if (clonedPicture == nullptr) {
+        IMAGE_LOGE("ExtEncoder::DeepCopyPicture DeepCopy failed");
+        return nullptr;
+    }
+
+    return clonedPicture;
 }
 
 uint32_t ExtEncoder::ProcessPixelmapEncodeControlParams()
@@ -962,6 +1073,7 @@ uint32_t ExtEncoder::ProcessPictureMaxSize()
         IMAGE_LOGD("ExtEncoder::ProcessPictureMaxSize no maxSize limit, skip scaling");
         return SUCCESS;
     }
+
     auto mainPixelmap = picture_->GetMainPixel();
     if (mainPixelmap == nullptr) {
         IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize mainPixelmap is nullptr");
@@ -1011,9 +1123,9 @@ uint32_t ExtEncoder::ProcessPictureMaxSize()
     return SUCCESS;
 }
 
-uint32_t ExtEncoder::ProcessBackgroundColor(Media::PixelMap* targetPixelmap)
+uint32_t ExtEncoder::ProcessBackgroundColor(PixelMap* processPixelmap)
 {
-    if (IsFormatSupportTransparency(opts_.format) || targetPixelmap == nullptr) {
+    if (IsFormatSupportTransparency(opts_.format) || processPixelmap == nullptr) {
         return SUCCESS;
     }
 
@@ -1022,39 +1134,39 @@ uint32_t ExtEncoder::ProcessBackgroundColor(Media::PixelMap* targetPixelmap)
         return SUCCESS;
     }
 
-    PixelFormat pixelFormat = targetPixelmap->GetPixelFormat();
-    AlphaType alphaType = targetPixelmap->GetAlphaType();
+    PixelFormat pixelFormat = processPixelmap->GetPixelFormat();
+    AlphaType alphaType = processPixelmap->GetAlphaType();
     if (pixelFormat != PixelFormat::RGBA_8888 || alphaType == AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
         IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor: format %{public}d or alpha %{public}d not supported",
             pixelFormat, alphaType);
         return SUCCESS;
     }
 
-    uint8_t* pixels = const_cast<uint8_t*>(targetPixelmap->GetPixels());
+    uint8_t* pixels = const_cast<uint8_t*>(processPixelmap->GetPixels());
     if (pixels == nullptr) {
         IMAGE_LOGE("ExtEncoder::ProcessBackgroundColor: GetPixels failed");
         return ERR_IMAGE_DATA_ABNORMAL;
     }
 
-    uint64_t rowStride = static_cast<uint64_t>(targetPixelmap->GetWidth() * RGBA8888_PIXEL_BYTES);
+    uint64_t rowStride = static_cast<uint64_t>(processPixelmap->GetWidth() * RGBA8888_PIXEL_BYTES);
 #if !defined(CROSS_PLATFORM)
-    if (targetPixelmap->GetAllocatorType() == AllocatorType::DMA_ALLOC) {
-        SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*>(targetPixelmap->GetFd());
+    if (processPixelmap->GetAllocatorType() == AllocatorType::DMA_ALLOC) {
+        SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*>(processPixelmap->GetFd());
         if (sbBuffer != nullptr) {
             rowStride = static_cast<uint64_t>(sbBuffer->GetStride());
         }
     }
 #endif
 
-    SkImageInfo skInfo = ToSkInfo(targetPixelmap);
+    SkImageInfo skInfo = ToSkInfo(processPixelmap);
     SkBitmap bitmap;
     if (!bitmap.installPixels(skInfo, pixels, rowStride)) {
-        return ERR_IMAGE_ENCODE_FAILED;
+        return ERR_IMAGE_DATA_ABNORMAL;
     }
 
     SkColor backgroundColor = SkColorSetRGB(SkColorGetR(opts_.backgroundColor),
         SkColorGetG(opts_.backgroundColor), SkColorGetB(opts_.backgroundColor));
-    IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor: input background color 0x%{public}X", backgroundColor);
+    IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor: input background color 0x%{public}X", backgroundColor);
 
     SkCanvas canvas(bitmap);
     SkPaint paint;
