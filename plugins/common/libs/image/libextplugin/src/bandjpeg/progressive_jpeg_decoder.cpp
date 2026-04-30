@@ -302,6 +302,7 @@ uint32_t ProgressiveJpegDecoder::DecodeRgb(const JpegInputData &jpegData, const 
 
 bool ProgressiveJpegDecoder::BuildYuvDecodePlan(const YuvDecodeOptions &options, YuvDecodePlan &plan)
 {
+#if !defined(CROSS_PLATFORM)
     if (options.codec == nullptr || options.supportRegion || !options.ifSourceCompleted ||
         options.sampleSize != DEFAULT_SAMPLE_SIZE ||
         options.softSampleSize != DEFAULT_SAMPLE_SIZE ||
@@ -321,6 +322,9 @@ bool ProgressiveJpegDecoder::BuildYuvDecodePlan(const YuvDecodeOptions &options,
     plan.bufferSize = JpegDecoderYuv::GetYuvOutSize(static_cast<uint32_t>(plan.size.width),
         static_cast<uint32_t>(plan.size.height));
     return plan.bufferSize != 0;
+#else
+    return false;
+#endif
 }
 
 uint32_t ProgressiveJpegDecoder::DecodeYuv(const JpegInputData &jpegData, const YuvDecodePlan &plan,
@@ -363,6 +367,7 @@ uint64_t ProgressiveJpegDecoder::GetOutputRowStride(const SkImageInfo &imageInfo
     const uint8_t *bufferForDecode)
 {
     uint64_t rowStride = imageInfo.minRowBytes64();
+#if !defined(CROSS_PLATFORM)
     if (bufferForDecode == static_cast<const uint8_t *>(context.pixelsBuffer.buffer) &&
         context.allocatorType == AllocatorType::DMA_ALLOC) {
         SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*> (context.pixelsBuffer.context);
@@ -372,6 +377,7 @@ uint64_t ProgressiveJpegDecoder::GetOutputRowStride(const SkImageInfo &imageInfo
         }
         rowStride = static_cast<uint64_t>(sbBuffer->GetStride());
     }
+#endif
     return rowStride;
 }
 
