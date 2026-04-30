@@ -282,6 +282,15 @@ static OHOS::Media::Size ParsePackOptionOfMaxSize(PackingOption const& options)
     return maxSize;
 }
 
+static OHOS::Media::AntiAliasingOption ParsePackOptionOfAntiAliasingLevel(PackingOption const& options)
+{
+    if (options.antiAliasingLevel.has_value()) {
+        return static_cast<OHOS::Media::AntiAliasingOption>(options.antiAliasingLevel.value());
+    } else {
+        return OHOS::Media::AntiAliasingOption::HIGH;
+    }
+}
+
 static OHOS::Media::PackOption ParsePackOptions(PackingOption const& options)
 {
     OHOS::Media::PackOption packOption;
@@ -294,6 +303,7 @@ static OHOS::Media::PackOption ParsePackOptions(PackingOption const& options)
     packOption.backgroundColor = options.backgroundColor.value_or(0);
     packOption.maxSize = ParsePackOptionOfMaxSize(options);
     packOption.needPackGPS = options.needPackGPS.value_or(true);
+    packOption.antiAliasingLevel = ParsePackOptionOfAntiAliasingLevel(options);
     return packOption;
 }
 

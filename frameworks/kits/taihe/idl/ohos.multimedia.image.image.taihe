@@ -323,6 +323,7 @@ struct PackingOption {
   backgroundColor: Optional<i32>;
   maxSize: Optional<Size>;
   needPackGPS: Optional<bool>;
+  antiAliasingLevel: Optional<AntiAliasingLevel>;
 }
 
 struct PackingOptionsForSequence {
