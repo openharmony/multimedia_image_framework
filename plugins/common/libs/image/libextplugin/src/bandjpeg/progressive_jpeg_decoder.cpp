@@ -362,6 +362,7 @@ uint64_t ProgressiveJpegDecoder::GetRgbOutputByteCount(const SkImageInfo &imageI
 uint64_t ProgressiveJpegDecoder::GetOutputRowStride(const SkImageInfo &imageInfo, const DecodeContext &context,
     const uint8_t *bufferForDecode)
 {
+#if !defined(CROSS_PLATFORM)
     uint64_t rowStride = imageInfo.minRowBytes64();
     if (bufferForDecode == static_cast<const uint8_t *>(context.pixelsBuffer.buffer) &&
         context.allocatorType == AllocatorType::DMA_ALLOC) {
@@ -373,6 +374,7 @@ uint64_t ProgressiveJpegDecoder::GetOutputRowStride(const SkImageInfo &imageInfo
         rowStride = static_cast<uint64_t>(sbBuffer->GetStride());
     }
     return rowStride;
+#endif
 }
 
 void ProgressiveJpegDecoder::ResetDecodeContextPixelsBuffer(DecodeContext &context)

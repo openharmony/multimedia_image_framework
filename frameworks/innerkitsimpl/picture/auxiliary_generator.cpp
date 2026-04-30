@@ -268,9 +268,6 @@ std::unique_ptr<PixelMap> AuxiliaryGenerator::CreatePixelMapByContext(DecodeCont
         pixelMap->InnerSetColorSpace(decoder->GetPixelMapColorSpace());
     }
 #endif
-    ImageInfo curInfo;
-    pixelMap->GetImageInfo(curInfo);
-    pixelMap->SetImageInfo(curInfo, true);
     return pixelMap;
 }
 
