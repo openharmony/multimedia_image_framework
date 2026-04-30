@@ -751,10 +751,10 @@ static bool parsePackOptionOfQuality(napi_env env, napi_value root, PackOption* 
     return true;
 }
 
-static uint32_t parseBackgroundColor(napi_env env, napi_value root)
+static int32_t parseBackgroundColor(napi_env env, napi_value root)
 {
-    uint32_t tmpValue = 0;
-    if (!GET_UINT32_BY_NAME(root, "backgroundColor", tmpValue)) {
+    int32_t tmpValue = 0;
+    if (!GET_INT32_BY_NAME(root, "backgroundColor", tmpValue)) {
         IMAGE_LOGD("No backgroundColor in pack option");
     }
     return tmpValue;

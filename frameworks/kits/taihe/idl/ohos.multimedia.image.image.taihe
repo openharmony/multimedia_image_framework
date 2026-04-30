@@ -320,6 +320,9 @@ struct PackingOption {
   desiredDynamicRange: Optional<PackingDynamicRange>;
   needsPackProperties: Optional<bool>;
   maxEmbedThumbnailDimension: Optional<i32>;
+  backgroundColor: Optional<i32>;
+  maxSize: Optional<Size>;
+  needPackGPS: Optional<bool>;
 }
 
 struct PackingOptionsForSequence {

@@ -269,6 +269,19 @@ static uint8_t ParsePackOptionOfQuality(PackingOption const& options)
     }
 }
 
+static OHOS::Media::Size ParsePackOptionOfMaxSize(PackingOption const& options)
+{
+    OHOS::Media::Size maxSize;
+    if (options.maxSize.has_value()) {
+        maxSize.width = options.maxSize.value().width;
+        maxSize.height = options.maxSize.value().height;
+    } else {
+        maxSize.width = 0;
+        maxSize.height = 0;
+    }
+    return maxSize;
+}
+
 static OHOS::Media::PackOption ParsePackOptions(PackingOption const& options)
 {
     OHOS::Media::PackOption packOption;
@@ -278,6 +291,9 @@ static OHOS::Media::PackOption ParsePackOptions(PackingOption const& options)
     IMAGE_LOGI("ParsePackOptions format:[%{public}s]", packOption.format.c_str());
     packOption.needsPackProperties = ParseNeedsPackProperties(options);
     packOption.maxEmbedThumbnailDimension = options.maxEmbedThumbnailDimension.value_or(0);
+    packOption.backgroundColor = options.backgroundColor.value_or(0);
+    packOption.maxSize = ParsePackOptionOfMaxSize(options);
+    packOption.needPackGPS = options.needPackGPS.value_or(true);
     return packOption;
 }
 

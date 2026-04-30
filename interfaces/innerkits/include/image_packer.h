@@ -106,7 +106,7 @@ struct PackOption {
      * Format: 0xRRGGBB, where RR is red, GG is green, BB is blue.
      * Default value: 0 (no background color specified, use black).
      */
-    uint32_t backgroundColor = 0;
+    int32_t backgroundColor = 0;
 
     /**
      * Maximum encoding size for maxPackOption.
