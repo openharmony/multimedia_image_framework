@@ -1658,6 +1658,7 @@ const std::set<MetadataType> &ImageUtils::GetAllMetadataType()
         MetadataType::HW_MAKER_NOTE,
         MetadataType::AVIS,
         MetadataType::JFIF,
+        MetadataType::XMP,
         MetadataType::PNG,
         MetadataType::TIFF,
     };

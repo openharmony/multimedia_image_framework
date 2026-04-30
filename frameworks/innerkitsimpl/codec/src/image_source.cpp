@@ -185,7 +185,6 @@ constexpr int32_t SHARE_MEMORY_ALLOC = 2;
 constexpr int32_t AUTO_ALLOC = 0;
 static constexpr uint8_t JPEG_SOI[] = { 0xFF, 0xD8, 0xFF };
 constexpr uint8_t PIXEL_BYTES = 4;
-constexpr int32_t INVALID_FILE_DESCRIPTOR = -1;
 constexpr int32_t WEBP_MIN_FRAME_DURATION = 100;
 constexpr int32_t WEBP_DELAY_TIME_UINT16_MAX = 65535;
 
@@ -7273,7 +7272,6 @@ bool ImageSource::IsJpegProgressive(uint32_t &errorCode)
     return mainDecoder_->IsProgressiveJpeg();
 }
 
-#ifdef XMP_TOOLKIT_SDK_ENABLE
 uint32_t ImageSource::CreateXMPMetadataByImageSource(const std::string &mimeType)
 {
     uint32_t errorCode = ERROR;
@@ -7351,7 +7349,7 @@ uint32_t ImageSource::WriteXMPMetadata(std::shared_ptr<XMPMetadata> &xmpMetadata
     std::unique_ptr<XMPMetadataAccessor> accessor = nullptr;
     if (!srcFilePath_.empty()) {
         accessor = XMPMetadataAccessorFactory::Create(srcFilePath_, XMPAccessMode::READ_WRITE_XMP, mimeType);
-    } else if (srcFd_ != INVALID_FILE_DESCRIPTOR) {
+    } else if (srcFd_ != -1) {
         accessor = XMPMetadataAccessorFactory::Create(srcFd_, XMPAccessMode::READ_WRITE_XMP, mimeType);
     } else {
         IMAGE_LOGE("%{public}s no valid file source (path or fd) found", __func__);
@@ -7377,7 +7375,7 @@ uint32_t ImageSource::WriteXMPMetadata(std::shared_ptr<XMPMetadata> &xmpMetadata
     IMAGE_LOGD("%{public}s XMP metadata written successfully", __func__);
     return SUCCESS;
 }
-#endif
+
 uint32_t ImageSource::GetImageRawData(std::vector<uint8_t> &data, uint32_t &bitsPerSample)
 {
 #if !defined(CROSS_PLATFORM)
