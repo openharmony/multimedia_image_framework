@@ -68,6 +68,7 @@
           "libtiff",
           "api_metrics",
           "dav1d",
+          "xmp_toolkit_sdk",
           "egl",
           "opengles",
           "jsoncpp"
