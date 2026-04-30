@@ -1129,7 +1129,7 @@ uint32_t ExtEncoder::ProcessBackgroundColor(PixelMap* processPixelmap)
         return SUCCESS;
     }
 
-    if (opts_.backgroundColor == 0) {
+    if (opts_.backgroundColor <= 0) {
         IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor: backgroundColor use default black, skip");
         return SUCCESS;
     }
@@ -1164,8 +1164,8 @@ uint32_t ExtEncoder::ProcessBackgroundColor(PixelMap* processPixelmap)
         return ERR_IMAGE_DATA_ABNORMAL;
     }
 
-    SkColor backgroundColor = SkColorSetRGB(SkColorGetR(opts_.backgroundColor),
-        SkColorGetG(opts_.backgroundColor), SkColorGetB(opts_.backgroundColor));
+    uint32_t bgColor = static_cast<uint32_t>(opts_.backgroundColor);
+    SkColor backgroundColor = SkColorSetRGB(SkColorGetR(bgColor), SkColorGetG(bgColor), SkColorGetB(bgColor));
     IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor: input background color 0x%{public}X", backgroundColor);
 
     SkCanvas canvas(bitmap);
