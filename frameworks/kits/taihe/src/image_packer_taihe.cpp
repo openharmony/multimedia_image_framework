@@ -274,7 +274,8 @@ static void ParsePackOptionOfSizeLimit(PackingOption const& options, OHOS::Media
     if (options.sizeLimit.has_value()) {
         packOption.sizeLimit.maxSize.width = options.sizeLimit.value().maxSize.width;
         packOption.sizeLimit.maxSize.height = options.sizeLimit.value().maxSize.height;
-        packOption.sizeLimit.antiAliasingLevel = OHOS::Media::AntiAliasingOption(options.sizeLimit.value().level);
+        int32_t level = static_cast<int32_t>(options.sizeLimit.value().level);
+        packOption.sizeLimit.antiAliasingLevel = OHOS::Media::AntiAliasingOption(level);
     }
 }
 
