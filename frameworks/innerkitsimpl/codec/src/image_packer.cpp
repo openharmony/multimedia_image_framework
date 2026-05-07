@@ -354,9 +354,9 @@ void ImagePacker::CopyOptionsToPlugin(const PackOption &opts, PlEncodeOptions &p
     plOpts.isEditScene = opts.isEditScene;
     plOpts.maxEmbedThumbnailDimension = opts.maxEmbedThumbnailDimension;
     plOpts.backgroundColor = opts.backgroundColor;
-    plOpts.maxSize = opts.maxSize;
-    plOpts.antiAliasingLevel = opts.antiAliasingLevel;
-    plOpts.needPackGPS = opts.needPackGPS;
+    plOpts.sizeLimit.maxSize = opts.sizeLimit.maxSize;
+    plOpts.sizeLimit.antiAliasingLevel = opts.sizeLimit.antiAliasingLevel;
+    plOpts.needsPackGPS = opts.needsPackGPS;
 }
 
 void ImagePacker::FreeOldPackerStream()

@@ -269,25 +269,12 @@ static uint8_t ParsePackOptionOfQuality(PackingOption const& options)
     }
 }
 
-static OHOS::Media::Size ParsePackOptionOfMaxSize(PackingOption const& options)
+static void ParsePackOptionOfSizeLimit(PackingOption const& options, OHOS::Media::PackOption& packOption)
 {
-    OHOS::Media::Size maxSize;
-    if (options.maxSize.has_value()) {
-        maxSize.width = options.maxSize.value().width;
-        maxSize.height = options.maxSize.value().height;
-    } else {
-        maxSize.width = 0;
-        maxSize.height = 0;
-    }
-    return maxSize;
-}
-
-static OHOS::Media::AntiAliasingOption ParsePackOptionOfAntiAliasingLevel(PackingOption const& options)
-{
-    if (options.antiAliasingLevel.has_value()) {
-        return static_cast<OHOS::Media::AntiAliasingOption>(options.antiAliasingLevel.value());
-    } else {
-        return OHOS::Media::AntiAliasingOption::HIGH;
+    if (options.sizeLimit.has_value()) {
+        packOption.sizeLimit.maxSize.width = options.sizeLimit.value().maxSize.width;
+        packOption.sizeLimit.maxSize.height = options.sizeLimit.value().maxSize.height;
+        packOption.sizeLimit.antiAliasingLevel = OHOS::Media::AntiAliasingOption(options.sizeLimit.value().level);
     }
 }
 
@@ -301,9 +288,8 @@ static OHOS::Media::PackOption ParsePackOptions(PackingOption const& options)
     packOption.needsPackProperties = ParseNeedsPackProperties(options);
     packOption.maxEmbedThumbnailDimension = options.maxEmbedThumbnailDimension.value_or(0);
     packOption.backgroundColor = options.backgroundColor.value_or(0);
-    packOption.maxSize = ParsePackOptionOfMaxSize(options);
-    packOption.needPackGPS = options.needPackGPS.value_or(true);
-    packOption.antiAliasingLevel = ParsePackOptionOfAntiAliasingLevel(options);
+    ParsePackOptionOfSizeLimit(options, packOption);
+    packOption.needsPackGPS = options.needsPackGPS.value_or(true);
     return packOption;
 }
 

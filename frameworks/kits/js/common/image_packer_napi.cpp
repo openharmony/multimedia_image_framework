@@ -760,42 +760,44 @@ static int32_t parseBackgroundColor(napi_env env, napi_value root)
     return tmpValue;
 }
 
-static void parseMaxPackOption(napi_env env, napi_value root, PackOption* opts)
+static void parseSizeLimit(napi_env env, napi_value root, PackOption* opts)
 {
-    napi_value maxPackOptionValue = nullptr;
-    if (!GET_NODE_BY_NAME(root, "maxPackOption", maxPackOptionValue)) {
-        IMAGE_LOGD("No maxPackOption in pack option");
+    napi_value sizeLimitValue = nullptr;
+    if (!GET_NODE_BY_NAME(root, "sizeLimit", sizeLimitValue)) {
+        IMAGE_LOGD("No sizeLimit in pack option");
         return;
     }
-    napi_value sizeValue = nullptr;
-    if (!GET_NODE_BY_NAME(maxPackOptionValue, "size", sizeValue)) {
-        IMAGE_LOGD("No size in maxPackOption");
+    PackingSizeLimit sizeLimit;
+    napi_value maxSizeValue = nullptr;
+    if (!GET_NODE_BY_NAME(sizeLimitValue, "maxSize", maxSizeValue)) {
+        IMAGE_LOGD("No maxSize in sizeLimit");
         return;
     }
     int32_t width = 0;
     int32_t height = 0;
-    if (!GET_INT32_BY_NAME(sizeValue, "width", width)) {
-        IMAGE_LOGD("No width in maxPackOption size");
+    if (!GET_INT32_BY_NAME(maxSizeValue, "width", width)) {
+        IMAGE_LOGD("No width in sizeLimit maxSize");
     }
-    if (!GET_INT32_BY_NAME(sizeValue, "height", height)) {
-        IMAGE_LOGD("No height in maxPackOption size");
+    if (!GET_INT32_BY_NAME(maxSizeValue, "height", height)) {
+        IMAGE_LOGD("No height in sizeLimit maxSize");
     }
-    opts->maxSize.width = width;
-    opts->maxSize.height = height;
-    int32_t level = static_cast<int32_t>(AntiAliasingOption::HIGH);
-    if (!GET_INT32_BY_NAME(maxPackOptionValue, "level", level)) {
-        IMAGE_LOGD("No level in maxPackOption");
+    sizeLimit.maxSize.width = width;
+    sizeLimit.maxSize.height = height;
+    int32_t level = static_cast<int32_t>(AntiAliasingOption::NONE);
+    if (!GET_INT32_BY_NAME(sizeLimitValue, "level", level)) {
+        IMAGE_LOGD("No level in sizeLimit");
     }
-    opts->antiAliasingLevel = static_cast<AntiAliasingOption>(level);
+    sizeLimit.antiAliasingLevel = static_cast<AntiAliasingOption>(level);
+    opts->sizeLimit = sizeLimit;
 }
 
-static bool parseNeedPackGPS(napi_env env, napi_value root)
+static bool parseNeedsPackGPS(napi_env env, napi_value root)
 {
-    bool tmpNeedPackGPS = true;
-    if (!GET_BOOL_BY_NAME(root, "needPackGPS", tmpNeedPackGPS)) {
-        IMAGE_LOGD("No needPackGPS in pack option");
+    bool tmpNeedsPackGPS = true;
+    if (!GET_BOOL_BY_NAME(root, "needsPackGPS", tmpNeedsPackGPS)) {
+        IMAGE_LOGD("No needsPackGPS in pack option");
     }
-    return tmpNeedPackGPS;
+    return tmpNeedsPackGPS;
 }
 
 static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
@@ -848,8 +850,8 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
     opts->needsPackProperties = parseNeedsPackProperties(env, root);
     opts->maxEmbedThumbnailDimension = parseEmbedThumbnailMaxSize(env, root);
     opts->backgroundColor = parseBackgroundColor(env, root);
-    parseMaxPackOption(env, root, opts);
-    opts->needPackGPS = parseNeedPackGPS(env, root);
+    parseSizeLimit(env, root, opts);
+    opts->needsPackGPS = parseNeedsPackGPS(env, root);
     return parsePackOptionOfQuality(env, root, opts);
 }
 
