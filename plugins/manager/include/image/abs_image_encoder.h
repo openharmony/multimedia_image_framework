@@ -26,6 +26,11 @@ namespace OHOS {
 namespace ImagePlugin {
 using namespace Media;
 
+struct PackingSizeLimit {
+    Size maxSize = {0, 0};
+    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::NONE;
+};
+
 struct PlEncodeOptions {
     std::string format;
     uint8_t quality = 100;
@@ -40,9 +45,8 @@ struct PlEncodeOptions {
     std::vector<uint8_t> disposalTypes;
     int32_t maxEmbedThumbnailDimension = 0;
     int32_t backgroundColor = 0;
-    Size maxSize = {0, 0};
-    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::HIGH;
-    bool needPackGPS = true;
+    PackingSizeLimit sizeLimit;
+    bool needsPackGPS = true;
 };
 
 class AbsImageEncoder {

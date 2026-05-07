@@ -889,17 +889,17 @@ bool ExtEncoder::NeedDeepCopy()
         hasGainmap = false;
     }
 
-    if ((srcPixelmap != nullptr) && (opts_.maxSize.width > 0 || opts_.maxSize.height > 0)) {
+    if ((srcPixelmap != nullptr) && (opts_.sizeLimit.maxSize.width > 0 || opts_.sizeLimit.maxSize.height > 0)) {
         int32_t srcWidth = srcPixelmap->GetWidth();
         int32_t srcHeight = srcPixelmap->GetHeight();
-        int32_t maxWidth = opts_.maxSize.width > 0 ? opts_.maxSize.width : srcWidth;
-        int32_t maxHeight = opts_.maxSize.height > 0 ? opts_.maxSize.height : srcHeight;
+        int32_t maxWidth = opts_.sizeLimit.maxSize.width > 0 ? opts_.sizeLimit.maxSize.width : srcWidth;
+        int32_t maxHeight = opts_.sizeLimit.maxSize.height > 0 ? opts_.sizeLimit.maxSize.height : srcHeight;
         if (srcWidth > maxWidth || srcHeight > maxHeight) {
             return true;
         }
     }
 
-    if (!opts_.needPackGPS && exifMetadata != nullptr) {
+    if (!opts_.needsPackGPS && exifMetadata != nullptr) {
         return true;
     }
 
@@ -1031,7 +1031,7 @@ uint32_t ExtEncoder::ProcessPictureEncodeControlParams()
 
 uint32_t ExtEncoder::ProcessPixelmapMaxSize()
 {
-    if (opts_.maxSize.width <= 0 && opts_.maxSize.height <= 0) {
+    if (opts_.sizeLimit.maxSize.width <= 0 && opts_.sizeLimit.maxSize.height <= 0) {
         IMAGE_LOGD("ExtEncoder::ProcessPixelmapMaxSize no maxSize limit, skip scaling");
         return SUCCESS;
     }
@@ -1044,8 +1044,8 @@ uint32_t ExtEncoder::ProcessPixelmapMaxSize()
         return ERR_IMAGE_INVALID_PARAMETER;
     }
 
-    int32_t maxWidth = opts_.maxSize.width > 0 ? opts_.maxSize.width : srcWidth;
-    int32_t maxHeight = opts_.maxSize.height > 0 ? opts_.maxSize.height : srcHeight;
+    int32_t maxWidth = opts_.sizeLimit.maxSize.width > 0 ? opts_.sizeLimit.maxSize.width : srcWidth;
+    int32_t maxHeight = opts_.sizeLimit.maxSize.height > 0 ? opts_.sizeLimit.maxSize.height : srcHeight;
     if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
         IMAGE_LOGD("ExtEncoder::ProcessPixelmapMaxSize image size within max bounds, skip scaling");
         return SUCCESS;
@@ -1055,21 +1055,19 @@ uint32_t ExtEncoder::ProcessPixelmapMaxSize()
     float scaleY = static_cast<float>(maxHeight) / srcHeight;
     float scale = std::min(scaleX, scaleY);
     IMAGE_LOGI("ExtEncoder::ProcessPixelmapMaxSize scale image from (%{public}d, %{public}d) "
-        "to fit max size(%{public}d, %{public}d), scale=%{public}f", srcWidth, srcHeight, maxWidth, maxHeight, scale);
+        "to fit maxSize(%{public}d, %{public}d), scale=%{public}f", srcWidth, srcHeight, maxWidth, maxHeight, scale);
 
-    uint32_t scaleRet = pixelmap_->Scale(scale, scale, opts_.antiAliasingLevel);
+    uint32_t scaleRet = pixelmap_->Scale(scale, scale, opts_.sizeLimit.antiAliasingLevel);
     if (scaleRet != SUCCESS) {
         IMAGE_LOGE("ExtEncoder::ProcessPixelmapMaxSize scale failed %{public}u", scaleRet);
         return scaleRet;
     }
-    IMAGE_LOGI("ExtEncoder::ProcessPixelmapMaxSize scaled to (%{public}d, %{public}d)",
-        pixelmap_->GetWidth(), pixelmap_->GetHeight());
     return SUCCESS;
 }
 
 uint32_t ExtEncoder::ProcessPictureMaxSize()
 {
-    if (opts_.maxSize.width <= 0 && opts_.maxSize.height <= 0) {
+    if (opts_.sizeLimit.maxSize.width <= 0 && opts_.sizeLimit.maxSize.height <= 0) {
         IMAGE_LOGD("ExtEncoder::ProcessPictureMaxSize no maxSize limit, skip scaling");
         return SUCCESS;
     }
@@ -1088,8 +1086,8 @@ uint32_t ExtEncoder::ProcessPictureMaxSize()
         return ERR_IMAGE_INVALID_PARAMETER;
     }
 
-    int32_t maxWidth = opts_.maxSize.width > 0 ? opts_.maxSize.width : srcWidth;
-    int32_t maxHeight = opts_.maxSize.height > 0 ? opts_.maxSize.height : srcHeight;
+    int32_t maxWidth = opts_.sizeLimit.maxSize.width > 0 ? opts_.sizeLimit.maxSize.width : srcWidth;
+    int32_t maxHeight = opts_.sizeLimit.maxSize.height > 0 ? opts_.sizeLimit.maxSize.height : srcHeight;
     if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
         IMAGE_LOGD("ExtEncoder::ProcessPictureMaxSize image size within max bounds, skip scaling");
         return SUCCESS;
@@ -1099,7 +1097,7 @@ uint32_t ExtEncoder::ProcessPictureMaxSize()
     float scaleY = static_cast<float>(maxHeight) / srcHeight;
     float scale = std::min(scaleX, scaleY);
     IMAGE_LOGI("ExtEncoder::ProcessPictureMaxSize scale image from (%{public}d, %{public}d) "
-        "to fit max size(%{public}d, %{public}d), scale=%{public}f", srcWidth, srcHeight, maxWidth, maxHeight, scale);
+        "to fit maxSize(%{public}d, %{public}d), scale=%{public}f", srcWidth, srcHeight, maxWidth, maxHeight, scale);
 
     if (!mainPixelmap->resize(scale, scale)) {
         IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize mainPixelmap resize failed");
@@ -1166,7 +1164,7 @@ uint32_t ExtEncoder::ProcessBackgroundColor(PixelMap* processPixelmap)
 
     uint32_t bgColor = static_cast<uint32_t>(opts_.backgroundColor);
     SkColor backgroundColor = SkColorSetRGB(SkColorGetR(bgColor), SkColorGetG(bgColor), SkColorGetB(bgColor));
-    IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor: input background color 0x%{public}X", backgroundColor);
+    IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor: input background color 0x%{public}X", backgroundColor);
 
     SkCanvas canvas(bitmap);
     SkPaint paint;
@@ -1181,8 +1179,8 @@ uint32_t ExtEncoder::ProcessBackgroundColor(PixelMap* processPixelmap)
 
 uint32_t ExtEncoder::ProcessRemoveGpsInfo()
 {
-    if (opts_.needPackGPS) {
-        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo needPackGPS is true, keep GPS info");
+    if (opts_.needsPackGPS) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo needsPackGPS is true, keep GPS info");
         return SUCCESS;
     }
 

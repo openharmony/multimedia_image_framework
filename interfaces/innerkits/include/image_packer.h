@@ -38,6 +38,12 @@ class AbsImageEncoder;
 
 namespace OHOS {
 namespace Media {
+
+struct PackingSizeLimit {
+    Size maxSize = {0, 0};
+    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::NONE;
+};
+
 struct PackOption {
     /**
      * Specify the file format of the output image.
@@ -109,23 +115,17 @@ struct PackOption {
     int32_t backgroundColor = 0;
 
     /**
-     * Maximum encoding size for maxPackOption.
-     * Default value: {0, 0} (no limit).
+     * Size limit for packing.
+     * Default value: no size limit.
      */
-    Size maxSize = {0, 0};
-
-    /**
-     * Anti-aliasing level for scaling when maxPackOption is specified.
-     * Default value: AntiAliasingOption::HIGH.
-     */
-    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::HIGH;
+    PackingSizeLimit sizeLimit;
 
     /**
      * Whether to pack GPS information in EXIF metadata during encoding.
      * When set to false, GPS related EXIF tags will be removed before encoding.
      * Default value: true (keep GPS information).
      */
-    bool needPackGPS = true;
+    bool needsPackGPS = true;
 };
 
 class PackerStream;
