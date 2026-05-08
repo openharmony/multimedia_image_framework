@@ -175,10 +175,10 @@ static bool NV12P010ToNV21P010SoftDecode(const uint8_t *srcBuffer, const YUVData
 
 static bool NV12P010ToNV21P010SoftDecode(const SrcConvertParam &srcParam, const DestConvertParam &destParam)
 {
-    const uint16_t *src = reinterpret_cast<const uint16_t *>(srcParam.slice[0]);
-    uint16_t *dst = reinterpret_cast<uint16_t *>(destParam.slice[0]);
-    const uint16_t *src_uv = reinterpret_cast<const uint16_t *>(srcParam.slice[1]);
-    uint16_t *dst_vu = reinterpret_cast<uint16_t *>(destParam.slice[1]);
+    const uint16_t *srcY = reinterpret_cast<const uint16_t *>(srcParam.slice[0]);
+    uint16_t *dstY = reinterpret_cast<uint16_t *>(destParam.slice[0]);
+    const uint16_t *srcUV = reinterpret_cast<const uint16_t *>(srcParam.slice[1]);
+    uint16_t *dstVU = reinterpret_cast<uint16_t *>(destParam.slice[1]);
 
     uint32_t yStrideSrc = srcParam.stride[0] / TWO_SLICES;
     uint32_t yStrideDst = destParam.stride[0] / TWO_SLICES;
@@ -186,21 +186,21 @@ static bool NV12P010ToNV21P010SoftDecode(const SrcConvertParam &srcParam, const 
     uint32_t uvStrideDst = destParam.stride[1] / TWO_SLICES;
     for (uint32_t row = 0; row < srcParam.height; row++) {
         for (uint32_t i = 0; i < srcParam.width; i++) {
-            dst[i] = src[i];
+            dstY[i] = srcY[i];
         }
-        src += yStrideSrc;
-        dst += yStrideDst;
+        srcY += yStrideSrc;
+        dstY += yStrideDst;
     }
 
     uint32_t uvHeight = (srcParam.height + 1) / TWO_SLICES;
     uint32_t uvWidth = (srcParam.width % EVEN_ODD_DIVISOR == 0 ? srcParam.width : (srcParam.width + 1));
     for (uint32_t row = 0; row < uvHeight; row++) {
         for (uint32_t i = 0; i < uvWidth; i += TWO_SLICES) {
-            dst_vu[i] = src_uv[i + 1];
-            dst_vu[i + 1] = src_uv[i];
+            dstVU[i] = srcUV[i + 1];
+            dstVU[i + 1] = srcUV[i];
         }
-        src_uv += uvStrideSrc;
-        dst_vu += uvStrideDst;
+        srcUV += uvStrideSrc;
+        dstVU += uvStrideDst;
     }
     
     return true;
