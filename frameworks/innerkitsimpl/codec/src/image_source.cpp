@@ -7274,6 +7274,7 @@ bool ImageSource::IsJpegProgressive(uint32_t &errorCode)
 
 uint32_t ImageSource::CreateXMPMetadataByImageSource(const std::string &mimeType)
 {
+#if !defined(CROSS_PLATFORM)
     uint32_t errorCode = ERROR;
     IMAGE_LOGD("%{public}s enter", __func__);
     if (xmpMetadata_ != nullptr) {
@@ -7313,6 +7314,7 @@ uint32_t ImageSource::CreateXMPMetadataByImageSource(const std::string &mimeType
     errorCode = accessor->Read();
     CHECK_ERROR_RETURN_RET_LOG(errorCode != SUCCESS, errorCode, "%{public}s failed to read xmp metadata", __func__);
     xmpMetadata_ = accessor->Get();
+#endif
     return SUCCESS;
 }
 
@@ -7338,6 +7340,7 @@ std::shared_ptr<XMPMetadata> ImageSource::ReadXMPMetadata(uint32_t &errorCode)
 
 uint32_t ImageSource::WriteXMPMetadata(std::shared_ptr<XMPMetadata> &xmpMetadata)
 {
+#if !defined(CROSS_PLATFORM)
     IMAGE_LOGD("%{public}s enter", __func__);
     ImageInfo imageInfo;
     uint32_t errorCode = GetImageInfo(imageInfo);
@@ -7373,6 +7376,7 @@ uint32_t ImageSource::WriteXMPMetadata(std::shared_ptr<XMPMetadata> &xmpMetadata
     }
     Reset();
     IMAGE_LOGD("%{public}s XMP metadata written successfully", __func__);
+#endif
     return SUCCESS;
 }
 
