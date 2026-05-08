@@ -751,15 +751,6 @@ static bool parsePackOptionOfQuality(napi_env env, napi_value root, PackOption* 
     return true;
 }
 
-static int32_t parseBackgroundColor(napi_env env, napi_value root)
-{
-    int32_t tmpValue = 0;
-    if (!GET_INT32_BY_NAME(root, "backgroundColor", tmpValue)) {
-        IMAGE_LOGD("No backgroundColor in pack option");
-    }
-    return tmpValue;
-}
-
 static void parseSizeLimit(napi_env env, napi_value root, PackOption* opts)
 {
     napi_value sizeLimitValue = nullptr;
@@ -789,15 +780,6 @@ static void parseSizeLimit(napi_env env, napi_value root, PackOption* opts)
     }
     sizeLimit.antiAliasingLevel = static_cast<AntiAliasingOption>(level);
     opts->sizeLimit = sizeLimit;
-}
-
-static bool parseNeedsPackGPS(napi_env env, napi_value root)
-{
-    bool tmpNeedsPackGPS = true;
-    if (!GET_BOOL_BY_NAME(root, "needsPackGPS", tmpNeedsPackGPS)) {
-        IMAGE_LOGD("No needsPackGPS in pack option");
-    }
-    return tmpNeedsPackGPS;
 }
 
 static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
@@ -849,9 +831,9 @@ static bool parsePackOptions(napi_env env, napi_value root, PackOption* opts)
     IMAGE_LOGD("parsePackOptions format:[%{public}s]", opts->format.c_str());
     opts->needsPackProperties = parseNeedsPackProperties(env, root);
     opts->maxEmbedThumbnailDimension = parseEmbedThumbnailMaxSize(env, root);
-    opts->backgroundColor = parseBackgroundColor(env, root);
+    GET_INT32_BY_NAME(root, "backgroundColor", opts->backgroundColor);
     parseSizeLimit(env, root, opts);
-    opts->needsPackGPS = parseNeedsPackGPS(env, root);
+    GET_BOOL_BY_NAME(root, "needsPackGPS", opts->needsPackGPS);
     return parsePackOptionOfQuality(env, root, opts);
 }
 
