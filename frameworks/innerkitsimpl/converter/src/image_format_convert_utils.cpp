@@ -367,7 +367,7 @@ static bool RGBToYuvP010Param(const RGBDataInfo &rgbInfo, SrcConvertParam &srcPa
 
 static bool SwapNV21P010(DestConvertInfo &destInfo)
 {
-    size_t midBufferSize = (destInfo.yStride * destInfo.height + 
+    size_t midBufferSize = (destInfo.yStride * destInfo.height +
                             destInfo.uvStride * ((destInfo.height + 1) / TWO_SLICES)) * TWO_SLICES;
     if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("Invalid destination buffer size calculation!");
