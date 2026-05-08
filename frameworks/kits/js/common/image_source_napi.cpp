@@ -3848,6 +3848,7 @@ static void WriteImageMetadataExecute(napi_env env, void *data)
 static bool GetXMPMetadataArgument(napi_env env, napi_value imageMetadataObj,
     std::shared_ptr<XMPMetadata> &xmpMetadata)
 {
+#if !defined(CROSS_PLATFORM)
     xmpMetadata = nullptr;
 
     if (ImageNapiUtils::getType(env, imageMetadataObj) != napi_object) {
@@ -3875,6 +3876,7 @@ static bool GetXMPMetadataArgument(napi_env env, napi_value imageMetadataObj,
         IMAGE_LOGE("%{public}s fail to get xmpMetadata object", __func__);
         return false;
     }
+#endif
     return true;
 }
 
