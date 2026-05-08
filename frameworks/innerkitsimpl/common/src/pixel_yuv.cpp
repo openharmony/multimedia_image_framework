@@ -1097,16 +1097,6 @@ uint32_t PixelYuv::ApplyColorSpace(const OHOS::ColorManager::ColorSpace &grColor
 }
 #endif
 
-static uint32_t GetActualCapacity(PixelMap& pixelMap)
-{
-    uint32_t capacity = pixelMap.GetCapacity();
-    if (pixelMap.GetAllocatorType() == AllocatorType::DMA_ALLOC) {
-        SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*>(pixelMap.GetFd());
-        capacity = sbBuffer->GetSize();
-    }
-    return capacity;
-}
-
 struct YUVPlaneCopyInfo {
     const uint8_t *srcBase = nullptr;
     uint8_t *dstBase = nullptr;
@@ -1157,8 +1147,8 @@ static bool CopyYuvPlanes(PixelMap &source, PixelMap &dstPixelMap)
 
     auto srcBase = const_cast<uint8_t *>(source.GetPixels());
     auto dstBase = const_cast<uint8_t *>(dstPixelMap.GetPixels());
-    uint32_t srcCapacity = GetActualCapacity(source);
-    uint32_t dstCapacity = GetActualCapacity(dstPixelMap);
+    const uint32_t srcCapacity = source.GetAllocationByteCount();
+    const uint32_t dstCapacity = dstPixelMap.GetAllocationByteCount();
 
     const uint64_t srcYStrideBytes = static_cast<uint64_t>(srcYuv.yStride) * bytesPerSample;
     const uint64_t srcUvStrideBytes = static_cast<uint64_t>(srcYuv.uvStride) * bytesPerSample;
