@@ -3658,7 +3658,7 @@ static void ReadImageMetadataExecute(napi_env env, void *data)
                 IMAGE_LOGE("errCode: %{public}u, exif key: %{public}s", status, keyStrIt->c_str());
             }
         }
-        context->status = (context->kValueTypeArray.size() == context->errMsgArray.size()) ? ERROR : SUCCESS;
+        context->status = (context->keyStrArray.size() == context->errMsgArray.size()) ? ERROR : SUCCESS;
     }
 }
 
