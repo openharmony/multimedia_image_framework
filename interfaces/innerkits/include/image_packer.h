@@ -38,6 +38,12 @@ class AbsImageEncoder;
 
 namespace OHOS {
 namespace Media {
+
+struct PackingSizeLimit {
+    Size maxSize = {0, 0};
+    AntiAliasingOption antiAliasingLevel = AntiAliasingOption::NONE;
+};
+
 struct PackOption {
     /**
      * Specify the file format of the output image.
@@ -99,6 +105,27 @@ struct PackOption {
      * Currently, this parameter is only valid for the JPEG and HEIF format of the Picture.
      */
     int32_t maxEmbedThumbnailDimension = 0;
+
+    /**
+     * Background color for encoding RGBA images to formats that don't support transparency (e.g., JPEG, HEIF).
+     * When encoding RGBA format images to non-transparent formats, this color is used as the background.
+     * Format: 0xRRGGBB, where RR is red, GG is green, BB is blue.
+     * Default value: 0 (no background color specified, use black).
+     */
+    int32_t backgroundColor = 0;
+
+    /**
+     * Size limit for packing.
+     * Default value: no size limit.
+     */
+    PackingSizeLimit sizeLimit;
+
+    /**
+     * Whether to pack GPS information in EXIF metadata during encoding.
+     * When set to false, GPS related EXIF tags will be removed before encoding.
+     * Default value: true (keep GPS information).
+     */
+    bool needsPackGPS = true;
 };
 
 class PackerStream;

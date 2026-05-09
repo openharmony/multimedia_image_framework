@@ -313,6 +313,11 @@ enum CropAndScaleStrategy: i32 {
   CROP_FIRST = 2
 }
 
+struct PackingSizeLimit {
+  maxSize: Size;
+  level: AntiAliasingLevel;
+}
+
 struct PackingOption {
   format: String;
   quality: i32;
@@ -320,6 +325,9 @@ struct PackingOption {
   desiredDynamicRange: Optional<PackingDynamicRange>;
   needsPackProperties: Optional<bool>;
   maxEmbedThumbnailDimension: Optional<i32>;
+  backgroundColor: Optional<i32>;
+  sizeLimit: Optional<PackingSizeLimit>;
+  needsPackGPS: Optional<bool>;
 }
 
 struct PackingOptionsForSequence {

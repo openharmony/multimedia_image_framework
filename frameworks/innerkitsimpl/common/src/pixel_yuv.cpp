@@ -1147,8 +1147,8 @@ static bool CopyYuvPlanes(PixelMap &source, PixelMap &dstPixelMap)
 
     auto srcBase = const_cast<uint8_t *>(source.GetPixels());
     auto dstBase = const_cast<uint8_t *>(dstPixelMap.GetPixels());
-    const uint32_t srcCapacity = source.GetCapacity();
-    const uint32_t dstCapacity = dstPixelMap.GetCapacity();
+    const uint32_t srcCapacity = source.GetAllocationByteCount();
+    const uint32_t dstCapacity = dstPixelMap.GetAllocationByteCount();
 
     const uint64_t srcYStrideBytes = static_cast<uint64_t>(srcYuv.yStride) * bytesPerSample;
     const uint64_t srcUvStrideBytes = static_cast<uint64_t>(srcYuv.uvStride) * bytesPerSample;
@@ -1187,7 +1187,7 @@ static bool CopyYuvPlanes(PixelMap &source, PixelMap &dstPixelMap)
     return true;
 }
 
-std::unique_ptr<PixelMap> PixelYuv::CloneYuvImpl(PixelMap &source, int32_t &errorCode)
+std::unique_ptr<PixelMap> PixelYuv::CloneYuv(PixelMap &source, int32_t &errorCode)
 {
     ImageInfo imageInfo;
     source.GetImageInfo(imageInfo);
@@ -1338,7 +1338,7 @@ std::unique_ptr<PixelMap> PixelYuv::CreateThumbnailPixelMap(PixelMap &source, in
     errorCode = static_cast<int32_t>(err);
     CHECK_ERROR_RETURN_RET(errorCode != SUCCESS, nullptr);
     if (ImageUtils::FloatEqual(scale, 1.0f)) {
-        return CloneYuvImpl(source, errorCode);
+        return CloneYuv(source, errorCode);
     }
     targetSize.width = targetSize.width - (targetSize.width % NUM_2);
     targetSize.height = targetSize.height - (targetSize.height % NUM_2);
