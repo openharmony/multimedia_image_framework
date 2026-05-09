@@ -27,6 +27,8 @@
 #include "src/images/SkImageEncoderFns.h"
 #endif
 #include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkImage.h"
 #include "pixel_yuv.h"
 #include "pixel_yuv_ext.h"
 #include "pixel_yuv_utils.h"
@@ -552,16 +554,22 @@ uint32_t ExtEncoder::FinalizeEncode()
         ReportEncodeFault(0, 0, opts_.format, "Unsupported format:" + opts_.format);
         return ERR_IMAGE_INVALID_PARAMETER;
     }
+    encodeFormat_ = iter->second;
+
+    uint32_t processRet = ProcessEncodeControlParams();
+    if (processRet != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::FinalizeEncode ProcessEncodeControlParams failed %{public}u", processRet);
+        return processRet;
+    }
+
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
     if (picture_ != nullptr) {
-        encodeFormat_ = iter->second;
         return EncodePicture();
     }
 #endif
     ImageInfo imageInfo;
     pixelmap_->GetImageInfo(imageInfo);
-    imageDataStatistics.AddTitle(", width = %d, height =%d", imageInfo.size.width, imageInfo.size.height);
-    encodeFormat_ = iter->second;
+    imageDataStatistics.AddTitle("width = %d, height =%d", imageInfo.size.width, imageInfo.size.height);
     ExtWStream wStream(output_);
     return PixelmapEncode(wStream);
 }
@@ -829,6 +837,370 @@ void ExtEncoder::RecycleResources()
         memory->Release();
     }
     tmpMemoryList_.clear();
+}
+
+bool ExtEncoder::IsFormatSupportTransparency(const std::string& format) const
+{
+    std::string lowerFormat = LowerStr(format);
+    return lowerFormat == IMAGE_PNG_FORMAT || lowerFormat == IMAGE_WEBP_FORMAT || lowerFormat == IMAGE_GIF_FORMAT;
+}
+
+uint32_t ExtEncoder::ProcessEncodeControlParams()
+{
+    if (picture_ != nullptr) {
+        if (NeedDeepCopy()) {
+            dstPicture_ = DeepCopyPicture();
+            if (dstPicture_ == nullptr) {
+                IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams DeepCopyPicture failed");
+                return ERR_IMAGE_ENCODE_FAILED;
+            }
+            picture_ = dstPicture_.get();
+        }
+        return ProcessPictureEncodeControlParams();
+    }
+    if (pixelmap_ != nullptr) {
+        if (NeedDeepCopy()) {
+            dstPixelmap_ = DeepCopyPixelmap();
+            if (dstPixelmap_ == nullptr) {
+                IMAGE_LOGE("ExtEncoder::ProcessEncodeControlParams DeepCopyPixelmap failed");
+                return ERR_IMAGE_ENCODE_FAILED;
+            }
+            pixelmap_ = dstPixelmap_.get();
+        }
+        return ProcessPixelmapEncodeControlParams();
+    }
+    IMAGE_LOGD("ExtEncoder::ProcessEncodeControlParams no pixelmap or picture for encoding, skip");
+    return SUCCESS;
+}
+
+bool ExtEncoder::NeedDeepCopy()
+{
+    PixelMap* srcPixelmap = nullptr;
+    std::shared_ptr<ExifMetadata> exifMetadata = nullptr;
+    bool hasGainmap = false;
+
+    if (picture_ != nullptr) {
+        srcPixelmap = picture_->GetMainPixel().get();
+        exifMetadata = picture_->GetExifMetadata();
+        hasGainmap = picture_->GetGainmapPixelMap() != nullptr;
+    } else if (pixelmap_ != nullptr) {
+        srcPixelmap = pixelmap_;
+        exifMetadata = pixelmap_->GetExifMetadata();
+        hasGainmap = false;
+    }
+
+    if ((srcPixelmap != nullptr) && (opts_.sizeLimit.maxSize.width > 0 || opts_.sizeLimit.maxSize.height > 0)) {
+        int32_t srcWidth = srcPixelmap->GetWidth();
+        int32_t srcHeight = srcPixelmap->GetHeight();
+        int32_t maxWidth = opts_.sizeLimit.maxSize.width > 0 ? opts_.sizeLimit.maxSize.width : srcWidth;
+        int32_t maxHeight = opts_.sizeLimit.maxSize.height > 0 ? opts_.sizeLimit.maxSize.height : srcHeight;
+        if (srcWidth > maxWidth || srcHeight > maxHeight) {
+            return true;
+        }
+    }
+
+    if (!opts_.needsPackGPS && exifMetadata != nullptr) {
+        return true;
+    }
+
+    if ((srcPixelmap != nullptr) && (opts_.backgroundColor != 0) && !hasGainmap
+        && !IsFormatSupportTransparency(opts_.format)) {
+        PixelFormat pixelFormat = srcPixelmap->GetPixelFormat();
+        AlphaType alphaType = srcPixelmap->GetAlphaType();
+        if (pixelFormat == PixelFormat::RGBA_8888 && alphaType != AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::unique_ptr<PixelMap> ExtEncoder::DeepCopyPixelmap()
+{
+    int32_t errorCode = SUCCESS;
+    std::unique_ptr<PixelMap> clonedPixelmap = nullptr;
+
+    if (ImageUtils::IsYuvFormat(pixelmap_->GetPixelFormat())) {
+        clonedPixelmap = PixelYuv::CloneYuv(*pixelmap_, errorCode);
+    } else {
+        clonedPixelmap = pixelmap_->Clone(errorCode);
+    }
+
+    if (errorCode != SUCCESS || clonedPixelmap == nullptr) {
+        IMAGE_LOGE("ExtEncoder::DeepCopyPixelmap copy failed, errorCode=%{public}d", errorCode);
+        return nullptr;
+    }
+
+    auto srcExif = pixelmap_->GetExifMetadata();
+    if (srcExif != nullptr) {
+        auto clonedExif = srcExif->Clone();
+        if (clonedExif != nullptr) {
+            clonedPixelmap->SetExifMetadata(clonedExif);
+        }
+    }
+
+    return clonedPixelmap;
+}
+
+std::unique_ptr<Picture> ExtEncoder::DeepCopyPicture()
+{
+    auto srcPicture = std::make_shared<Picture>(*picture_);
+
+    std::vector<AuxiliaryPictureType> srcAuxTypes;
+    std::vector<AuxiliaryPictureType> dstAuxTypes;
+    const auto& allAuxTypes = ImageUtils::GetAllAuxiliaryPictureType();
+    for (const auto& auxType : allAuxTypes) {
+        if (picture_->GetAuxiliaryPicture(auxType) != nullptr) {
+            srcAuxTypes.push_back(auxType);
+            dstAuxTypes.push_back(auxType);
+        }
+    }
+
+    std::vector<MetadataType> srcMetas;
+    std::vector<MetadataType> dstMetas;
+    if (picture_->GetMetadata(MetadataType::EXIF) != nullptr) {
+        srcMetas.push_back(MetadataType::EXIF);
+        dstMetas.push_back(MetadataType::EXIF);
+    }
+
+    std::unique_ptr<Picture> clonedPicture = Picture::DeepCopy(srcPicture,
+        srcAuxTypes, srcMetas, dstAuxTypes, dstMetas, AuxiliaryPictureType::NONE);
+    if (clonedPicture == nullptr) {
+        IMAGE_LOGE("ExtEncoder::DeepCopyPicture DeepCopy failed");
+        return nullptr;
+    }
+
+    return clonedPicture;
+}
+
+uint32_t ExtEncoder::ProcessPixelmapEncodeControlParams()
+{
+    uint32_t ret = ProcessPixelmapMaxSize();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessPixelmapEncodeControlParams ProcessPixelmapMaxSize failed %{public}u", ret);
+        return ret;
+    }
+
+    ret = ProcessBackgroundColor(pixelmap_);
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessPixelmapEncodeControlParams ProcessBackgroundColor failed %{public}u", ret);
+        return ret;
+    }
+
+    ret = ProcessRemoveGpsInfo();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessPixelmapEncodeControlParams ProcessRemoveGpsInfo failed %{public}u", ret);
+        return ret;
+    }
+
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessPictureEncodeControlParams()
+{
+    auto mainPixelmap = picture_->GetMainPixel();
+    if (mainPixelmap == nullptr) {
+        IMAGE_LOGD("ExtEncoder::ProcessPictureEncodeControlParams mainPixelmap is nullptr");
+        return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
+    uint32_t ret = ProcessPictureMaxSize();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessPictureEncodeControlParams ProcessPictureMaxSize failed %{public}u", ret);
+        return ret;
+    }
+
+    if (picture_->GetGainmapPixelMap() == nullptr) {
+        ret = ProcessBackgroundColor(mainPixelmap.get());
+        if (ret != SUCCESS) {
+            IMAGE_LOGE("ExtEncoder::ProcessPictureEncodeControlParams ProcessBackgroundColor failed %{public}u", ret);
+            return ret;
+        }
+    } else {
+        IMAGE_LOGW("ExtEncoder::ProcessPictureEncodeControlParams gainmap not supported, skip ProcessBackgroundColor");
+    }
+
+    ret = ProcessRemoveGpsInfo();
+    if (ret != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessPictureEncodeControlParams ProcessRemoveGpsInfo failed %{public}u", ret);
+        return ret;
+    }
+
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessPixelmapMaxSize()
+{
+    if (opts_.sizeLimit.maxSize.width <= 0 && opts_.sizeLimit.maxSize.height <= 0) {
+        IMAGE_LOGD("ExtEncoder::ProcessPixelmapMaxSize no maxSize limit, skip scaling");
+        return SUCCESS;
+    }
+
+    int32_t srcWidth = pixelmap_->GetWidth();
+    int32_t srcHeight = pixelmap_->GetHeight();
+    if (srcWidth == 0 || srcHeight == 0) {
+        IMAGE_LOGE("ExtEncoder::ProcessPixelmapMaxSize invalid image size (%{public}d, %{public}d)",
+            srcWidth, srcHeight);
+        return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
+    int32_t maxWidth = opts_.sizeLimit.maxSize.width > 0 ? opts_.sizeLimit.maxSize.width : srcWidth;
+    int32_t maxHeight = opts_.sizeLimit.maxSize.height > 0 ? opts_.sizeLimit.maxSize.height : srcHeight;
+    if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
+        IMAGE_LOGD("ExtEncoder::ProcessPixelmapMaxSize image size within max bounds, skip scaling");
+        return SUCCESS;
+    }
+
+    float scaleX = static_cast<float>(maxWidth) / srcWidth;
+    float scaleY = static_cast<float>(maxHeight) / srcHeight;
+    float scale = std::min(scaleX, scaleY);
+    IMAGE_LOGI("ExtEncoder::ProcessPixelmapMaxSize scale image from (%{public}d, %{public}d) "
+        "to fit maxSize(%{public}d, %{public}d), scale=%{public}f", srcWidth, srcHeight, maxWidth, maxHeight, scale);
+
+    uint32_t scaleRet = pixelmap_->Scale(scale, scale, opts_.sizeLimit.antiAliasingLevel);
+    if (scaleRet != SUCCESS) {
+        IMAGE_LOGE("ExtEncoder::ProcessPixelmapMaxSize scale failed %{public}u", scaleRet);
+        return scaleRet;
+    }
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessPictureMaxSize()
+{
+    if (opts_.sizeLimit.maxSize.width <= 0 && opts_.sizeLimit.maxSize.height <= 0) {
+        IMAGE_LOGD("ExtEncoder::ProcessPictureMaxSize no maxSize limit, skip scaling");
+        return SUCCESS;
+    }
+
+    auto mainPixelmap = picture_->GetMainPixel();
+    if (mainPixelmap == nullptr) {
+        IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize mainPixelmap is nullptr");
+        return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
+    int32_t srcWidth = mainPixelmap->GetWidth();
+    int32_t srcHeight = mainPixelmap->GetHeight();
+    if (srcWidth == 0 || srcHeight == 0) {
+        IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize invalid image size (%{public}d, %{public}d)",
+            srcWidth, srcHeight);
+        return ERR_IMAGE_INVALID_PARAMETER;
+    }
+
+    int32_t maxWidth = opts_.sizeLimit.maxSize.width > 0 ? opts_.sizeLimit.maxSize.width : srcWidth;
+    int32_t maxHeight = opts_.sizeLimit.maxSize.height > 0 ? opts_.sizeLimit.maxSize.height : srcHeight;
+    if (srcWidth <= maxWidth && srcHeight <= maxHeight) {
+        IMAGE_LOGD("ExtEncoder::ProcessPictureMaxSize image size within max bounds, skip scaling");
+        return SUCCESS;
+    }
+
+    float scaleX = static_cast<float>(maxWidth) / srcWidth;
+    float scaleY = static_cast<float>(maxHeight) / srcHeight;
+    float scale = std::min(scaleX, scaleY);
+    IMAGE_LOGI("ExtEncoder::ProcessPictureMaxSize scale image from (%{public}d, %{public}d) "
+        "to fit maxSize(%{public}d, %{public}d), scale=%{public}f", srcWidth, srcHeight, maxWidth, maxHeight, scale);
+
+    if (!mainPixelmap->resize(scale, scale)) {
+        IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize mainPixelmap resize failed");
+        return ERR_IMAGE_ENCODE_FAILED;
+    }
+    auto gainmapPixelmap = picture_->GetGainmapPixelMap();
+    if (gainmapPixelmap != nullptr && !gainmapPixelmap->resize(scale, scale)) {
+        IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize gainmapPixelmap resize failed");
+        return ERR_IMAGE_ENCODE_FAILED;
+    }
+    const auto& auxTypes = ImageUtils::GetAllAuxiliaryPictureType();
+    for (const auto& auxType : auxTypes) {
+        auto auxPicture = picture_->GetAuxiliaryPicture(auxType);
+        if (auxPicture == nullptr) continue;
+        auto auxPixelmap = auxPicture->GetContentPixel();
+        if (auxPixelmap != nullptr && !auxPixelmap->resize(scale, scale)) {
+            IMAGE_LOGE("ExtEncoder::ProcessPictureMaxSize aux resize failed, type %{public}d", auxType);
+            return ERR_IMAGE_ENCODE_FAILED;
+        }
+    }
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessBackgroundColor(PixelMap* processPixelmap)
+{
+    if (IsFormatSupportTransparency(opts_.format) || processPixelmap == nullptr) {
+        return SUCCESS;
+    }
+
+    if (opts_.backgroundColor <= 0) {
+        IMAGE_LOGD("ExtEncoder::ProcessBackgroundColor: backgroundColor use default black, skip");
+        return SUCCESS;
+    }
+
+    PixelFormat pixelFormat = processPixelmap->GetPixelFormat();
+    AlphaType alphaType = processPixelmap->GetAlphaType();
+    if (pixelFormat != PixelFormat::RGBA_8888 || alphaType == AlphaType::IMAGE_ALPHA_TYPE_OPAQUE) {
+        IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor: format %{public}d or alpha %{public}d not supported",
+            pixelFormat, alphaType);
+        return SUCCESS;
+    }
+
+    uint8_t* pixels = const_cast<uint8_t*>(processPixelmap->GetPixels());
+    if (pixels == nullptr) {
+        IMAGE_LOGE("ExtEncoder::ProcessBackgroundColor: GetPixels failed");
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+
+    uint64_t rowStride = static_cast<uint64_t>(processPixelmap->GetWidth() * RGBA8888_PIXEL_BYTES);
+#if !defined(CROSS_PLATFORM)
+    if (processPixelmap->GetAllocatorType() == AllocatorType::DMA_ALLOC) {
+        SurfaceBuffer* sbBuffer = reinterpret_cast<SurfaceBuffer*>(processPixelmap->GetFd());
+        if (sbBuffer != nullptr) {
+            rowStride = static_cast<uint64_t>(sbBuffer->GetStride());
+        }
+    }
+#endif
+
+    SkImageInfo skInfo = ToSkInfo(processPixelmap);
+    SkBitmap bitmap;
+    if (!bitmap.installPixels(skInfo, pixels, rowStride)) {
+        return ERR_IMAGE_DATA_ABNORMAL;
+    }
+
+    uint32_t bgColor = static_cast<uint32_t>(opts_.backgroundColor);
+    SkColor backgroundColor = SkColorSetRGB(SkColorGetR(bgColor), SkColorGetG(bgColor), SkColorGetB(bgColor));
+    IMAGE_LOGI("ExtEncoder::ProcessBackgroundColor: input background color 0x%{public}X", backgroundColor);
+
+    SkCanvas canvas(bitmap);
+    SkPaint paint;
+    paint.setBlendMode(SkBlendMode::kSrcOver);
+    canvas.saveLayer(nullptr, &paint);
+    canvas.drawColor(backgroundColor);
+    canvas.drawImage(SkImages::RasterFromBitmap(bitmap), 0, 0);
+    canvas.restore();
+
+    return SUCCESS;
+}
+
+uint32_t ExtEncoder::ProcessRemoveGpsInfo()
+{
+    if (opts_.needsPackGPS) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo needsPackGPS is true, keep GPS info");
+        return SUCCESS;
+    }
+
+    std::shared_ptr<ExifMetadata> exifMetadata = nullptr;
+    if (picture_ != nullptr) {
+        exifMetadata = picture_->GetExifMetadata();
+    } else if (pixelmap_ != nullptr) {
+        exifMetadata = pixelmap_->GetExifMetadata();
+    }
+
+    if (exifMetadata == nullptr) {
+        IMAGE_LOGD("ExtEncoder::ProcessRemoveGpsInfo no EXIF metadata, skip");
+        return SUCCESS;
+    }
+
+    if (!exifMetadata->RemoveGpsInfo()) {
+        IMAGE_LOGE("ExtEncoder::ProcessRemoveGpsInfo RemoveGpsInfo failed");
+        return ERR_IMAGE_ENCODE_FAILED;
+    }
+    return SUCCESS;
 }
 
 #if !defined(_WIN32) && !defined(_APPLE) && !defined(IOS_PLATFORM) && !defined(ANDROID_PLATFORM)
