@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include "exif_metadata_formatter.h"
+#include "gps_version_id_leftover.h"
 #include "image_log.h"
 #include "media_errors.h"
 
@@ -515,6 +516,20 @@ HWTEST_F(ExifMetadataFormatterTest, ValidRegexWithGpsOneRationalFormatTest002, T
     std::string largeValue = "9999999999999999999";
     int32_t res = ExifMetadatFormatter::ValidateValueRange(keyName, largeValue);
     EXPECT_EQ(res, Media::ERR_MEDIA_OUT_OF_RANGE);
+}
+
+/**
+ * @tc.name: GpsVersionIdLeftover001
+ * @tc.desc: leftover GPSVersionID regex rejects any-char dots; "9.9.9.9" stays valid
+ * @tc.type: FUNC
+ */
+HWTEST_F(ExifMetadataFormatterTest, GpsVersionIdLeftover001, TestSize.Level3)
+{
+    EXPECT_TRUE(GpsVersionIdLeftover::MatchesGpsVersionId("9.9.9.9"));
+    EXPECT_TRUE(GpsVersionIdLeftover::MatchesGpsVersionId("2.2.0.0"));
+    EXPECT_FALSE(GpsVersionIdLeftover::MatchesGpsVersionId("9x9x9x9"));
+    EXPECT_EQ(ExifMetadatFormatter::Validate("GPSVersionID", "9.9.9.9"), Media::SUCCESS);
+    EXPECT_NE(ExifMetadatFormatter::Validate("GPSVersionID", "9x9x9x9"), Media::SUCCESS);
 }
 } // namespace Multimedia
 } // namespace OHOS
