@@ -22,6 +22,7 @@
 #include "image_log.h"
 #include "media_errors.h"
 #include "metadata_stream.h"
+#include "get_exif_info_len_leftover.h"
 #include "png_exif_metadata_accessor.h"
 #include "png_image_chunk_utils.h"
 #include "tiff_parser.h"
@@ -40,7 +41,6 @@ constexpr auto IMAGE_SEG_MAX_SIZE = 65536;
 constexpr auto EXIF_HEADER_SIZE = 6;
 constexpr auto PNG_CHUNK_KEYWORD_EXIF_APP1_SIZE = 21;
 constexpr auto HEX_BASE = 16;
-constexpr auto DECIMAL_BASE = 10;
 constexpr auto PNG_PROFILE_EXIF = "Raw profile type exif";
 constexpr auto PNG_PROFILE_APP1 = "Raw profile type APP1";
 constexpr auto CHUNK_COMPRESS_METHOD_VALID = 0;
@@ -354,40 +354,12 @@ const char *PngImageChunkUtils::StepOverNewLine(const char *sourcePtr, const cha
 
 const char *PngImageChunkUtils::GetExifInfoLen(const char *sourcePtr, size_t *lengthOut, const char *endPtr)
 {
-    while ((*sourcePtr == '\0') || (*sourcePtr == ' ') || (*sourcePtr == '\n')) {
-        sourcePtr++;
-        if (sourcePtr == endPtr) {
-            IMAGE_LOGE("Unable to get Exif length: content is blank");
-            return NULL;
-        }
-    }
-
-    size_t exifLength = 0;
-    while (('0' <= *sourcePtr) && (*sourcePtr <= '9')) {
-        size_t tmp_exif_length;
-        if (__builtin_mul_overflow(exifLength, DECIMAL_BASE, &tmp_exif_length)) {
-            IMAGE_LOGE("Exif length overflow");
-            return NULL;
-        }
-        if (__builtin_add_overflow(tmp_exif_length, *sourcePtr - '0', &tmp_exif_length)) {
-            IMAGE_LOGE("Exif length overflow");
-            return NULL;
-        }
-        const size_t newlength = tmp_exif_length;
-        exifLength = newlength;
-        sourcePtr++;
-        if (sourcePtr == endPtr) {
-            IMAGE_LOGE("Unable to get Exif length: no digit content found");
-            return NULL;
-        }
-    }
-    sourcePtr++; // ignore the '\n' character
-    if (sourcePtr == endPtr) {
-        IMAGE_LOGE("Unable to get Exif length: Exif info not found");
+    const char *result = GetExifInfoLenLeftover::GetExifInfoLen(sourcePtr, lengthOut, endPtr);
+    if (result == nullptr) {
+        IMAGE_LOGE("Unable to get Exif length: expected newline after length digits");
         return NULL;
     }
-    *lengthOut = exifLength;
-    return sourcePtr;
+    return result;
 }
 
 int PngImageChunkUtils::ConvertAsciiToInt(const char *sourcePtr, size_t exifInfoLength, unsigned char *destPtr)
