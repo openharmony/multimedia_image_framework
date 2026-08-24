@@ -15,7 +15,6 @@
 
 #include <libexif/exif-data.h>
 #include <zlib.h>
-#include <array>
 
 #include "data_buf.h"
 #include "exif_metadata.h"
@@ -25,6 +24,7 @@
 #include "png_exif_metadata_accessor.h"
 #include "png_image_chunk_utils.h"
 #include "tiff_parser.h"
+#include "verify_exif_id_code_leftover.h"
 
 #undef LOG_DOMAIN
 #define LOG_DOMAIN LOG_TAG_DOMAIN_ID_IMAGE
@@ -272,16 +272,8 @@ bool PngImageChunkUtils::FindExifFromTxt(DataBuf &chunkData)
 
 size_t PngImageChunkUtils::VerifyExifIdCode(DataBuf &exifInfo, size_t exifInfoLength)
 {
-    static const std::array<byte, EXIF_HEADER_SIZE> exifIdCode { 0x45, 0x78, 0x69, 0x66, 0x00, 0x00 };
-    size_t exifIdPos = std::numeric_limits<size_t>::max();
-
-    for (size_t i = 0; i < exifInfoLength - exifIdCode.size(); i++) {
-        if (exifInfo.CmpBytes(i, exifIdCode.data(), exifIdCode.size()) == 0) {
-            exifIdPos = i;
-            break;
-        }
-    }
-    return exifIdPos;
+    const size_t searchLength = (exifInfoLength < exifInfo.Size()) ? exifInfoLength : exifInfo.Size();
+    return VerifyExifIdCodeLeftover::VerifyExifIdCode(exifInfo.CData(), searchLength);
 }
 
 int PngImageChunkUtils::GetTiffDataFromRawText(const DataBuf &rawText, DataBuf &tiffData)

@@ -15,9 +15,11 @@
 
 #define private public
 #include <gtest/gtest.h>
+#include <limits>
 
 #include "media_errors.h"
 #include "png_image_chunk_utils.h"
+#include "verify_exif_id_code_leftover.h"
 
 using namespace OHOS::Media;
 using namespace testing::ext;
@@ -355,6 +357,33 @@ HWTEST_F(PngImageChunkUtilsTest, ConvertRawTextToExifInfo001, TestSize.Level3)
     auto res = PngImageChunkUtils::ConvertRawTextToExifInfo(rawText);
     int cmpRes = res.CmpBytes(OFFSET_ZERO, &empty, empty.Size());
     EXPECT_EQ(cmpRes, BUF_CMP_SUCCESS);
+}
+
+/**
+ * @tc.name: VerifyExifIdCodeLeftover001
+ * @tc.desc: leftover VerifyExifIdCode hits Exact6 and X+Exact6; mid-buffer still hits
+ * @tc.type: FUNC
+ */
+HWTEST_F(PngImageChunkUtilsTest, VerifyExifIdCodeLeftover001, TestSize.Level3)
+{
+    const byte exact6[] = { 0x45, 0x78, 0x69, 0x66, 0x00, 0x00 };
+    EXPECT_EQ(VerifyExifIdCodeLeftover::VerifyExifIdCode(exact6, sizeof(exact6)), 0);
+    DataBuf exactBuf(exact6, sizeof(exact6));
+    EXPECT_EQ(PngImageChunkUtils::VerifyExifIdCode(exactBuf, exactBuf.Size()), 0);
+
+    const byte xExact6[] = { 'X', 0x45, 0x78, 0x69, 0x66, 0x00, 0x00 };
+    EXPECT_EQ(VerifyExifIdCodeLeftover::VerifyExifIdCode(xExact6, sizeof(xExact6)), 1);
+    DataBuf xExactBuf(xExact6, sizeof(xExact6));
+    EXPECT_EQ(PngImageChunkUtils::VerifyExifIdCode(xExactBuf, xExactBuf.Size()), 1);
+
+    const byte mid[] = { 0x00, 0x01, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x02 };
+    EXPECT_EQ(VerifyExifIdCodeLeftover::VerifyExifIdCode(mid, sizeof(mid)), 2);
+    DataBuf midBuf(mid, sizeof(mid));
+    EXPECT_EQ(PngImageChunkUtils::VerifyExifIdCode(midBuf, midBuf.Size()), 2);
+
+    const byte shortBuf[] = { 0x45, 0x78, 0x69, 0x66, 0x00 };
+    EXPECT_EQ(VerifyExifIdCodeLeftover::VerifyExifIdCode(shortBuf, sizeof(shortBuf)),
+        std::numeric_limits<size_t>::max());
 }
 } // namespace Multimedia
 } // namespace OHOS
