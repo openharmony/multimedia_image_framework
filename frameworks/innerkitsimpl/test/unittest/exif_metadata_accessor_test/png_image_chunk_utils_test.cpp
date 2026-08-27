@@ -15,6 +15,8 @@
 
 #define private public
 #include <gtest/gtest.h>
+#include <cstdio>
+#include <string>
 
 #include "media_errors.h"
 #include "png_image_chunk_utils.h"
@@ -356,5 +358,34 @@ HWTEST_F(PngImageChunkUtilsTest, ConvertRawTextToExifInfo001, TestSize.Level3)
     int cmpRes = res.CmpBytes(OFFSET_ZERO, &empty, empty.Size());
     EXPECT_EQ(cmpRes, BUF_CMP_SUCCESS);
 }
+
+/**
+ * @tc.name: ConvertAsciiToInt002
+ * @tc.desc: leftover ImageMagick wrap must not drop the last nibble
+ * @tc.type: FUNC
+ */
+HWTEST_F(PngImageChunkUtilsTest, ConvertAsciiToInt002, TestSize.Level3)
+{
+    std::string hex;
+    for (int i = 0; i < 40; ++i) {
+        char buf[3];
+        snprintf(buf, sizeof(buf), "%02x", (i + 1) & 0xff);
+        hex += buf;
+    }
+    std::string wrapped;
+    for (size_t i = 0; i < hex.size(); ++i) {
+        if (i != 0 && (i % 72) == 0) {
+            wrapped.push_back('\n');
+        }
+        wrapped.push_back(hex[i]);
+    }
+    unsigned char dest[40] = {0};
+    const char *endPtr = wrapped.data() + wrapped.size() - 1;
+    int res = PngImageChunkUtils::ConvertAsciiToInt(wrapped.c_str(), 40, dest, endPtr);
+    EXPECT_EQ(res, SUCCESS);
+    EXPECT_EQ(dest[0], 0x01);
+    EXPECT_EQ(dest[39], 0x28);
+}
+
 } // namespace Multimedia
 } // namespace OHOS
