@@ -79,7 +79,8 @@ private:
     static const char *GetExifInfoLen(const char *sourcePtr, size_t *lengthOut, const char *endPtr);
 
     // convert sting to digit
-    static int ConvertAsciiToInt(const char *sourcePtr, size_t exifInfoLength, unsigned char *destPtr);
+    static int ConvertAsciiToInt(const char *sourcePtr, size_t exifInfoLength, unsigned char *destPtr,
+        const char *endPtr = nullptr);
 
     // convert Exif metadata from Ascii char to hex
     static DataBuf ConvertRawTextToExifInfo(const DataBuf &rawText);
