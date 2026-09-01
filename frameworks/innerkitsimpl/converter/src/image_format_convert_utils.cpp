@@ -1210,6 +1210,10 @@ bool ImageFormatConvertUtils::AlignSrcBuffer(const YUVDataInfo& yDInfo, PixelFor
                                              const uint8_t* srcBuffer, SrcConvertParam& srcParam,
                                              std::unique_ptr<uint8_t[]>& copySrcBuffer)
 {
+    if (yDInfo.yStride == 0) {
+        IMAGE_LOGE("Invalid yStride 0");
+        return false;
+    }
     int32_t yPlaneHeight = static_cast<int32_t>(yDInfo.uvOffset / yDInfo.yStride);
     Size srcBufferSize = {static_cast<int32_t>(yDInfo.yStride), yPlaneHeight};
     return AlignBufferCore(srcBufferSize, srcFormat, srcBuffer, srcParam, copySrcBuffer);
