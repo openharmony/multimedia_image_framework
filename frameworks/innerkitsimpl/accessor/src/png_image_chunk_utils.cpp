@@ -24,6 +24,7 @@
 #include "metadata_stream.h"
 #include "png_exif_metadata_accessor.h"
 #include "png_image_chunk_utils.h"
+#include "png_raw_profile_leftover.h"
 #include "tiff_parser.h"
 
 #undef LOG_DOMAIN
@@ -35,7 +36,6 @@
 namespace OHOS {
 namespace Media {
 namespace {
-constexpr auto ASCII_TO_HEX_MAP_SIZE = 103;
 constexpr auto IMAGE_SEG_MAX_SIZE = 65536;
 constexpr auto EXIF_HEADER_SIZE = 6;
 constexpr auto PNG_CHUNK_KEYWORD_EXIF_APP1_SIZE = 21;
@@ -51,11 +51,6 @@ constexpr auto HEX_STRING_UNIT_SIZE = 2;
 constexpr auto EXIF_INFO_LENGTH_TWO = 2;
 constexpr auto CHUNKDATA_KEYSIZE_OFFSET_ONE = 1;
 constexpr auto CHUNKDATA_KEYSIZE_OFFSET_THREE = 3;
-
-bool IsHexAscii(char value)
-{
-    return (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f');
-}
 }
 
 int PngImageChunkUtils::ParseTextChunk(const DataBuf &chunkData, TextChunkType chunkType,
@@ -306,8 +301,15 @@ int PngImageChunkUtils::GetTiffDataFromRawText(const DataBuf &rawText, DataBuf &
         return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
     }
 
-    size_t tiffOffset = EXIF_HEADER_SIZE;
-    tiffData = DataBuf(exifInfo.CData(tiffOffset), exifInfoLength - tiffOffset);
+    size_t tiffOffset = 0;
+    size_t tiffLength = 0;
+    if (!PngRawProfileLeftover::GetTiffSlice(exifHeadPos, exifInfoLength, tiffOffset, tiffLength)) {
+        IMAGE_LOGE("Unable to extract Tiff data: data length insufficient. "
+            "Exif head: %{public}zu, Data length: %{public}zu",
+            exifHeadPos, exifInfoLength);
+        return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
+    }
+    tiffData = DataBuf(exifInfo.CData(tiffOffset), tiffLength);
     if (tiffData.Empty()) {
         IMAGE_LOGE("Unable to extract Tiff data: data length insufficient. "
             "Actual: %{public}zu, Expected: %{public}zu",
@@ -397,19 +399,10 @@ int PngImageChunkUtils::ConvertAsciiToInt(const char *sourcePtr, size_t exifInfo
         return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
     }
 
-    static const unsigned char hexAsciiToInt[ASCII_TO_HEX_MAP_SIZE] = {
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 1,    2, 3, 4, 5, 6,    7, 8, 9, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 10, 11, 12,
-        13, 14, 15,
-    };
-
     size_t sourceLength = exifInfoLength * 2;
     size_t sourcePtrCount = 0;
     for (size_t i = 0; i < sourceLength && sourcePtrCount < sourceLength; i++) {
-        while (sourcePtrCount < sourceLength && !IsHexAscii(*sourcePtr)) {
+        while (sourcePtrCount < sourceLength && !PngRawProfileLeftover::IsHexAscii(*sourcePtr)) {
             if (*sourcePtr == '\0') {
                 IMAGE_LOGE("Unexpected null character encountered while converting Exif ASCII string. "
                     "Position: %{public}zu, Expected length: %{public}zu",
@@ -421,15 +414,16 @@ int PngImageChunkUtils::ConvertAsciiToInt(const char *sourcePtr, size_t exifInfo
         }
 
         if (sourcePtrCount < sourceLength) {
-            if (!IsHexAscii(*sourcePtr)) {
+            if (!PngRawProfileLeftover::IsHexAscii(*sourcePtr)) {
                 IMAGE_LOGE("Invalid hex character encountered while converting Exif ASCII string.");
                 return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
             }
 
+            const unsigned char hexValue = PngRawProfileLeftover::HexAsciiValue(*sourcePtr++);
             if ((i % HEX_STRING_UNIT_SIZE) == 0) {
-                *destPtr = static_cast<unsigned char>(HEX_BASE * hexAsciiToInt[static_cast<size_t>(*sourcePtr++)]);
+                *destPtr = static_cast<unsigned char>(HEX_BASE * hexValue);
             } else {
-                (*destPtr++) += hexAsciiToInt[static_cast<size_t>(*sourcePtr++)];
+                (*destPtr++) += hexValue;
             }
             sourcePtrCount++;
         } else {
