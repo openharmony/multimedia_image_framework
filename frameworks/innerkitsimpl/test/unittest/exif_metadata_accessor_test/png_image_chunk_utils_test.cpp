@@ -14,8 +14,10 @@
  */
 
 #define private public
+#include <cstring>
 #include <gtest/gtest.h>
 
+#include "get_exif_info_len_leftover.h"
 #include "media_errors.h"
 #include "png_image_chunk_utils.h"
 
@@ -319,6 +321,27 @@ HWTEST_F(PngImageChunkUtilsTest, StepOverNewLine001, TestSize.Level3)
     ASSERT_FALSE(sourcePtr3 >= endPtr3);
     const char* res3 = PngImageChunkUtils::StepOverNewLine(sourcePtr3, endPtr3);
     EXPECT_NE(res3, NULL);
+}
+
+/**
+ * @tc.name: GetExifInfoLenLeftover001
+ * @tc.desc: leftover GetExifInfoLen accepts "6\\n457869" and rejects "6X457869"
+ * @tc.type: FUNC
+ */
+HWTEST_F(PngImageChunkUtilsTest, GetExifInfoLenLeftover001, TestSize.Level3)
+{
+    const std::string okText = "6\n457869";
+    size_t lengthOut = 0;
+    const char *okPtr = GetExifInfoLenLeftover::GetExifInfoLen(
+        okText.data(), &lengthOut, okText.data() + okText.size() - 1);
+    EXPECT_NE(okPtr, nullptr);
+    EXPECT_EQ(lengthOut, static_cast<size_t>(6));
+    EXPECT_EQ(std::strncmp(okPtr, "457869", 6), 0);
+
+    const std::string badText = "6X457869";
+    const char *badPtr = GetExifInfoLenLeftover::GetExifInfoLen(
+        badText.data(), &lengthOut, badText.data() + badText.size() - 1);
+    EXPECT_EQ(badPtr, nullptr);
 }
 
 /**
