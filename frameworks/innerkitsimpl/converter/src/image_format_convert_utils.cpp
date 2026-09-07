@@ -16,6 +16,7 @@
 #include "image_format_convert_utils.h"
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <map>
 #include "hilog/log.h"
@@ -232,11 +233,12 @@ static bool RGBAConvert(const RGBDataInfo &rgbInfo, const uint8_t *srcBuffer, ui
 static bool P010ToRGBA10101012SoftDecode(const YUVDataInfo &yDInfo, SrcConvertParam &srcParam,
                                          DestConvertParam &destParam)
 {
-    size_t midBufferSize = static_cast<size_t>(yDInfo.yWidth * yDInfo.yHeight * STRIDES_PER_PLANE);
-    if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+    const uint64_t midBufferSize64 = static_cast<uint64_t>(yDInfo.yWidth) * yDInfo.yHeight * STRIDES_PER_PLANE;
+    if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("Invalid destination buffer size is 0!");
         return false;
     }
+    size_t midBufferSize = static_cast<size_t>(midBufferSize64);
     uint8_t *midBuffer = nullptr;
     midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
     if (midBuffer == nullptr) {
@@ -313,11 +315,13 @@ static bool YuvP010ToRGB10(const uint8_t *srcBuffer, const YUVDataInfo &yDInfo, 
         return false;
     }
     if (srcParam.format == PixelFormat::YCRCB_P010) {
-        size_t midBufferSize = static_cast<size_t>((yDInfo.uvOffset + yDInfo.uvStride * yDInfo.uvHeight) * TWO_SLICES);
-        if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+        const uint64_t midBufferSize64 = (static_cast<uint64_t>(yDInfo.uvOffset) +
+            static_cast<uint64_t>(yDInfo.uvStride) * yDInfo.uvHeight) * TWO_SLICES;
+        if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
             IMAGE_LOGE("Invalid destination buffer size is 0!");
             return false;
         }
+        size_t midBufferSize = static_cast<size_t>(midBufferSize64);
         uint8_t *midBuffer = nullptr;
         midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
         if (midBuffer == nullptr) {
@@ -371,12 +375,13 @@ static bool RGBToYuvP010Param(const RGBDataInfo &rgbInfo, SrcConvertParam &srcPa
 
 static bool SwapNV21P010(DestConvertInfo &destInfo)
 {
-    size_t midBufferSize = (destInfo.yStride * destInfo.height +
-                            destInfo.uvStride * ((destInfo.height + 1) / TWO_SLICES)) * TWO_SLICES;
-    if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+    const uint64_t midBufferSize64 = (static_cast<uint64_t>(destInfo.yStride) * destInfo.height +
+        static_cast<uint64_t>(destInfo.uvStride) * ((destInfo.height + 1) / TWO_SLICES)) * TWO_SLICES;
+    if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("Invalid destination buffer size calculation!");
         return false;
     }
+    size_t midBufferSize = static_cast<size_t>(midBufferSize64);
     uint8_t *midBuffer = nullptr;
     midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
     if (midBuffer == nullptr) {
@@ -476,11 +481,12 @@ static bool RGB10ToYuv(const uint8_t *srcBuffer, const RGBDataInfo &rgbInfo, Pix
         IMAGE_LOGE("RGB conversion to YUV failed!");
         return false;
     }
-    size_t midBufferSize = static_cast<size_t>(rgbInfo.width * rgbInfo.height * STRIDES_PER_PLANE);
-    if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+    const uint64_t midBufferSize64 = static_cast<uint64_t>(rgbInfo.width) * rgbInfo.height * STRIDES_PER_PLANE;
+    if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("Invalid destination buffer size is 0!");
         return false;
     }
+    size_t midBufferSize = static_cast<size_t>(midBufferSize64);
     uint8_t *midBuffer = nullptr;
     midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
     if (midBuffer == nullptr) {
@@ -514,11 +520,12 @@ static bool RGB10ToYuv(const uint8_t *srcBuffer, const RGBDataInfo &rgbInfo, Pix
 static bool RGBA1010102ToP010SoftDecode(const RGBDataInfo &rgbInfo, SrcConvertParam &srcParam,
                                         DestConvertParam &destParam, DestConvertInfo &destInfo)
 {
-    size_t midBufferSize = static_cast<size_t>(rgbInfo.width * rgbInfo.height * STRIDES_PER_PLANE);
-    if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+    const uint64_t midBufferSize64 = static_cast<uint64_t>(rgbInfo.width) * rgbInfo.height * STRIDES_PER_PLANE;
+    if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("Invalid destination buffer size is 0!");
         return false;
     }
+    size_t midBufferSize = static_cast<size_t>(midBufferSize64);
     std::unique_ptr<uint8_t[]> srcBuffer = std::make_unique<uint8_t[]>(midBufferSize);
     uint8_t* midBuffer = srcBuffer.get();
     CHECK_ERROR_RETURN_RET_LOG((midBuffer == nullptr), false, "Apply space for dest buffer failed!");
@@ -586,11 +593,12 @@ static bool RGB10ToYuvP010(const uint8_t *srcBuffer, const RGBDataInfo &rgbInfo,
 static bool YUVToRGBA1010102SoftDecode(const YUVDataInfo &yDInfo, SrcConvertParam &srcParam,
                                        DestConvertParam &destParam)
 {
-    size_t midBufferSize = static_cast<size_t>(yDInfo.yWidth * yDInfo.yHeight * BYTES_PER_PIXEL_RGB);
-    if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+    const uint64_t midBufferSize64 = static_cast<uint64_t>(yDInfo.yWidth) * yDInfo.yHeight * BYTES_PER_PIXEL_RGB;
+    if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
         IMAGE_LOGE("Invalid destination buffer size is 0!");
         return false;
     }
+    size_t midBufferSize = static_cast<size_t>(midBufferSize64);
     uint8_t *midBuffer = nullptr;
     midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
     if (midBuffer == nullptr) {
@@ -752,11 +760,13 @@ static bool YuvP010ToYuv(const uint8_t *srcBuffer, const YUVDataInfo &yDInfo, Pi
         return false;
     }
     if (srcParam.format == PixelFormat::YCRCB_P010) {
-        size_t midBufferSize = static_cast<size_t>((yDInfo.uvOffset + yDInfo.uvStride * yDInfo.uvHeight) * TWO_SLICES);
-        if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+        const uint64_t midBufferSize64 = (static_cast<uint64_t>(yDInfo.uvOffset) +
+            static_cast<uint64_t>(yDInfo.uvStride) * yDInfo.uvHeight) * TWO_SLICES;
+        if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
             IMAGE_LOGE("Invalid destination buffer size is 0!");
             return false;
         }
+        size_t midBufferSize = static_cast<size_t>(midBufferSize64);
         uint8_t *midBuffer = nullptr;
         midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
         if (midBuffer == nullptr) {
@@ -859,11 +869,13 @@ static bool YuvP010ToRGB(const uint8_t *srcBuffer, const YUVDataInfo &yDInfo, Pi
         return false;
     }
     if (srcParam.format == PixelFormat::YCRCB_P010) {
-        size_t midBufferSize = static_cast<size_t>((yDInfo.uvOffset + yDInfo.uvStride * yDInfo.uvHeight) * TWO_SLICES);
-        if (midBufferSize == 0 || midBufferSize > PIXEL_MAP_MAX_RAM_SIZE) {
+        const uint64_t midBufferSize64 = (static_cast<uint64_t>(yDInfo.uvOffset) +
+            static_cast<uint64_t>(yDInfo.uvStride) * yDInfo.uvHeight) * TWO_SLICES;
+        if (midBufferSize64 == 0 || midBufferSize64 > UINT32_MAX || midBufferSize64 > PIXEL_MAP_MAX_RAM_SIZE) {
             IMAGE_LOGE("Invalid destination buffer size is 0!");
             return false;
         }
+        size_t midBufferSize = static_cast<size_t>(midBufferSize64);
         uint8_t *midBuffer = nullptr;
         midBuffer = new(std::nothrow) uint8_t[midBufferSize]();
         if (midBuffer == nullptr) {
