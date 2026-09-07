@@ -368,11 +368,11 @@ static bool I010Param(I010Info &i010Info)
     i010Info.uStride = (i010Info.width + NUM_1) / NUM_2;
     i010Info.vStride = (i010Info.width + NUM_1) / NUM_2;
     i010Info.uvHeight = ((i010Info.height + NUM_1) / NUM_2);
-    const uint32_t i010BufferSize = static_cast<size_t>(i010Info.yStride * i010Info.height +
-        i010Info.uStride * i010Info.uvHeight * NUM_2);
-    bool cond = i010BufferSize <= NUM_0 || i010BufferSize > PIXEL_MAP_MAX_RAM_SIZE;
-    CHECK_ERROR_RETURN_RET_LOG(cond, false, "Invalid destination buffer size calculation!");
-    uint16_t *i010Buffer = new (std::nothrow) uint16_t[i010BufferSize];
+    const uint64_t i010BufferSize = static_cast<uint64_t>(i010Info.yStride) * i010Info.height +
+        static_cast<uint64_t>(i010Info.uStride) * i010Info.uvHeight * NUM_2;
+    bool cond = (i010BufferSize == 0) || (i010BufferSize > UINT32_MAX) || (i010BufferSize > PIXEL_MAP_MAX_RAM_SIZE);
+    CHECK_ERROR_RETURN_RET_LOG(cond, false, "Invalid I010 buffer size calculation!");
+    uint16_t *i010Buffer = new (std::nothrow) uint16_t[static_cast<size_t>(i010BufferSize)];
     CHECK_ERROR_RETURN_RET_LOG(i010Buffer == nullptr, false, "apply space for I420 buffer failed!");
     i010Info.I010Y = i010Buffer;
     i010Info.I010U = i010Info.I010Y + i010Info.height * i010Info.yStride;
@@ -643,7 +643,8 @@ static bool YuvToI420ToI010ToP010(const uint8_t *srcBuffer, const YUVDataInfo &y
 
     I420Info i420Info = {yuvInfo.yWidth, yuvInfo.yHeight};
 
-    YuvToI420ToP010Param(yuvInfo, srcParam, i420Info, destParam, destInfo);
+    bool cond = YuvToI420ToP010Param(yuvInfo, srcParam, i420Info, destParam, destInfo);
+    CHECK_ERROR_RETURN_RET_LOG(!cond, false, "Yuv conversion to I420/P010 param failed!");
 
     I010Info i010Info = {yuvInfo.yWidth, yuvInfo.yHeight};
 
@@ -759,7 +760,8 @@ static bool P010ToI010ToI420ToYuv(const uint8_t *srcBuffer, const YUVDataInfo &y
 
     I420Info i420Info = {yuvInfo.yWidth, yuvInfo.yHeight};
 
-    YuvP010ToI420ToYuvParam(yuvInfo, srcParam, i420Info, destParam, destInfo);
+    bool cond = YuvP010ToI420ToYuvParam(yuvInfo, srcParam, i420Info, destParam, destInfo);
+    CHECK_ERROR_RETURN_RET_LOG(!cond, false, "P010 conversion to I420/Yuv param failed!");
 
     I010Info i010Info = {yuvInfo.yWidth, yuvInfo.yHeight};
 
@@ -885,11 +887,11 @@ static bool P010ToI010ToRGB10Param(const YUVDataInfo &yuvInfo, SrcConvertParam &
     i010Info.uStride = (yuvInfo.yWidth + NUM_1) / NUM_2;
     i010Info.vStride = (yuvInfo.yWidth + NUM_1) / NUM_2;
     i010Info.uvHeight = ((i010Info.height + NUM_1) / NUM_2);
-    const uint32_t i010BufferSize = static_cast<size_t>(i010Info.yStride * i010Info.height +
-        i010Info.uStride * i010Info.uvHeight * NUM_2);
-    cond = i010BufferSize <= NUM_0 || i010BufferSize > PIXEL_MAP_MAX_RAM_SIZE;
-    CHECK_ERROR_RETURN_RET_LOG(cond, false, "Invalid destination buffer size calculation!");
-    uint16_t *i010Buffer = new (std::nothrow) uint16_t[i010BufferSize];
+    const uint64_t i010BufferSize = static_cast<uint64_t>(i010Info.yStride) * i010Info.height +
+        static_cast<uint64_t>(i010Info.uStride) * i010Info.uvHeight * NUM_2;
+    cond = (i010BufferSize == 0) || (i010BufferSize > UINT32_MAX) || (i010BufferSize > PIXEL_MAP_MAX_RAM_SIZE);
+    CHECK_ERROR_RETURN_RET_LOG(cond, false, "Invalid I010 buffer size calculation!");
+    uint16_t *i010Buffer = new (std::nothrow) uint16_t[static_cast<size_t>(i010BufferSize)];
     CHECK_ERROR_RETURN_RET_LOG(i010Buffer == nullptr, false, "apply space for I420 buffer failed!");
     i010Info.I010Y = i010Buffer;
     i010Info.I010U = i010Info.I010Y + yuvInfo.yHeight * i010Info.yStride;
