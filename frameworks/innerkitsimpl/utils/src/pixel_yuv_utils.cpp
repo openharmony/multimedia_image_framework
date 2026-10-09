@@ -15,6 +15,8 @@
 
 #include "pixel_yuv_utils.h"
 
+#include <cstdint>
+
 #include "image_log.h"
 #include "ios"
 #include "istream"
@@ -120,15 +122,25 @@ static int32_t GetUVStride(int32_t width)
 
 static uint32_t GetImageSize(int32_t width, int32_t height)
 {
-    return width * height + ((width + 1) / NUM_2) * ((height + 1) / NUM_2) * NUM_2;
+    uint64_t size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) +
+        static_cast<uint64_t>((width + 1) / NUM_2) * static_cast<uint64_t>((height + 1) / NUM_2) * NUM_2;
+    if (size == 0 || size > UINT32_MAX) {
+        return 0;
+    }
+    return static_cast<uint32_t>(size);
 }
 
 static uint32_t GetImageSize(int32_t width, int32_t height, PixelFormat format)
 {
+    uint64_t size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) +
+        static_cast<uint64_t>((width + 1) / NUM_2) * static_cast<uint64_t>((height + 1) / NUM_2) * NUM_2;
     if (format == PixelFormat::YCBCR_P010 || format == PixelFormat::YCRCB_P010) {
-        return GetImageSize(width, height) * NUM_2;
+        size *= NUM_2;
     }
-    return GetImageSize(width, height);
+    if (size == 0 || size > UINT32_MAX) {
+        return 0;
+    }
+    return static_cast<uint32_t>(size);
 }
 
 std::unique_ptr<AbsMemory> PixelYuvUtils::CreateYuvMemory(PixelFormat pixelFormat, const std::string &memoryTag,
@@ -138,6 +150,7 @@ std::unique_ptr<AbsMemory> PixelYuvUtils::CreateYuvMemory(PixelFormat pixelForma
     bool cond = (ImageUtils::CheckMulOverflow(dstWidth, dstHeight, ImageUtils::GetPixelBytes(pixelFormat)));
     CHECK_ERROR_RETURN_RET_LOG(cond, nullptr, "CreateYuvMemory alloc size overflow");
     uint32_t pictureSize = GetImageSize(dstWidth, dstHeight, pixelFormat);
+    CHECK_ERROR_RETURN_RET_LOG(pictureSize == 0, nullptr, "CreateYuvMemory invalid picture size");
     int32_t dst_yStride = dstWidth;
     int32_t dst_uvStride = (dstWidth + 1) / NUM_2 * NUM_2;
     int32_t dst_yOffset = 0;

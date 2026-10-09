@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include <cmath>
+#include <cstdint>
 #include "pixel_yuv.h"
 
 #include "image_utils.h"
@@ -242,7 +243,15 @@ std::unique_ptr<AbsMemory> PixelYuv::CreateMemory(PixelFormat pixelFormat, std::
         IMAGE_LOGE("CreateMemory invalid size (byte count) overflow");
         return nullptr;
     }
+    if (ImageUtils::CheckMulOverflow(dstWidth, dstHeight, ImageUtils::GetPixelBytes(pixelFormat))) {
+        IMAGE_LOGE("CreateMemory invalid size (byte count) overflow");
+        return nullptr;
+    }
     uint32_t pictureSize = GetImageSize(dstWidth, dstHeight, pixelFormat);
+    if (pictureSize == 0) {
+        IMAGE_LOGE("CreateMemory invalid picture size");
+        return nullptr;
+    }
     int32_t dst_yStride = dstWidth;
     int32_t dst_uvStride = (dstWidth + 1) / NUM_2 * NUM_2;
     int32_t dst_yOffset = 0;
@@ -995,12 +1004,15 @@ void PixelYuv::SetRowDataSizeForImageInfo(ImageInfo info)
 
 uint32_t PixelYuv::GetImageSize(int32_t width, int32_t height, PixelFormat format)
 {
-    uint32_t size = static_cast<uint32_t>(GetYSize(width, height) +
-                                          GetUStride(width) * GetUVHeight(height) * TWO_SLICES);
+    uint64_t size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) +
+        static_cast<uint64_t>(GetUStride(width)) * static_cast<uint64_t>(GetUVHeight(height)) * TWO_SLICES;
     if (IsYUVP010Format(format)) {
         size *= NUM_2;
     }
-    return size;
+    if (size == 0 || size > UINT32_MAX) {
+        return 0;
+    }
+    return static_cast<uint32_t>(size);
 }
 
 
