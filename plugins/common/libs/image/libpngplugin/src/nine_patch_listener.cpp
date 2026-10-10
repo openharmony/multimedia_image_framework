@@ -40,6 +40,9 @@ constexpr float NO_SCALE = 1.0f;
 
 static void ScaleDivRange(int32_t *divs, int32_t count, float scale, int32_t maxValue)
 {
+    if (count <= 0) {
+        return;
+    }
     for (int i = 0; i < count; i++) {
         divs[i] = static_cast<int32_t>(divs[i] * scale + FHALF);
         if (i > 0 && divs[i] == divs[i - 1]) {
