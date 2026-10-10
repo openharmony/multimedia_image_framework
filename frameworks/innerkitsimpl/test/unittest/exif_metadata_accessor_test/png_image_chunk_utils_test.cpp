@@ -18,6 +18,7 @@
 
 #include "media_errors.h"
 #include "png_image_chunk_utils.h"
+#include "png_itxt_textlen_leftover.h"
 
 using namespace OHOS::Media;
 using namespace testing::ext;
@@ -180,6 +181,35 @@ HWTEST_F(PngImageChunkUtilsTest, GetRawTextFromItxtChunk001, TestSize.Level3)
     chunkData.WriteUInt8(OFFSET_TWO, BYTE_ONE);
     res = PngImageChunkUtils::GetRawTextFromItxtChunk(chunkData, KEY_SIZE_ZERO, rawText, isCompressed);
     cmpRes = res.CmpBytes(OFFSET_ZERO, &emptyBuf, emptyBuf.Size());
+    EXPECT_EQ(cmpRes, BUF_CMP_SUCCESS);
+}
+
+/**
+ * @tc.name: GetRawTextFromItxtChunkLeftover001
+ * @tc.desc: leftover iTXt textLen rejects prefix > Size; last-byte NUL is counted
+ * @tc.type: FUNC
+ */
+HWTEST_F(PngImageChunkUtilsTest, GetRawTextFromItxtChunkLeftover001, TestSize.Level3)
+{
+    size_t textLen = 0;
+    EXPECT_FALSE(PngItxtTextLenLeftover::GetItxtTextLen(8, 0, 3, 3, textLen));
+    EXPECT_TRUE(PngItxtTextLenLeftover::GetItxtTextLen(14, 2, 1, 2, textLen));
+    EXPECT_EQ(textLen, 4);
+    EXPECT_EQ(PngItxtTextLenLeftover::ItxtNullCountEnd(6), 6);
+    EXPECT_EQ(PngItxtTextLenLeftover::LeftoverItxtNullCountEnd(6), 5);
+
+    DataBuf emptyBuf = {};
+    DataBuf chunkData(6);
+    chunkData.WriteUInt8(0, BYTE_ZERO);
+    chunkData.WriteUInt8(1, BYTE_ZERO);
+    chunkData.WriteUInt8(2, BYTE_ZERO);
+    chunkData.WriteUInt8(3, BYTE_ZERO);
+    chunkData.WriteUInt8(4, BYTE_ZERO);
+    chunkData.WriteUInt8(5, BYTE_ZERO);
+    DataBuf rawText;
+    bool isCompressed = false;
+    auto res = PngImageChunkUtils::GetRawTextFromItxtChunk(chunkData, KEY_SIZE_ZERO, rawText, isCompressed);
+    int cmpRes = res.CmpBytes(OFFSET_ZERO, &emptyBuf, emptyBuf.Size());
     EXPECT_EQ(cmpRes, BUF_CMP_SUCCESS);
 }
 

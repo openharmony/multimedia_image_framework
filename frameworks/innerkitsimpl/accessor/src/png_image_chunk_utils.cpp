@@ -24,6 +24,7 @@
 #include "metadata_stream.h"
 #include "png_exif_metadata_accessor.h"
 #include "png_image_chunk_utils.h"
+#include "png_itxt_textlen_leftover.h"
 #include "tiff_parser.h"
 
 #undef LOG_DOMAIN
@@ -183,8 +184,8 @@ DataBuf PngImageChunkUtils::GetRawTextFromItxtChunk(const DataBuf &chunkData, si
         IMAGE_LOGE("Failed to get raw text from itxt:  keySize + 3 greater than chunklength.");
         return {};
     }
-    const size_t nullCount = static_cast<size_t>(std::count(chunkData.CData(keySize + 3),
-                                                            chunkData.CData(chunkData.Size() - 1), '\0'));
+    const size_t nullCount = static_cast<size_t>(std::count(chunkData.CBegin() + (keySize + 3),
+                                                            chunkData.CEnd(), '\0'));
     if (nullCount < NULL_CHAR_AMOUNT) {
         IMAGE_LOGE("Metadata corruption detected: Null character count after "
             "Language tag is less than 2. Found: %{public}zu",
@@ -207,7 +208,14 @@ DataBuf PngImageChunkUtils::GetRawTextFromItxtChunk(const DataBuf &chunkData, si
         chunkData.Size() - translatedKeyPos);
     const size_t translatedKeyTextLen = translatedKeyText.size();
 
-    const size_t textLen = chunkData.Size() - (keySize + 3 + languageTextLen + 1 + translatedKeyTextLen + 1);
+    size_t textLen = 0;
+    if (!PngItxtTextLenLeftover::GetItxtTextLen(chunkData.Size(), keySize, languageTextLen,
+            translatedKeyTextLen, textLen)) {
+        IMAGE_LOGE("Failed to get raw text from itxt: text length underflow. "
+            "Chunk size: %{public}zu, keySize: %{public}zu, language: %{public}zu, translated: %{public}zu",
+            chunkData.Size(), keySize, languageTextLen, translatedKeyTextLen);
+        return {};
+    }
     if (textLen == 0) {
         return {};
     }
