@@ -24,6 +24,7 @@
 #include <charconv>
 #include <system_error>
 
+#include "get_fraction_from_str_leftover.h"
 #include "exif_metadata_formatter.h"
 #include "hilog/log_cpp.h"
 #include "hilog/log.h"
@@ -888,7 +889,6 @@ void ExifMetadatFormatter::InitValueTemplateConfig()
     };
 }
 
-const size_t DECIMAL_BASE = 10;
 const std::string COMMA_REGEX("\\,"), COLON_REGEX("\\:"), DOT_REGEX("\\.");
 const std::set<std::string> UINT16_KEYS = {
     "ImageLength", "ImageWidth", "ISOSpeedRatings", "ISOSpeedRatings",
@@ -1010,37 +1010,27 @@ static bool ConvertToDouble(const std::string& str, double& value)
 // convert decimal to rational string. 2.5 -> 5/2
 std::string ExifMetadatFormatter::GetFractionFromStr(const std::string &decimal, bool &isOutRange)
 {
-    // check int part out of range
-    std::string inPareStr = decimal.substr(0, decimal.find("."));
-    int intPart = 0;
-    auto [p, ec] = std::from_chars(inPareStr.data(), inPareStr.data() + inPareStr.size(), intPart);
-    if (ec != std::errc()) {
+    const auto dotPos = decimal.find(".");
+    if (dotPos == std::string::npos) {
         IMAGE_LOGE("GetFractionFromStr failed, value is out of range");
         isOutRange = true;
         return "";
     }
 
+    // ConvertToDouble leftover #2 still owns ERANGE / trailing-junk polarity.
     double decPart = 0.0;
-    std::string decPartStr = decimal.substr(decimal.find("."));
-    if (!ConvertToDouble(decPartStr, decPart)) {
+    if (!ConvertToDouble(decimal.substr(dotPos), decPart)) {
         IMAGE_LOGE("%{public}s failed, value out of range", __func__);
         isOutRange = true;
         return "";
     }
+    (void)decPart;
 
-    int numerator = decPart * pow(DECIMAL_BASE, decimal.length() - decimal.find(".") - 1);
-    int denominator = pow(DECIMAL_BASE, decimal.length() - decimal.find(".") - 1);
-
-    int gcdVal = ExifMetadatFormatter::Gcd(numerator, denominator);
-    if (gcdVal == 0) {
-        return std::to_string(numerator + intPart * denominator) + "/" + std::to_string(denominator);
+    auto result = GetFractionFromStrLeftover::GetFractionFromStr(decimal, isOutRange);
+    if (isOutRange) {
+        IMAGE_LOGE("GetFractionFromStr failed, value is out of range");
     }
-    numerator /= gcdVal;
-    denominator /= gcdVal;
-
-    numerator += intPart * denominator;
-
-    return std::to_string(numerator) + "/" + std::to_string(denominator);
+    return result;
 }
 
 // convert decimal to rational format. For example 2.5 -> 5/2

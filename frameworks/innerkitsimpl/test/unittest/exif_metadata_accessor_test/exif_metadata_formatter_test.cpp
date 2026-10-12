@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include "exif_metadata_formatter.h"
+#include "get_fraction_from_str_leftover.h"
 #include "image_log.h"
 #include "media_errors.h"
 
@@ -342,6 +343,34 @@ HWTEST_F(ExifMetadataFormatterTest, GetFractionFromStrTest007, TestSize.Level3)
     EXPECT_EQ(result, "0/1");
     EXPECT_FALSE(isOutRange);
     GTEST_LOG_(INFO) << "ExifMetadataFormatterTest: GetFractionFromStrTest007 end";
+}
+
+/**
+ * @tc.name: GetFractionFromStrTest008
+ * @tc.desc: leftover GetFractionFromStr must not truncate 0.29*100 or 0.57*100
+ * @tc.type: FUNC
+ */
+HWTEST_F(ExifMetadataFormatterTest, GetFractionFromStrTest008, TestSize.Level3)
+{
+    bool isOutRange = false;
+    std::string result = ExifMetadatFormatter::GetFractionFromStr("0.29", isOutRange);
+    EXPECT_EQ(result, "29/100");
+    EXPECT_NE(result, "28/100");
+    EXPECT_FALSE(isOutRange);
+
+    result = ExifMetadatFormatter::GetFractionFromStr("0.57", isOutRange);
+    EXPECT_EQ(result, "57/100");
+    EXPECT_NE(result, "56/100");
+    EXPECT_FALSE(isOutRange);
+
+    int numerator = 0;
+    int denominator = 0;
+    EXPECT_TRUE(GetFractionFromStrLeftover::ScaleDecimalDigits("29", numerator, denominator));
+    EXPECT_EQ(numerator, 29);
+    EXPECT_EQ(denominator, 100);
+    EXPECT_TRUE(GetFractionFromStrLeftover::ScaleDecimalDigits("57", numerator, denominator));
+    EXPECT_EQ(numerator, 57);
+    EXPECT_EQ(denominator, 100);
 }
 
 /**
