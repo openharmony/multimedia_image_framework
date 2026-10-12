@@ -25,6 +25,7 @@
 #include <system_error>
 
 #include "exif_metadata_formatter.h"
+#include "gps_version_id_leftover.h"
 #include "hilog/log_cpp.h"
 #include "hilog/log.h"
 #include "image_log.h"
@@ -908,7 +909,7 @@ const auto TRIBLE_DECIMAL_WITH_BLANK_REGEX = "(\\d+)(\\.\\d+)?\\s(\\d+)(\\.\\d+)
 const auto TRIBLE_DECIMAL_WITH_COMMA_REGEX = "(\\d+)(\\.\\d+)?,\\s*(\\d+)(\\.\\d+)?,\\s*(\\d+)(\\.\\d+)?";
 const auto TRIBLE_MIX_WITH_COMMA_REGEX = "^\\s*\\d+(\\.\\d+)?(,\\s*\\d+(\\.\\d+)?)*\\s*$";
 const auto TRIBLE_INT_WITH_COLON_REGEX = R"(^[1-9][0-9]*:[1-9][0-9]*:[1-9][0-9]*$)";
-const auto TRIBLE_INT_WITH_DOT_REGEX = R"(^[0-9]+.[0-9]+.[0-9]+.[0-9]+$)";
+const auto TRIBLE_INT_WITH_DOT_REGEX = GpsVersionIdLeftover::TRIBLE_INT_WITH_DOT_REGEX;
 const auto FOUR_INT_WITH_BLANK_REGEX = R"(^[0-9]+\s[0-9]+\s[0-9]+\s[0-9]+$)";
 const auto FOUR_INT_WITH_COMMA_REGEX = R"(^[0-9]+,\s*[0-9]+,\s*[0-9]+,\s*[0-9]+$)";
 const auto FOUR_RATIONAL_WITH_BLANK_REGEX =
