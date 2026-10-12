@@ -24,6 +24,7 @@
 #include "metadata_stream.h"
 #include "png_exif_metadata_accessor.h"
 #include "png_image_chunk_utils.h"
+#include "convert_ascii_to_int_leftover.h"
 #include "tiff_parser.h"
 
 #undef LOG_DOMAIN
@@ -390,52 +391,18 @@ const char *PngImageChunkUtils::GetExifInfoLen(const char *sourcePtr, size_t *le
     return sourcePtr;
 }
 
-int PngImageChunkUtils::ConvertAsciiToInt(const char *sourcePtr, size_t exifInfoLength, unsigned char *destPtr)
+int PngImageChunkUtils::ConvertAsciiToInt(const char *sourcePtr, size_t exifInfoLength, unsigned char *destPtr,
+    const char *endPtr)
 {
     if (sourcePtr == nullptr || destPtr == nullptr) {
         IMAGE_LOGE("The scrPointer or destPointer is not valid.");
         return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
     }
 
-    static const unsigned char hexAsciiToInt[ASCII_TO_HEX_MAP_SIZE] = {
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 1,    2, 3, 4, 5, 6,    7, 8, 9, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 0, 0, 0,    0, 0, 10, 11, 12,
-        13, 14, 15,
-    };
-
-    size_t sourceLength = exifInfoLength * 2;
-    size_t sourcePtrCount = 0;
-    for (size_t i = 0; i < sourceLength && sourcePtrCount < sourceLength; i++) {
-        while (sourcePtrCount < sourceLength && !IsHexAscii(*sourcePtr)) {
-            if (*sourcePtr == '\0') {
-                IMAGE_LOGE("Unexpected null character encountered while converting Exif ASCII string. "
-                    "Position: %{public}zu, Expected length: %{public}zu",
-                    i, sourceLength);
-                return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
-            }
-            sourcePtr++;
-            sourcePtrCount++;
-        }
-
-        if (sourcePtrCount < sourceLength) {
-            if (!IsHexAscii(*sourcePtr)) {
-                IMAGE_LOGE("Invalid hex character encountered while converting Exif ASCII string.");
-                return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
-            }
-
-            if ((i % HEX_STRING_UNIT_SIZE) == 0) {
-                *destPtr = static_cast<unsigned char>(HEX_BASE * hexAsciiToInt[static_cast<size_t>(*sourcePtr++)]);
-            } else {
-                (*destPtr++) += hexAsciiToInt[static_cast<size_t>(*sourcePtr++)];
-            }
-            sourcePtrCount++;
-        } else {
-            IMAGE_LOGE("sourcePtr has reached the end point");
-            return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
-        }
+    int ret = ConvertAsciiToIntLeftover::ConvertAsciiToInt(sourcePtr, exifInfoLength, destPtr, endPtr);
+    if (ret != ConvertAsciiToIntLeftover::SUCCESS) {
+        IMAGE_LOGE("Unable to convert Exif ASCII string: hex wrap budget or incomplete payload.");
+        return ERR_IMAGE_SOURCE_DATA_INCOMPLETE;
     }
     return SUCCESS;
 }
@@ -485,7 +452,7 @@ DataBuf PngImageChunkUtils::ConvertRawTextToExifInfo(const DataBuf &rawText)
         IMAGE_LOGE("Invalid text length in raw profile text, it will result in OOB.");
         return {};
     }
-    int ret = ConvertAsciiToInt(sourcePtr, exifInfoLength, destPtr);
+    int ret = ConvertAsciiToInt(sourcePtr, exifInfoLength, destPtr, endPtr);
     if (ret != 0) {
         IMAGE_LOGE("Error encountered when converting Exif string ASCII to integer.");
         return {};
