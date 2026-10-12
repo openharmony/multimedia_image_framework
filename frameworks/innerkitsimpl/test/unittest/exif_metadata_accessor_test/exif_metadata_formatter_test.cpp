@@ -16,6 +16,7 @@
 #define private public
 #include <gtest/gtest.h>
 #include <memory>
+#include "convert_to_double_leftover.h"
 #include "exif_metadata_formatter.h"
 #include "image_log.h"
 #include "media_errors.h"
@@ -288,7 +289,7 @@ HWTEST_F(ExifMetadataFormatterTest, GetFractionFromStrTest003, TestSize.Level3)
 
 /**
  * @tc.name: GetFractionFromStrTest004
- * @tc.desc: test the GetFractionFromStr when decimal value contains non-numeric suffix
+ * @tc.desc: leftover trailing junk on the decimal part is rejected
  * @tc.type: FUNC
  */
 HWTEST_F(ExifMetadataFormatterTest, GetFractionFromStrTest004, TestSize.Level3)
@@ -296,8 +297,25 @@ HWTEST_F(ExifMetadataFormatterTest, GetFractionFromStrTest004, TestSize.Level3)
     bool isOutRange = false;
     std::string testValue = "1.17976abc";
     std::string result = ExifMetadatFormatter::GetFractionFromStr(testValue, isOutRange);
-    EXPECT_EQ(result, "14747/12500");
-    EXPECT_FALSE(isOutRange);
+    EXPECT_EQ(result, "");
+    EXPECT_TRUE(isOutRange);
+}
+
+/**
+ * @tc.name: ConvertToDoubleLeftover001
+ * @tc.desc: leftover ConvertToDouble rejects ERANGE, trailing junk and empty; accepts 2.5
+ * @tc.type: FUNC
+ */
+HWTEST_F(ExifMetadataFormatterTest, ConvertToDoubleLeftover001, TestSize.Level3)
+{
+    double value = 0.0;
+    EXPECT_TRUE(ConvertToDoubleLeftover::ConvertToDouble("2.5", value));
+    EXPECT_DOUBLE_EQ(value, 2.5);
+    EXPECT_TRUE(ConvertToDoubleLeftover::ConvertToDouble(".5", value));
+    EXPECT_DOUBLE_EQ(value, 0.5);
+    EXPECT_FALSE(ConvertToDoubleLeftover::ConvertToDouble("1e99999", value));
+    EXPECT_FALSE(ConvertToDoubleLeftover::ConvertToDouble("1.5abc", value));
+    EXPECT_FALSE(ConvertToDoubleLeftover::ConvertToDouble("", value));
 }
 
 /**

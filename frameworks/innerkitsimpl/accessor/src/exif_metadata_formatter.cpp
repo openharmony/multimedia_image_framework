@@ -24,6 +24,7 @@
 #include <charconv>
 #include <system_error>
 
+#include "convert_to_double_leftover.h"
 #include "exif_metadata_formatter.h"
 #include "hilog/log_cpp.h"
 #include "hilog/log.h"
@@ -999,12 +1000,7 @@ void ExifMetadatFormatter::RationalFormat(std::string &value)
 
 static bool ConvertToDouble(const std::string& str, double& value)
 {
-    errno = 0;
-    char* endPtr = nullptr;
-    value = strtod(str.c_str(), &endPtr);
-    bool isOutOfRange = errno == ERANGE && *endPtr != '\0';
-    CHECK_ERROR_RETURN_RET(isOutOfRange, false);
-    return true;
+    return ConvertToDoubleLeftover::ConvertToDouble(str, value);
 }
 
 // convert decimal to rational string. 2.5 -> 5/2
