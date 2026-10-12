@@ -17,6 +17,7 @@
 #include <zlib.h>
 #include <array>
 
+#include "convert_raw_text_to_exif_info_leftover.h"
 #include "data_buf.h"
 #include "exif_metadata.h"
 #include "image_log.h"
@@ -447,7 +448,9 @@ DataBuf PngImageChunkUtils::ConvertRawTextToExifInfo(const DataBuf &rawText)
         return {};
     }
     const char *sourcePtr = reinterpret_cast<const char *>(rawText.CData(1));
-    const char *endPtr = reinterpret_cast<const char *>(rawText.CData(rawText.Size() - 1));
+    /* DataBuf::CData(Size()) is nullptr; exclusive end is CData() + Size(). */
+    const char *endPtr = ConvertRawTextToExifInfoLeftover::ExclusiveEnd(
+        reinterpret_cast<const char *>(rawText.CData()), rawText.Size());
 
     if (sourcePtr >= endPtr) {
         IMAGE_LOGE("The source pointer is not valid.");

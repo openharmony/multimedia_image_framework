@@ -15,7 +15,9 @@
 
 #define private public
 #include <gtest/gtest.h>
+#include <vector>
 
+#include "convert_raw_text_to_exif_info_leftover.h"
 #include "media_errors.h"
 #include "png_image_chunk_utils.h"
 
@@ -355,6 +357,33 @@ HWTEST_F(PngImageChunkUtilsTest, ConvertRawTextToExifInfo001, TestSize.Level3)
     auto res = PngImageChunkUtils::ConvertRawTextToExifInfo(rawText);
     int cmpRes = res.CmpBytes(OFFSET_ZERO, &empty, empty.Size());
     EXPECT_EQ(cmpRes, BUF_CMP_SUCCESS);
+}
+
+/**
+ * @tc.name: ConvertRawTextToExifInfo002
+ * @tc.desc: leftover exclusive endPtr keeps trailing hex digit at last buffer byte
+ * @tc.type: FUNC
+ */
+HWTEST_F(PngImageChunkUtilsTest, ConvertRawTextToExifInfo002, TestSize.Level3)
+{
+    const char raw[] = { '\0', '\n', '1', '\n', '4', 'a' };
+    const size_t rawSize = sizeof(raw);
+    EXPECT_EQ(ConvertRawTextToExifInfoLeftover::ExclusiveEnd(raw, rawSize), raw + rawSize);
+    EXPECT_EQ(ConvertRawTextToExifInfoLeftover::LeftoverInclusiveLastByte(raw, rawSize), raw + rawSize - 1);
+
+    std::vector<uint8_t> dest;
+    ASSERT_TRUE(ConvertRawTextToExifInfoLeftover::ConvertRawTextToBytes(raw, rawSize, dest));
+    ASSERT_EQ(dest.size(), 1u);
+    EXPECT_EQ(dest[0], 0x4a);
+
+    dest.clear();
+    EXPECT_FALSE(ConvertRawTextToExifInfoLeftover::ConvertRawTextToBytesWithEnd(raw, rawSize,
+        ConvertRawTextToExifInfoLeftover::LeftoverInclusiveLastByte(raw, rawSize), dest));
+
+    DataBuf rawText(reinterpret_cast<const byte *>(raw), rawSize);
+    auto res = PngImageChunkUtils::ConvertRawTextToExifInfo(rawText);
+    ASSERT_EQ(res.Size(), 1u);
+    EXPECT_EQ(res.ReadUInt8(OFFSET_ZERO), 0x4a);
 }
 } // namespace Multimedia
 } // namespace OHOS
