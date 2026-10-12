@@ -344,6 +344,31 @@ HWTEST_F(PngImageChunkUtilsTest, ConvertAsciiToInt001, TestSize.Level3)
 }
 
 /**
+ * @tc.name: ConvertAsciiToInt002
+ * @tc.desc: leftover lowercase Exif hex and ImageMagick-style uppercase hex both decode
+ * @tc.type: FUNC
+ */
+HWTEST_F(PngImageChunkUtilsTest, ConvertAsciiToInt002, TestSize.Level3)
+{
+    const char *exifHead = "45786966";
+    unsigned char exifDest[BUF_SIZE_FOUR] = {0};
+    int res = PngImageChunkUtils::ConvertAsciiToInt(exifHead, BUF_SIZE_FOUR, exifDest);
+    EXPECT_EQ(res, SUCCESS);
+    EXPECT_EQ(exifDest[0], 0x45);
+    EXPECT_EQ(exifDest[1], 0x78);
+    EXPECT_EQ(exifDest[2], 0x69);
+    EXPECT_EQ(exifDest[3], 0x66);
+
+    const char *upperHex = "ABCDEF";
+    unsigned char upperDest[3] = {0};
+    res = PngImageChunkUtils::ConvertAsciiToInt(upperHex, 3, upperDest);
+    EXPECT_EQ(res, SUCCESS);
+    EXPECT_EQ(upperDest[0], 0xAB);
+    EXPECT_EQ(upperDest[1], 0xCD);
+    EXPECT_EQ(upperDest[2], 0xEF);
+}
+
+/**
  * @tc.name: ConvertRawTextToExifInfo001
  * @tc.desc: test the ConvertRawTextToExifInfo method when rawText size is 1
  * @tc.type: FUNC
